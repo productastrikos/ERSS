@@ -7,6 +7,11 @@
  * Loads server/.env (or ./.env) when present. Variables set in the host's panel always
  * win, because process.loadEnvFile never overwrites an existing variable. The backend is
  * imported dynamically so config/env.js reads process.env only after the file is loaded.
+ *
+ * NO top-level await in this file. Hostinger starts apps through LiteSpeed's lsnode,
+ * which require()s the entry file, and require() of an ES module with top-level await
+ * throws ERR_REQUIRE_ASYNC_MODULE before anything listens — the host then answers 503.
+ * server.cjs is the same entry in CommonJS, for runtimes without require(esm).
  */
 
 import { existsSync } from 'node:fs';
@@ -19,4 +24,7 @@ for (const file of [join(ROOT, 'server', '.env'), join(ROOT, '.env')]) {
   if (existsSync(file)) process.loadEnvFile(file);
 }
 
-await import('./server/index.js');
+import('./server/index.js').catch((err) => {
+  console.error('[boot] the backend failed to load:', err);
+  process.exit(1);
+});

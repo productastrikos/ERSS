@@ -7,6 +7,8 @@
  * request time.
  */
 
+import { createHmac, randomBytes } from 'node:crypto';
+
 /** @param {string} name @param {string} [fallback] */
 function str(name, fallback) {
   const v = process.env[name];
@@ -103,9 +105,25 @@ export const env = {
 };
 
 /**
- * Fail loudly at boot rather than quietly at request time.
- * In development we substitute dev-only defaults and say so; in production we refuse
- * to start, because a production server with a default session secret is not a server.
+ * A stand-in secret for a production server whose panel is missing one. Derived from the
+ * database credential, so it is stable across restarts and not guessable from the repo;
+ * random when there is no credential either (sessions then end at each restart).
+ */
+function derivedSecret(label) {
+  const basis = env.db.url || env.db.password;
+  return basis
+    ? createHmac('sha256', basis).update(`erss:${label}`).digest('base64url')
+    : randomBytes(48).toString('base64url');
+}
+
+/**
+ * Report configuration problems loudly at boot rather than quietly at request time.
+ *
+ * In development we substitute dev-only defaults and say so. In production a missing
+ * secret is logged as an ERROR and listed on /health, and a derived stand-in is used —
+ * the server still starts. On a managed host (Hostinger) a process that refuses to start
+ * shows only the host's opaque 503 page, which hides the one line that explains it.
+ * Set STRICT_ENV=true to restore refuse-to-start.
  */
 export function validateEnv(log = console) {
   const problems = [];
@@ -119,18 +137,20 @@ export function validateEnv(log = console) {
 
   if (!env.auth.sessionSecret) {
     if (env.isProd) {
-      problems.push('SESSION_SECRET is required in production');
+      env.auth.sessionSecret = derivedSecret('session');
+      problems.push('SESSION_SECRET is not set — using a stand-in derived from the database credential');
     } else {
       env.auth.sessionSecret = 'dev-only-insecure-session-secret-do-not-ship';
       warnings.push('SESSION_SECRET not set — using an insecure development default');
     }
   } else if (env.auth.sessionSecret.length < 32 && env.isProd) {
-    problems.push('SESSION_SECRET must be at least 32 characters');
+    problems.push('SESSION_SECRET should be at least 32 characters');
   }
 
   if (!env.auth.eidHashSalt) {
     if (env.isProd) {
-      problems.push('EID_HASH_SALT is required in production (Emirates ID is never stored raw)');
+      env.auth.eidHashSalt = derivedSecret('eid');
+      problems.push('EID_HASH_SALT is not set — using a stand-in derived from the database credential');
     } else {
       env.auth.eidHashSalt = 'dev-only-eid-salt';
       warnings.push('EID_HASH_SALT not set — using a development default');
@@ -138,14 +158,20 @@ export function validateEnv(log = console) {
   }
 
   if (env.isProd && env.corsOrigins.includes('*')) {
-    problems.push('CORS_ORIGINS may not contain "*" in production — cookie sessions need a specific origin');
+    // Cookie sessions need a specific origin; '*' is dropped rather than honoured.
+    env.corsOrigins = env.corsOrigins.filter((o) => o !== '*');
+    problems.push('CORS_ORIGINS may not contain "*" in production — it has been ignored');
   }
 
   for (const w of warnings) log.warn?.(`[env] ${w}`) ?? console.warn(`[env] ${w}`);
-  if (problems.length) {
-    for (const p of problems) console.error(`[env] FATAL ${p}`);
-    throw new Error(`${problems.length} fatal configuration problem(s) — refusing to start`);
+  for (const p of problems) log.error?.(`[env] ${p}`) ?? console.error(`[env] ${p}`);
+  if (problems.length && bool('STRICT_ENV', false)) {
+    throw new Error(`${problems.length} configuration problem(s) and STRICT_ENV is on — refusing to start`);
   }
 
-  return { warnings };
+  configProblems.push(...problems);
+  return { warnings, problems };
 }
+
+/** Production configuration problems found at boot, reported on /health. */
+export const configProblems = [];

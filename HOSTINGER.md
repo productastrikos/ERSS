@@ -42,7 +42,7 @@ repository and branch `main`. Then:
 - Framework: **Express** (or *Other*)
 - Node version: **22.x**
 - Root directory: `/` (the repository root)
-- Entry file: `server.js`
+- Entry file: `server.js`. If the runtime log shows `ERR_REQUIRE_ESM`, use `server.cjs`
 - Build command: `npm run build`
 - Start command: `npm start`
 
@@ -90,7 +90,15 @@ Then open `https://<your-domain>` and sign in as `admin` / `Astrikos2026`. The f
 is at `/app`. All demo accounts are listed in `DEPLOY.md` §3.
 
 `/health` returning `"database":"down"` includes the reason in `detail`. It is almost
-always a wrong `DATABASE_URL`, or the database still being set up.
+always a wrong `DATABASE_URL`, or the database still being set up. A `config` list on
+`/health` names any environment variable that is missing.
+
+### If the site shows Hostinger's own "503 Service Unavailable" page
+
+That page means the Node process is not running at all. The app itself never answers
+with that page. Open the app in hPanel and read **Deployments → build log** (did
+`npm run build` succeed?) and **Runtime logs** (why did the process exit?). The app no
+longer exits over missing variables, so the runtime log shows the real error.
 
 ---
 

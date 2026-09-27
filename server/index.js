@@ -16,7 +16,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { pinoHttp } from 'pino-http';
 
-import { env, validateEnv } from './config/env.js';
+import { env, validateEnv, configProblems } from './config/env.js';
 import { logger } from './lib/logger.js';
 import { errorHandler } from './lib/errors.js';
 import { attachUser } from './lib/auth.js';
@@ -98,6 +98,7 @@ app.get('/health', async (_req, res) => {
       clock: clock.snapshot(),
       routing: osrmStatus(),
       uptimeSec: Math.round(process.uptime()),
+      ...(configProblems.length ? { config: configProblems } : {}),
     });
   } catch (err) {
     // 503, not 500: a database outage must be distinguishable from an application bug
@@ -109,7 +110,8 @@ app.get('/health', async (_req, res) => {
       target: dbTarget,
       user: env.db.url ? undefined : env.db.user,
       detail: String(err.message ?? '').trim(),
-      hint: 'Is PostgreSQL running? Check server/.env — see docs/12-DEPLOYMENT.md §3',
+      hint: 'Is PostgreSQL running? Check DATABASE_URL or server/.env — see HOSTINGER.md',
+      ...(configProblems.length ? { config: configProblems } : {}),
     });
   }
 });
