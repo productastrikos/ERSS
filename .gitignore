@@ -8,6 +8,8 @@ npm-debug.log*
 .env
 .env.*
 !.env.example
+# The production build config holds no secrets (it ships to the browser) — commit it.
+!web/.env.production
 
 # Editor/OS cruft
 .DS_Store

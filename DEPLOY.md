@@ -5,6 +5,10 @@ Everything needed to put this POC on `astrikos.xyz`. Written against
 convention with ERSS's two ports filled in. The longer background (local development,
 the database, backup, the mobile APK) is `docs/12-DEPLOYMENT.md`.
 
+> **Deploying on Hostinger instead?** See [`HOSTINGER.md`](HOSTINGER.md). There the app
+> runs as one process on one port (the backend also serves the built frontend), and none
+> of the two-port / nginx setup below applies.
+
 > This file replaced the DSO deployment notes that used to sit here. Those described
 > the retired **three**-file / three-port scheme (`fastapi` + a separate socket port).
 > ERSS uses the current one: **two ports, two nginx files, one backend**.
@@ -44,14 +48,15 @@ Append the row before deploying anything new, so a pair is never reused.
 `server/` outside `server/config/env.js`, `server/config/jurisdiction.js` and
 `web/vite.config.ts`. It passes clean and is worth running before every deploy.
 
-### Frontend — `web/.env.production` (committed; baked into the bundle at build time)
+### Frontend — `VITE_API_URL` / `VITE_SOCKET_URL` at build time
+
+`web/.env.production` is committed with **empty** API/socket URLs (same origin, the
+Hostinger layout) and the map/OSRM defaults. For this split layout, pass the backend
+subdomain as environment variables at build time. Real env vars override the file:
 
 ```
 VITE_API_URL=https://erss-api.astrikos.xyz:8443
 VITE_SOCKET_URL=https://erss-api.astrikos.xyz:8443
-VITE_OSRM_URL=https://router.project-osrm.org
-VITE_MAP_STYLE=https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json
-VITE_MAP_STYLE_LIGHT=https://basemaps.cartocdn.com/gl/positron-gl-style/style.json
 ```
 
 Both URLs are the same host — one backend. Nothing secret may go in this file; it is
@@ -143,7 +148,7 @@ username; the rest are refs. Re-running the seed restores these passwords.
 # ── Frontend ──────────────────────────────────────────────────────────────
 cd web
 npm ci
-npm run build                     # tsc -b && vite build → web/dist
+VITE_API_URL=https://erss-api.astrikos.xyz:8443 VITE_SOCKET_URL=https://erss-api.astrikos.xyz:8443 npm run build                     # tsc -b && vite build → web/dist
 pm2 start serve --name "erss_3327" -- ./dist -s -p 3327
 
 # ── Backend (REST + websocket, one port) ──────────────────────────────────
@@ -276,7 +281,7 @@ npm run build         # → web/dist
 ```
 
 - [ ] Registry row added (§1), ports not reused
-- [ ] `web/.env.production` points at `erss-api.astrikos.xyz:8443`
+- [ ] Frontend built with `VITE_API_URL` / `VITE_SOCKET_URL` = `https://erss-api.astrikos.xyz:8443`
 - [ ] `server/.env` present on the server with the four secrets filled
 - [ ] `CORS_ORIGINS` is exactly `https://erss.astrikos.xyz:8443`
 - [ ] Schema + seed applied; `npm run seed:verify` clean

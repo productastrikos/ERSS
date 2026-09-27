@@ -45,6 +45,9 @@ export const env = {
   corsOrigins: list('CORS_ORIGINS', ['http://localhost:3327', 'https://localhost:3327']),
 
   db: {
+    /** A full connection string (Neon, Supabase, Render, Hostinger VPS…). When set it
+     *  takes precedence over the DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD fields. */
+    url: str('DATABASE_URL', ''),
     host: str('DB_HOST', '127.0.0.1'),
     port: int('DB_PORT', 5432),
     name: str('DB_NAME', 'erss_db'),
@@ -52,7 +55,15 @@ export const env = {
     password: str('DB_PASSWORD', ''),
     poolMax: int('DB_POOL_MAX', 10),
     ssl: bool('DB_SSL', false),
+    /** On boot, if the schema is missing, apply schema + views and run the full seed.
+     *  For hosts with no shell (Hostinger Node.js web apps). Off by default. */
+    autoSetup: bool('DB_AUTO_SETUP', false),
   },
+
+  /** Serve the built SPA (web/dist) from this process, so the whole product runs on one
+   *  port — what single-process hosts like Hostinger require. 'auto' = when dist exists. */
+  serveWeb: str('SERVE_WEB', 'auto'),
+  webDist: str('WEB_DIST', ''),
 
   auth: {
     sessionSecret: str('SESSION_SECRET', ''),
@@ -100,9 +111,9 @@ export function validateEnv(log = console) {
   const problems = [];
   const warnings = [];
 
-  if (!env.db.password) {
+  if (!env.db.url && !env.db.password) {
     (env.isProd ? problems : warnings).push(
-      'DB_PASSWORD is empty — set it in server/.env (see docs/12-DEPLOYMENT.md §3)',
+      'DB_PASSWORD (or DATABASE_URL) is empty — set it in server/.env (see docs/12-DEPLOYMENT.md §3)',
     );
   }
 

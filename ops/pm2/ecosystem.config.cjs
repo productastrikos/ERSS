@@ -40,7 +40,8 @@ module.exports = {
       cwd: join(ROOT, 'server'),
       // config/env.js reads PORT; a real environment variable beats server/.env, so this
       // is the authority on which port the backend listens on.
-      env: { PORT: String(BACKEND_PORT), NODE_ENV: 'production' },
+      // SERVE_WEB=off: here the SPA is served by `serve` above, so the backend stays API-only.
+      env: { PORT: String(BACKEND_PORT), NODE_ENV: 'production', SERVE_WEB: 'off' },
       autorestart: true,
       max_restarts: 10,
       // One process only. The simulation clock, the dispatch engine and the socket rooms

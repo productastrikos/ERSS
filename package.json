@@ -4,6 +4,7 @@
   "private": true,
   "description": "ERSS Dubai — Emergency Response Support System for the Dubai Corporation for Ambulance Services",
   "type": "module",
+  "main": "server.js",
   "workspaces": [
     "web",
     "server"
@@ -14,8 +15,10 @@
   "scripts": {
     "dev": "concurrently -n api,web -c yellow,cyan \"npm run dev -w server\" \"npm run dev -w web\"",
     "dev:lan": "concurrently -n api,web -c yellow,cyan \"npm run dev -w server\" \"npm run dev:lan -w web\"",
-    "build": "npm run build -w web",
-    "start": "npm run start -w server",
+    "build": "npm install --include=dev --no-audit --no-fund && npm run build -w web",
+    "start": "node server.js",
+    "start:api": "npm run start -w server",
+    "setup:db": "npm run db:schema && npm run db:views && npm run seed",
 
     "seed": "npm run seed -w server",
     "seed:reference": "npm run seed:reference -w server",

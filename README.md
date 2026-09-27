@@ -15,6 +15,9 @@ specification, scenarios, build phases — is in [`docs/`](docs/), indexed by
 
 ## Run it
 
+> **Deploying on Hostinger?** See [`HOSTINGER.md`](HOSTINGER.md). One process, one port:
+> `npm run build` then `npm start`.
+
 ### Prerequisites
 
 | | |

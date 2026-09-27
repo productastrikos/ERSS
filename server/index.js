@@ -7,6 +7,9 @@
  */
 
 import http from 'node:http';
+import { existsSync } from 'node:fs';
+import { join, dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -28,6 +31,7 @@ import { status as osrmStatus } from './integrations/osrm.js';
 import { startAlertWatch } from './services/alerts.js';
 import { startLiveSimulation } from './sim/live.js';
 import { extendHistory } from './db/seed/history.js';
+import { autoSetupDatabase } from './db/autosetup.js';
 
 const { warnings } = validateEnv(logger);
 const startedAt = new Date();
@@ -46,18 +50,23 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 
-app.use(cors({
-  origin(origin, cb) {
+/** True when the browser's Origin is this server itself — the SPA served from here. */
+function isSameOrigin(req, origin) {
+  try { return new URL(origin).host === req.headers.host; } catch { return false; }
+}
+
+app.use(cors((req, cb) => cb(null, {
+  origin(origin, done) {
     // Same-origin, curl and native WebView requests arrive with no Origin header.
-    if (!origin) return cb(null, true);
-    if (env.corsOrigins.includes(origin)) return cb(null, true);
+    if (!origin) return done(null, true);
+    if (env.corsOrigins.includes(origin) || isSameOrigin(req, origin)) return done(null, true);
     logger.warn({ origin }, '[cors] rejected origin — add it to CORS_ORIGINS');
-    cb(null, false);
+    done(null, false);
   },
   credentials: true,                  // cookie sessions require this, and it is why
                                       // CORS_ORIGINS can never be '*' in production
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-}));
+})));
 
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
@@ -98,7 +107,7 @@ app.get('/health', async (_req, res) => {
       api: 'up',
       database: 'down',
       target: dbTarget,
-      user: env.db.user,
+      user: env.db.url ? undefined : env.db.user,
       detail: String(err.message ?? '').trim(),
       hint: 'Is PostgreSQL running? Check server/.env — see docs/12-DEPLOYMENT.md §3',
     });
@@ -123,6 +132,32 @@ app.use('/api', (_req, res) => {
   res.status(404).json({ error: { code: 'not_found', message: 'No such endpoint' } });
 });
 
+// ── Frontend ──────────────────────────────────────────────────────────────────
+// On a single-process host (Hostinger) this process also serves the built SPA, so the
+// console, the /app surface, REST and the socket all share one origin and one port.
+// Behind the astrikos nginx setup the SPA is served separately; SERVE_WEB=off keeps
+// this process API-only.
+
+const webDist = env.webDist
+  ? resolve(env.webDist)
+  : join(dirname(fileURLToPath(import.meta.url)), '..', 'web', 'dist');
+const serveWeb = env.serveWeb === 'on' || (env.serveWeb === 'auto' && existsSync(join(webDist, 'index.html')));
+
+if (serveWeb) {
+  // Hashed bundles are immutable; index.html must always be revalidated or a deploy
+  // leaves browsers pointing at chunks that no longer exist.
+  app.use('/assets', express.static(join(webDist, 'assets'), { immutable: true, maxAge: '1y' }));
+  app.use('/assets', (_req, res) => res.status(404).end());   // a stale chunk, never index.html
+  app.use(express.static(webDist, { index: false, maxAge: '1h' }));
+  // SPA fallback: every client-side route (/dashboard, /app, …) returns index.html.
+  app.use((req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    if (req.path.startsWith('/socket.io/')) return next();
+    res.set('Cache-Control', 'no-cache');
+    res.sendFile(join(webDist, 'index.html'));
+  });
+}
+
 app.use(errorHandler(logger));
 
 // ── Realtime ──────────────────────────────────────────────────────────────────
@@ -134,25 +169,40 @@ app.set('io', io);
 // Clock-driven and database-polled, so a restart loses nothing and a paused scenario
 // pauses them.
 
-startAckTimeoutSweep();     // offers not acknowledged in time → timed_out → re-dispatch
-startSnapshotLoop();        // units:snapshot every 30 s — the correctness backstop
-startIdempotencyCleanup();
-startAlertWatch();          // P1 calls, calls waiting, breaches, coverage gaps, ED load
-startLiveSimulation();      // road watch, AI dispatch and crews — starts itself (config/poc.js)
+function startBackground({ freshSeed = false } = {}) {
+  startAckTimeoutSweep();     // offers not acknowledged in time → timed_out → re-dispatch
+  startSnapshotLoop();        // units:snapshot every 30 s — the correctness backstop
+  startIdempotencyCleanup();
+  startAlertWatch();          // P1 calls, calls waiting, breaches, coverage gaps, ED load
+  startLiveSimulation();      // road watch, AI dispatch and crews — starts itself (config/poc.js)
 
-// Seeded history ends when the seed last ran. Carry it forward so "today" is never empty —
-// in the background, so a slow catch-up never delays the API coming up.
-if (env.historyCatchup) {
-  extendHistory({ rngSeed: env.seed.rng, log: (m) => logger.info(m.trim()) })
-    .then((r) => { if (r.incidents) logger.info({ incidents: r.incidents, from: r.from }, '[history] caught up to now'); })
-    .catch((err) => logger.warn({ err: err.message }, '[history] catch-up failed — "today" figures may be empty'));
+  // Seeded history ends when the seed last ran. Carry it forward so "today" is never empty —
+  // in the background, so a slow catch-up never delays the API coming up.
+  if (env.historyCatchup && !freshSeed) {
+    extendHistory({ rngSeed: env.seed.rng, log: (m) => logger.info(m.trim()) })
+      .then((r) => { if (r.incidents) logger.info({ incidents: r.incidents, from: r.from }, '[history] caught up to now'); })
+      .catch((err) => logger.warn({ err: err.message }, '[history] catch-up failed — "today" figures may be empty'));
+  }
+}
+
+// With DB_AUTO_SETUP the database may still be being built; the loops wait for it. The
+// HTTP server listens meanwhile, so the host's health check and /health answer at once.
+if (env.db.autoSetup) {
+  autoSetupDatabase(logger)
+    .then(({ ran }) => startBackground({ freshSeed: ran }))
+    .catch((err) => {
+      logger.error({ err: err.message }, '[setup] database setup failed — check DATABASE_URL / DB_* and that PostGIS is available');
+      startBackground();
+    });
+} else {
+  startBackground();
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
 server.listen(env.port, () => {
   logger.info(
-    { port: env.port, db: dbTarget, env: env.nodeEnv, cors: env.corsOrigins },
+    { port: env.port, db: dbTarget, env: env.nodeEnv, cors: env.corsOrigins, web: serveWeb ? webDist : 'off' },
     `ERSS backend listening on :${env.port}`,
   );
   if (warnings.length) {
