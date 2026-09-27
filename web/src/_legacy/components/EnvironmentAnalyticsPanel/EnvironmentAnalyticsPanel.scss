@@ -1,0 +1,615 @@
+// ── Environment Analytics Panel ───────────────────────────────────────────────
+
+.env-panel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 520px;
+  max-height: calc(100vh - 120px);
+  background: rgba(4, 10, 26, 0.97);
+  border: 1px solid rgba(0, 229, 255, 0.18);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 229, 255, 0.06);
+  z-index: 200;
+  backdrop-filter: blur(12px);
+
+  // ── Header ──────────────────────────────────────────────────────────────
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid rgba(0, 229, 255, 0.1);
+    flex-shrink: 0;
+  }
+
+  &__header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__header-icon {
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  &__header-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #E8F4F8;
+    letter-spacing: 0.02em;
+  }
+
+  &__header-sub {
+    font-size: 10px;
+    color: rgba(0, 229, 255, 0.5);
+    margin-top: 2px;
+    letter-spacing: 0.04em;
+  }
+
+  &__close {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 229, 255, 0.18);
+    background: rgba(0, 229, 255, 0.06);
+    color: rgba(200, 220, 240, 0.6);
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+
+    &:hover {
+      background: rgba(255, 82, 82, 0.15);
+      border-color: rgba(255, 82, 82, 0.4);
+      color: #FF5252;
+    }
+  }
+
+  // ── Live indicator ───────────────────────────────────────────────────────
+
+  &__live {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    font-size: 10px;
+    color: rgba(0, 229, 255, 0.55);
+    border-bottom: 1px solid rgba(0, 229, 255, 0.06);
+    flex-shrink: 0;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+  }
+
+  &__live-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #00E400;
+    box-shadow: 0 0 6px #00E400;
+    animation: livePulse 2s ease-in-out infinite;
+  }
+
+  &__live-sep {
+    opacity: 0.35;
+    margin: 0 2px;
+  }
+
+  // ── Tabs ────────────────────────────────────────────────────────────────
+
+  &__tabs {
+    display: flex;
+    padding: 0 8px;
+    border-bottom: 1px solid rgba(0, 229, 255, 0.1);
+    flex-shrink: 0;
+    overflow-x: auto;
+    gap: 2px;
+
+    &::-webkit-scrollbar { display: none; }
+  }
+
+  &__tab {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 9px 10px 8px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: rgba(160, 200, 240, 0.5);
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s;
+    position: relative;
+
+    &:hover {
+      color: rgba(200, 230, 255, 0.85);
+    }
+
+    &--active {
+      color: rgba(200, 230, 255, 0.95);
+    }
+
+    &--on:not(&--active) {
+      color: rgba(200, 230, 255, 0.7);
+    }
+  }
+
+  &__tab-badge {
+    font-size: 8px;
+    font-weight: 800;
+    padding: 1px 4px;
+    border-radius: 3px;
+    color: #000;
+    line-height: 1.4;
+  }
+
+  // ── Scrollable body ──────────────────────────────────────────────────────
+
+  &__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+
+    &::-webkit-scrollbar { width: 3px; }
+    &::-webkit-scrollbar-track { background: transparent; }
+    &::-webkit-scrollbar-thumb { background: rgba(0, 229, 255, 0.15); border-radius: 2px; }
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  // ── Section title ────────────────────────────────────────────────────────
+
+  &__section-title {
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(0, 229, 255, 0.45);
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(0, 229, 255, 0.06);
+  }
+
+  // ── Gauges ───────────────────────────────────────────────────────────────
+
+  &__gauges {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 8px 0;
+  }
+
+  // ── AQI badge ────────────────────────────────────────────────────────────
+
+  &__aqi-badge {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid;
+    letter-spacing: 0.06em;
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  // ── Status bars ──────────────────────────────────────────────────────────
+
+  &__status-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__status-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+
+    &--critical { background: #FF5252; box-shadow: 0 0 5px rgba(255,82,82,0.5); }
+    &--warning  { background: #FF9800; box-shadow: 0 0 5px rgba(255,152,0,0.5); }
+    &--normal   { background: #00E400; box-shadow: 0 0 5px rgba(0,228,0,0.5);   }
+  }
+
+  &__status-name {
+    font-size: 10px;
+    color: rgba(180, 215, 255, 0.7);
+    width: 52px;
+    flex-shrink: 0;
+  }
+
+  &__status-bar-wrap {
+    flex: 1;
+    height: 5px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  &__status-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.6s ease;
+  }
+
+  &__status-count {
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(200, 230, 255, 0.8);
+    width: 20px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  // ── KPI row ──────────────────────────────────────────────────────────────
+
+  &__kpi-row {
+    display: flex;
+    gap: 6px;
+  }
+
+  &__kpi {
+    flex: 1;
+    background: rgba(0, 229, 255, 0.04);
+    border: 1px solid rgba(0, 229, 255, 0.1);
+    border-radius: 8px;
+    padding: 10px 6px 8px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  &__kpi-val {
+    font-size: 18px;
+    font-weight: 800;
+    color: #E8F4F8;
+    line-height: 1;
+  }
+
+  &__kpi-lbl {
+    font-size: 9px;
+    color: rgba(160, 200, 240, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+  }
+
+  // ── Sensor list ──────────────────────────────────────────────────────────
+
+  &__sensor-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__sensor-item {
+    background: rgba(255,255,255,0.025);
+    border: 1px solid rgba(0, 229, 255, 0.08);
+    border-radius: 8px;
+    padding: 8px 10px;
+    transition: border-color 0.15s;
+
+    &:hover { border-color: rgba(0, 229, 255, 0.2); }
+
+    &--critical { border-left: 3px solid #FF5252; }
+    &--warning  { border-left: 3px solid #FF9800; }
+    &--normal   { border-left: 3px solid #00E400; }
+  }
+
+  &__sensor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 3px;
+  }
+
+  &__sensor-id {
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(0, 229, 255, 0.7);
+    font-family: monospace;
+  }
+
+  &__sensor-aqi {
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  &__sensor-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(200, 230, 255, 0.85);
+    margin-bottom: 5px;
+  }
+
+  &__sensor-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 9.5px;
+    color: rgba(160, 200, 240, 0.5);
+    margin-bottom: 6px;
+  }
+
+  &__sensor-bar-wrap {
+    height: 3px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  &__sensor-bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.6s ease;
+    opacity: 0.8;
+  }
+
+  // ── Wind compass ─────────────────────────────────────────────────────────
+
+  &__wind-compass {
+    display: flex;
+    justify-content: center;
+    padding: 8px 0;
+  }
+
+  &__compass-rose {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 229, 255, 0.04);
+    border: 1px solid rgba(0, 229, 255, 0.12);
+    border-radius: 50%;
+  }
+
+  &__compass-dir {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: center;
+    gap: 2px;
+    transform-origin: 0 0;
+  }
+
+  &__compass-bar {
+    width: 3px;
+    border-radius: 2px;
+    transition: height 0.4s ease;
+  }
+
+  &__compass-label {
+    font-size: 7px;
+    color: rgba(0, 229, 255, 0.5);
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+
+  &__compass-center {
+    font-size: 16px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  // ── Risk grid ────────────────────────────────────────────────────────────
+
+  &__risk-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  &__risk-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+  }
+
+  &__risk-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  &__risk-name {
+    flex: 1;
+    color: rgba(180, 215, 255, 0.7);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__risk-val {
+    color: rgba(0, 229, 255, 0.6);
+    font-weight: 600;
+    font-size: 10px;
+  }
+
+  // ── Zone list ────────────────────────────────────────────────────────────
+
+  &__zone-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  &__zone-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  &__zone-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &__zone-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(200, 230, 255, 0.8);
+  }
+
+  &__zone-aqi {
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  &__zone-bar-wrap {
+    height: 5px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  &__zone-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.6s ease;
+    opacity: 0.85;
+  }
+
+  &__zone-sensors {
+    font-size: 9.5px;
+    color: rgba(160, 200, 240, 0.45);
+  }
+}
+
+// ── Gauge ring ───────────────────────────────────────────────────────────────
+
+.gauge-ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+
+  &__label {
+    font-size: 9px;
+    font-weight: 700;
+    color: rgba(160, 200, 240, 0.55);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-align: center;
+  }
+}
+
+// ── Spark bar chart ──────────────────────────────────────────────────────────
+
+.spark-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  &__chart {
+    display: flex;
+    align-items: flex-end;
+    height: 52px;
+    gap: 2px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 6px;
+    padding: 4px 4px 2px;
+    position: relative;
+  }
+
+  &__col {
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    height: 100%;
+    position: relative;
+    cursor: pointer;
+  }
+
+  &__bar {
+    width: 100%;
+    border-radius: 2px 2px 0 0;
+    transition: height 0.3s ease;
+    opacity: 0.8;
+    min-height: 2px;
+
+    .spark-bar__col:hover & {
+      opacity: 1;
+      filter: brightness(1.2);
+    }
+  }
+
+  &__tooltip {
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(4, 10, 26, 0.97);
+    border: 1px solid rgba(0, 229, 255, 0.25);
+    border-radius: 4px;
+    padding: 4px 7px;
+    white-space: nowrap;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    pointer-events: none;
+  }
+
+  &__tooltip-time {
+    font-size: 8px;
+    color: rgba(0, 229, 255, 0.6);
+    font-family: monospace;
+  }
+
+  &__tooltip-val {
+    font-size: 10px;
+    font-weight: 700;
+    color: #E8F4F8;
+  }
+
+  &__labels {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 2px;
+  }
+
+  &__label {
+    font-size: 8.5px;
+    color: rgba(160, 200, 240, 0.35);
+    font-family: monospace;
+  }
+}
+
+// ── Animations ───────────────────────────────────────────────────────────────
+
+@keyframes livePulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px #00E400; }
+  50%       { opacity: 0.5; box-shadow: 0 0 2px #00E400; }
+}

@@ -1,0 +1,442 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Map chrome — canvas, popups, layer control, legend.
+   NO COLOUR LITERALS. Map colour itself is resolved in shared/map/tokens.ts.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.map-canvas {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--app-bg);
+  isolation: isolate;
+
+  &__gl { position: absolute; inset: 0; }
+
+  &--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* ── Controls: one slot per corner ──────────────────────────────────────────── */
+
+.map-control {
+  position: absolute;
+  z-index: var(--z-overlay);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  max-height: calc(100% - var(--sp-24));
+  pointer-events: none;
+
+  > * { pointer-events: auto; }
+
+  &--top-right    { top: var(--sp-12); inset-inline-end: var(--sp-12); align-items: flex-end; }
+  &--bottom-left  { bottom: var(--sp-12); inset-inline-start: var(--sp-12); align-items: flex-start; }
+  &--top-left     { top: var(--sp-12); inset-inline-start: 56px; align-items: flex-start; }
+}
+
+.map-panel {
+  background: var(--app-panel);
+  border-radius: var(--r-12);
+  box-shadow: var(--app-shadow-md), var(--app-edge-light);
+  color: var(--app-text);
+  font-size: 12px;
+}
+
+/* ── Layer control ──────────────────────────────────────────────────────────── */
+
+/* The trigger button's own positioning context: without this, the open panel was just
+   the NEXT flex item in `.map-control`'s column — it pushed the box's height down into
+   the same top-right strip the response rail independently claims, and since both sat
+   at the same z-index, whichever painted later (the rail) won and the two looked
+   tangled together. Floating the panel here keeps the button row's own footprint fixed
+   at the map's corner no matter what's open, and layers the panel cleanly above the rail. */
+.layer-control { position: relative; }
+
+.map-layers {
+  position: absolute;
+  top: calc(100% + var(--sp-8));
+  inset-inline-end: 0;
+  z-index: var(--z-panel);
+  width: 280px;
+  max-height: min(70vh, 560px);
+  overflow: auto;
+  padding: var(--sp-6) 0;
+
+  &__group + &__group { border-top: 1px solid var(--app-border-soft); }
+
+  &__eyebrow {
+    padding: var(--sp-8) var(--sp-14) var(--sp-4);
+    font-family: var(--font-display);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--app-text-faint);
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding-inline-end: var(--sp-14);
+    color: var(--app-text-muted);
+    transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+
+    &:hover { background: var(--app-surface-raised); color: var(--app-text); }
+    &[data-on='true'] { color: var(--app-text); }
+  }
+
+  &__toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-10);
+    flex: 1;
+    min-width: 0;
+    padding-block: var(--sp-6);
+    padding-inline-start: var(--sp-14);
+    text-align: start;
+    color: inherit;
+  }
+
+  &__check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--r-6);
+    box-shadow: inset 0 0 0 1px var(--app-border-strong);
+    color: var(--app-on-accent);
+
+    svg { width: 12px; height: 12px; }
+  }
+  &__row[data-on='true'] &__check {
+    background: var(--app-accent);
+    box-shadow: none;
+  }
+
+  &__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  &__status {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    font-size: 10.5px;
+    color: var(--app-text-faint);
+    white-space: nowrap;
+
+    svg { width: 12px; height: 12px; }
+    &--error { color: var(--app-danger); }
+  }
+
+  &__row[data-dimmed='true'] { opacity: 0.4; }
+
+  &__badge {
+    width: 6px; height: 6px;
+    border-radius: var(--r-pill);
+    background: var(--app-accent);
+    margin-inline-start: -2px;
+  }
+
+  &__isolate {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-8);
+    padding: var(--sp-8) var(--sp-14);
+    background: var(--app-accent-bg);
+    border-bottom: 1px solid var(--app-border-soft);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--app-accent);
+
+    span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-4);
+      flex-shrink: 0;
+      color: inherit;
+      font-weight: 700;
+      svg { width: 12px; height: 12px; }
+      &:hover { text-decoration: underline; }
+    }
+  }
+}
+
+/* ── Legend ─────────────────────────────────────────────────────────────────── */
+
+.map-legend {
+  max-width: 260px;
+  max-height: 40vh;
+  overflow: auto;
+  padding: var(--sp-10) var(--sp-12);
+  display: grid;
+  gap: var(--sp-10);
+
+  &__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-10);
+    width: 100%;
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--app-text-muted);
+
+    &:hover { color: var(--app-text); }
+    svg { width: 14px; height: 14px; }
+  }
+
+  &__layer { display: grid; gap: var(--sp-4); }
+
+  &__title {
+    font-family: var(--font-display);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--app-text-faint);
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    width: 100%;
+    padding: var(--sp-2) var(--sp-4);
+    border-radius: var(--r-6);
+    color: var(--app-text-muted);
+    text-align: start;
+    transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+
+    &:hover { background: var(--app-surface-raised); color: var(--app-text); }
+    &[aria-pressed='true'] { background: var(--app-accent-bg); color: var(--app-accent); font-weight: 700; }
+  }
+
+  &__layer.is-dimmed {
+    opacity: 0.45;
+    .map-legend__item:hover { opacity: 1; }
+  }
+
+  &__hint {
+    font-size: 10.5px;
+    color: var(--app-text-faint);
+    padding-block: var(--sp-2);
+  }
+
+  &__isolate {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-6) var(--sp-8);
+    border-radius: var(--r-8);
+    background: var(--app-accent-bg);
+    color: var(--app-accent);
+    font-size: 11px;
+    font-weight: 700;
+
+    svg:first-child { width: 13px; height: 13px; flex-shrink: 0; }
+    span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    button { flex-shrink: 0; svg { width: 13px; height: 13px; } }
+  }
+}
+
+.map-swatch {
+  flex-shrink: 0;
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+
+  &--dot     { border-radius: 50%; }
+  &--ring    { border-radius: 50%; background: transparent !important; box-shadow: inset 0 0 0 2px var(--swatch); }
+  &--fill    { border-radius: var(--r-6); opacity: 0.8; }
+  &--line    { height: 3px; width: 16px; border-radius: var(--r-pill); }
+  &--dashed  { height: 0; width: 16px; background: transparent !important; border-top: 3px dashed var(--swatch); }
+  &--diamond { width: 9px; height: 9px; transform: rotate(45deg); margin-inline: 1.5px; }
+  &--chevron { width: 10px; height: 10px; clip-path: polygon(0 0, 100% 0, 50% 100%); }
+  /* The incident triangle, filled and ringed — the same silhouette the map draws. */
+  &--hazard  { width: 13px; height: 12px; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+  /* Ringed: the swatch colour as the outer triangle, a panel-coloured one inset inside it. */
+  &--hazard-ring {
+    position: relative;
+    width: 13px; height: 12px; clip-path: polygon(50% 0, 100% 100%, 0 100%);
+    &::after {
+      content: ''; position: absolute; inset: 4px 3.2px 1.6px;
+      clip-path: polygon(50% 0, 100% 100%, 0 100%);
+      background: var(--app-panel);
+    }
+  }
+  /* An ambulance at rest: a ringed disc, as drawn. */
+  &--disc-glyph { border-radius: 50%; background: var(--app-panel) !important; box-shadow: inset 0 0 0 2px var(--swatch); }
+  &--ramp    { width: 64px; height: 8px; border-radius: var(--r-pill); }
+}
+
+/* ── Popup ──────────────────────────────────────────────────────────────────── */
+
+.map-popup {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: var(--z-panel);
+  width: 0;
+  height: 0;
+
+  &__card {
+    position: absolute;
+    bottom: 14px;
+    left: 0;
+    translate: -50% 0;
+    width: max-content;
+    min-width: 220px;
+    max-width: min(300px, calc(100vw - var(--sp-32)));
+    background: var(--app-panel);
+    border-radius: var(--r-12);
+    box-shadow: var(--app-shadow-lg), var(--app-edge-light);
+    color: var(--app-text);
+    animation: map-popup-in var(--dur) var(--ease);
+  }
+  &--below &__card { bottom: auto; top: 14px; }
+  &--start &__card { translate: -24px 0; }
+  &--end &__card { translate: calc(-100% + 24px) 0; }
+
+  &__close {
+    position: absolute;
+    top: var(--sp-8);
+    inset-inline-end: var(--sp-8);
+    display: inline-flex;
+    padding: var(--sp-4);
+    border-radius: var(--r-6);
+    color: var(--app-text-faint);
+
+    &:hover { background: var(--app-surface-raised); color: var(--app-text); }
+    svg { width: 14px; height: 14px; }
+  }
+
+  &__body { display: grid; gap: var(--sp-8); padding: var(--sp-12) var(--sp-14) var(--sp-14); }
+
+  &__eyebrow {
+    padding-inline-end: var(--sp-24);
+    font-family: var(--font-display);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--app-text-faint);
+  }
+
+  &__title {
+    padding-inline-end: var(--sp-24);
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  &__chips { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
+
+  &__rows {
+    display: grid;
+    gap: var(--sp-4);
+    margin: 0;
+    padding-top: var(--sp-8);
+    border-top: 1px solid var(--app-border-soft);
+
+    div { display: flex; justify-content: space-between; gap: var(--sp-12); }
+    dt { color: var(--app-text-faint); font-size: 11.5px; }
+    dd { margin: 0; font-size: 12px; font-weight: 700; text-align: end; font-variant-numeric: tabular-nums lining-nums; }
+  }
+
+  &__mono { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.02em; }
+
+  &__factor { display: grid; gap: var(--sp-2); }
+  &__factor-head { display: flex; justify-content: space-between; gap: var(--sp-12); font-size: 11.5px; color: var(--app-text-muted); }
+  &__note { font-size: 10.5px; color: var(--app-text-faint); }
+
+  &__link {
+    display: inline-flex; align-items: center; gap: var(--sp-4);
+    color: var(--app-accent);
+    svg { width: 11px; height: 11px; }
+    &:hover { color: var(--app-accent-strong); }
+  }
+
+  &__media {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: var(--r-8);
+    background: var(--app-bg);
+    object-fit: cover;
+  }
+
+  &__action {
+    display: block;
+    width: 100%;
+    padding: var(--sp-8) var(--sp-10);
+    border: 1px solid var(--app-accent);
+    border-radius: var(--r-8);
+    background: transparent;
+    color: var(--app-accent);
+    font-family: var(--font-display);
+    font-size: 11.5px;
+    font-weight: 700;
+    text-align: start;
+    cursor: pointer;
+
+    &:hover { background: var(--app-accent); color: var(--app-bg); }
+  }
+
+  &__meter {
+    height: 6px;
+    border-radius: var(--r-pill);
+    background: var(--app-surface-raised);
+    overflow: hidden;
+
+    > span { display: block; height: 100%; border-radius: var(--r-pill); background: var(--meter, var(--app-accent)); }
+  }
+}
+
+@keyframes map-popup-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── MapLibre's own controls, brought onto the token system ─────────────────── */
+
+.map-canvas {
+  .maplibregl-ctrl-group {
+    background: var(--app-panel);
+    border-radius: var(--r-9);
+    box-shadow: var(--app-shadow-sm), var(--app-edge-light);
+
+    button + button { border-top: 1px solid var(--app-border-soft); }
+    button:hover { background-color: var(--app-surface-raised); }
+  }
+
+  /* The control glyphs are dark SVGs; lift them on the dark ground. */
+  :root:not([data-theme='light']) & .maplibregl-ctrl-icon { filter: invert(0.85); }
+
+  .maplibregl-ctrl-scale {
+    background: var(--app-panel);
+    border-color: var(--app-border-strong);
+    color: var(--app-text-muted);
+    font-family: var(--font-body);
+  }
+
+  .maplibregl-ctrl-attrib {
+    background: var(--app-panel);
+    color: var(--app-text-faint);
+
+    a { color: var(--app-text-muted); }
+  }
+
+  .maplibregl-ctrl-attrib-button { background-color: var(--app-panel); }
+}

@@ -1,0 +1,1349 @@
+// ══════════════════════════════════════════════════════════════════════════════
+//  DSO TRAFFIC COMMAND & CONTROL PANEL
+//  Dark theme with glassmorphism, neon highlights, smooth animations
+// ══════════════════════════════════════════════════════════════════════════════
+
+$bg-dark:       #0a0e1a;
+$bg-panel:      linear-gradient(180deg, rgba(6, 10, 20, 0.98) 0%, rgba(8, 12, 24, 0.96) 100%);
+$bg-glass:      rgba(10, 15, 28, 0.75);
+$bg-section:    rgba(12, 18, 30, 0.80);
+$bg-card:       rgba(14, 20, 35, 0.85);
+
+$neon-red:      #ff4444;
+$neon-orange:   #ff8832;
+$neon-yellow:   #ffbe0b;
+$neon-green:    #22dd66;
+$neon-blue:     #00E5FF;
+$neon-purple:   #a78bfa;
+
+$text-primary:  #e5e7eb;
+$text-secondary: #9ca3af;
+$text-dim:      #6b7280;
+
+$border-color:  rgba(0, 229, 255, 0.18);
+$border-glow:   rgba(0, 229, 255, 0.35);
+
+$transition:    all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+// ── Standalone Command Center Button (always visible when traffic module is active) ─
+.cmd-center-standalone {
+  position: fixed;
+  // right: 0;
+  top: 15%;
+  width: 15%;
+  height: 70%;
+  padding: 12px;
+  z-index: 900;
+
+  .command-center-btn {
+    width: 100%;
+  }
+}
+
+// ── Panel Container (only rendered when incidents exist) ──────────────────────
+.traffic-command-panel {
+  position: fixed;
+  right: 0;
+  top: calc(15% + 84px);
+  width: 380px;
+  max-height: 78vh;
+  background: $bg-panel;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-left: 1px solid $border-color;
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.5);
+  z-index: 900;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  // Custom scrollbar
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: rgba(20, 25, 38, 0.4);
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: rgba(96, 165, 250, 0.3);
+    border-radius: 3px;
+    
+    &:hover {
+      background: rgba(96, 165, 250, 0.5);
+    }
+  }
+  
+  &.collapsed {
+    transform: translateX(320px);
+  }
+}
+
+// ── Collapse Toggle Button ───────────────────────────────────────────────────
+.collapse-toggle {
+  position: absolute;
+  left: -40px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 80px;
+  background: $bg-panel;
+  backdrop-filter: blur(20px);
+  border: 1px solid $border-color;
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  color: $neon-blue;
+  font-size: 18px;
+  cursor: pointer;
+  transition: $transition;
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.3);
+  
+  &:hover {
+    background: rgba(96, 165, 250, 0.1);
+    color: $neon-blue;
+    box-shadow: -4px 0 24px rgba(96, 165, 250, 0.2);
+  }
+}
+
+// ── Panel Content ─────────────────────────────────────────────────────────────
+.panel-content {
+  padding: 20px;
+}
+
+// ── Command Center Button ─────────────────────────────────────────────────────
+.command-center-section {
+  margin-bottom: 16px;
+}
+
+.command-center-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+  border: 2px solid rgba(96, 165, 250, 0.4);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: $transition;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    transition: left 0.5s;
+  }
+
+  &:hover {
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.25) 0%, rgba(139, 92, 246, 0.25) 100%);
+    border-color: $neon-blue;
+    box-shadow: 0 0 30px rgba(96, 165, 250, 0.4);
+    transform: translateY(-2px);
+
+    &::before {
+      left: 100%;
+    }
+
+    .btn-icon {
+      transform: scale(1.1);
+      animation: pulse 1s infinite;
+    }
+  }
+
+  .btn-icon {
+    font-size: 36px;
+    filter: drop-shadow(0 0 10px $neon-blue);
+    transition: $transition;
+  }
+
+  .btn-content {
+    flex: 1;
+    text-align: left;
+  }
+
+  .btn-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: $neon-blue;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .btn-subtitle {
+    font-size: 11px;
+    color: $text-secondary;
+    font-weight: 500;
+  }
+}
+
+// ── Panel Header ──────────────────────────────────────────────────────────────
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid $border-color;
+}
+
+.panel-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.panel-close-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 6px;
+  color: $neon-red;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: $transition;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.28);
+    border-color: $neon-red;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+    transform: scale(1.1);
+  }
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: $text-primary;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin: 0;
+  
+  .title-icon {
+    font-size: 20px;
+    filter: drop-shadow(0 0 8px $neon-blue);
+  }
+}
+
+// ── Status Badge ──────────────────────────────────────────────────────────────
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  
+  &.status-active {
+    background: rgba(239, 68, 68, 0.15);
+    color: $neon-red;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    
+    .status-indicator {
+      background: $neon-red;
+      box-shadow: 0 0 8px $neon-red;
+      animation: pulse-red 2s infinite;
+    }
+  }
+  
+  &.status-in_response {
+    background: rgba(251, 146, 60, 0.15);
+    color: $neon-orange;
+    border: 1px solid rgba(251, 146, 60, 0.3);
+    
+    .status-indicator {
+      background: $neon-orange;
+      box-shadow: 0 0 8px $neon-orange;
+      animation: pulse-orange 2s infinite;
+    }
+  }
+  
+  &.status-resolved {
+    background: rgba(74, 222, 128, 0.15);
+    color: $neon-green;
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    
+    .status-indicator {
+      background: $neon-green;
+      box-shadow: 0 0 8px $neon-green;
+    }
+  }
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+// ── Section Container ─────────────────────────────────────────────────────────
+.section {
+  background: $bg-section;
+  backdrop-filter: blur(12px);
+  border: 1px solid $border-color;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  transition: $transition;
+  
+  &:hover {
+    border-color: $border-glow;
+    box-shadow: 0 4px 20px rgba(96, 165, 250, 0.1);
+  }
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: $text-primary;
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  
+  .section-icon {
+    font-size: 16px;
+    filter: drop-shadow(0 0 6px $neon-blue);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  SECTION 1: LIVE INCIDENT FEED
+// ══════════════════════════════════════════════════════════════════════════════
+
+.incident-feed {
+  .incident-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: $text-dim;
+    
+    .empty-icon {
+      font-size: 48px;
+      display: block;
+      margin-bottom: 12px;
+      opacity: 0.4;
+    }
+    
+    p {
+      margin: 0;
+      font-size: 14px;
+    }
+  }
+}
+
+.incident-card {
+  background: $bg-card;
+  border: 1px solid $border-color;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: $transition;
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 3px;
+    height: 100%;
+    background: $neon-red;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  
+  &:hover {
+    background: rgba(40, 45, 60, 0.9);
+    border-color: $border-glow;
+    transform: translateX(-4px);
+    
+    &::before {
+      opacity: 1;
+    }
+  }
+  
+  &.selected {
+    background: rgba(96, 165, 250, 0.1);
+    border-color: $neon-blue;
+    
+    &::before {
+      background: $neon-blue;
+      opacity: 1;
+    }
+  }
+  
+  &.resolved {
+    opacity: 0.6;
+    
+    &::before {
+      background: $neon-green;
+    }
+  }
+  
+  .incident-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  
+  .incident-type {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    
+    .type-icon {
+      font-size: 16px;
+    }
+    
+    .type-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: $text-secondary;
+      letter-spacing: 0.5px;
+    }
+  }
+  
+  .severity-badge {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    border: 1px solid;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .incident-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: $text-primary;
+    margin-bottom: 8px;
+  }
+  
+  .incident-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: $text-secondary;
+      
+      .meta-icon {
+        font-size: 12px;
+        opacity: 0.7;
+      }
+    }
+  }
+  
+  .resolved-badge {
+    margin-top: 8px;
+    padding: 4px 8px;
+    background: rgba(74, 222, 128, 0.15);
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    border-radius: 4px;
+    color: $neon-green;
+    font-size: 10px;
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+  
+  .status-badge-inline {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: $neon-red;
+    
+    .status-indicator-inline {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: $neon-red;
+      box-shadow: 0 0 6px $neon-red;
+      animation: pulse-red 2s infinite;
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  SECTION 2: INCIDENT DETAIL VIEW
+// ══════════════════════════════════════════════════════════════════════════════
+
+.incident-detail {
+  .detail-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .detail-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: $text-primary;
+    margin-bottom: 4px;
+  }
+  
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .detail-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: $text-dim;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .detail-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: $text-primary;
+    
+    &.status-red {
+      color: $neon-red;
+      font-weight: 700;
+    }
+  }
+  
+  .affected-roads {
+    .road-list {
+      list-style: none;
+      padding: 0;
+      margin: 8px 0 0 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    
+    .road-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: rgba(96, 165, 250, 0.05);
+      border: 1px solid rgba(96, 165, 250, 0.15);
+      border-radius: 6px;
+      font-size: 12px;
+      color: $text-secondary;
+      
+      .road-icon {
+        font-size: 14px;
+        opacity: 0.7;
+      }
+    }
+  }
+}
+
+// ── Timeline ──────────────────────────────────────────────────────────────────
+.incident-timeline {
+  .timeline-steps {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    position: relative;
+    margin-top: 12px;
+    padding-top: 8px;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: 20px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: rgba(100, 120, 160, 0.2);
+    }
+  }
+  
+  .timeline-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    
+    .step-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(100, 120, 160, 0.3);
+      border: 2px solid $bg-section;
+      transition: $transition;
+    }
+    
+    .step-label {
+      font-size: 10px;
+      color: $text-dim;
+      font-weight: 500;
+      text-align: center;
+      transition: $transition;
+    }
+    
+    &.completed {
+      .step-dot {
+        background: $neon-green;
+        box-shadow: 0 0 10px $neon-green;
+      }
+      
+      .step-label {
+        color: $neon-green;
+        font-weight: 600;
+      }
+    }
+    
+    &.active {
+      .step-dot {
+        background: $neon-blue;
+        box-shadow: 0 0 12px $neon-blue;
+        animation: pulse-blue 2s infinite;
+      }
+      
+      .step-label {
+        color: $neon-blue;
+        font-weight: 700;
+      }
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  SECTION 3: AI ADVISORY PANEL
+// ══════════════════════════════════════════════════════════════════════════════
+
+.ai-advisory {
+  background: linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, rgba(96, 165, 250, 0.08) 100%);
+  border-color: rgba(167, 139, 250, 0.3);
+  
+  .advisory-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .advisory-header {
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+  }
+  
+  .advisory-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: $neon-purple;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .advisory-subtitle {
+    font-size: 12px;
+    color: $text-secondary;
+  }
+  
+  .advisory-recommendations {
+    .recommendations-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: $text-dim;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    
+    .recommendations-list {
+      margin: 0;
+      padding-left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      
+      .recommendation-item {
+        font-size: 12px;
+        color: $text-secondary;
+        line-height: 1.5;
+        
+        &::marker {
+          color: $neon-blue;
+        }
+      }
+    }
+  }
+  
+  .advisory-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: rgba(167, 139, 250, 0.05);
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    border-radius: 8px;
+    
+    .metric-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: $text-primary;
+      font-weight: 500;
+      
+      .metric-icon {
+        font-size: 14px;
+        opacity: 0.8;
+      }
+      
+      &.confidence {
+        color: $neon-green;
+        font-weight: 600;
+      }
+    }
+  }
+  
+  .why-button {
+    width: 100%;
+    padding: 8px 12px;
+    background: rgba(167, 139, 250, 0.1);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: 6px;
+    color: $neon-purple;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: $transition;
+    text-align: left;
+    
+    &:hover {
+      background: rgba(167, 139, 250, 0.15);
+      border-color: rgba(167, 139, 250, 0.4);
+    }
+  }
+  
+  .explanation-panel {
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+    border-radius: 8px;
+    animation: slideDown 0.3s ease-out;
+    
+    p {
+      margin: 0 0 8px 0;
+      font-size: 12px;
+      color: $text-secondary;
+    }
+    
+    ul {
+      margin: 0;
+      padding-left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      
+      li {
+        font-size: 11px;
+        color: $text-secondary;
+        line-height: 1.5;
+        
+        &::marker {
+          color: $neon-purple;
+        }
+      }
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  SECTION 4: OPERATOR ACTION PANEL
+// ══════════════════════════════════════════════════════════════════════════════
+
+.operator-actions {
+  .action-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  
+  .action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 12px 8px;
+    background: rgba(96, 165, 250, 0.1);
+    border: 1px solid rgba(96, 165, 250, 0.3);
+    border-radius: 8px;
+    color: $neon-blue;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: $transition;
+    
+    .btn-icon {
+      font-size: 20px;
+    }
+    
+    &:hover:not(:disabled) {
+      background: rgba(96, 165, 250, 0.2);
+      border-color: $neon-blue;
+      box-shadow: 0 0 16px rgba(96, 165, 250, 0.3);
+      transform: translateY(-2px);
+    }
+    
+    &.approve {
+      background: rgba(74, 222, 128, 0.1);
+      border-color: rgba(74, 222, 128, 0.3);
+      color: $neon-green;
+      
+      &:hover:not(:disabled) {
+        background: rgba(74, 222, 128, 0.2);
+        border-color: $neon-green;
+        box-shadow: 0 0 16px rgba(74, 222, 128, 0.3);
+      }
+    }
+    
+    &.modify {
+      background: rgba(250, 204, 21, 0.1);
+      border-color: rgba(250, 204, 21, 0.3);
+      color: $neon-yellow;
+      
+      &:hover:not(:disabled) {
+        background: rgba(250, 204, 21, 0.2);
+        border-color: $neon-yellow;
+        box-shadow: 0 0 16px rgba(250, 204, 21, 0.3);
+      }
+    }
+    
+    &.override {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: $neon-red;
+      
+      &:hover:not(:disabled) {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: $neon-red;
+        box-shadow: 0 0 16px rgba(239, 68, 68, 0.3);
+      }
+    }
+    
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+  
+  .modify-panel,
+  .override-panel {
+    margin-top: 16px;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(250, 204, 21, 0.3);
+    border-radius: 8px;
+    animation: slideDown 0.3s ease-out;
+    
+    h4 {
+      margin: 0 0 12px 0;
+      font-size: 13px;
+      font-weight: 600;
+      color: $text-primary;
+    }
+    
+    .control-group {
+      margin-bottom: 12px;
+      
+      label {
+        display: block;
+        font-size: 11px;
+        font-weight: 600;
+        color: $text-dim;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      
+      .slider {
+        width: 100%;
+        height: 6px;
+        border-radius: 3px;
+        outline: none;
+        background: rgba(100, 120, 160, 0.3);
+        cursor: pointer;
+        
+        &::-webkit-slider-thumb {
+          appearance: none;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: $neon-yellow;
+          cursor: pointer;
+          box-shadow: 0 0 8px $neon-yellow;
+        }
+      }
+      
+      .slider-value {
+        display: block;
+        margin-top: 6px;
+        font-size: 12px;
+        color: $neon-yellow;
+        font-weight: 700;
+      }
+      
+      .route-select {
+        width: 100%;
+        padding: 8px 12px;
+        background: rgba(30, 35, 50, 0.8);
+        border: 1px solid rgba(100, 120, 160, 0.3);
+        border-radius: 6px;
+        color: $text-primary;
+        font-size: 12px;
+        cursor: pointer;
+        
+        &:focus {
+          outline: none;
+          border-color: $neon-yellow;
+          box-shadow: 0 0 8px rgba(250, 204, 21, 0.3);
+        }
+      }
+    }
+    
+    .confirm-btn {
+      width: 100%;
+      padding: 10px;
+      background: rgba(250, 204, 21, 0.2);
+      border: 1px solid $neon-yellow;
+      border-radius: 6px;
+      color: $neon-yellow;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: $transition;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      
+      &:hover {
+        background: rgba(250, 204, 21, 0.3);
+        box-shadow: 0 0 16px rgba(250, 204, 21, 0.4);
+      }
+      
+      &.danger {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: $neon-red;
+        color: $neon-red;
+        
+        &:hover {
+          background: rgba(239, 68, 68, 0.3);
+          box-shadow: 0 0 16px rgba(239, 68, 68, 0.4);
+        }
+      }
+    }
+  }
+  
+  .override-panel {
+    border-color: rgba(239, 68, 68, 0.3);
+    
+    .signal-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    
+    .signal-control-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      background: rgba(30, 35, 50, 0.6);
+      border: 1px solid rgba(100, 120, 160, 0.2);
+      border-radius: 6px;
+      
+      span {
+        font-size: 12px;
+        font-weight: 600;
+        color: $text-primary;
+      }
+      
+      .signal-state-buttons {
+        display: flex;
+        gap: 6px;
+        
+        .state-btn {
+          padding: 4px 10px;
+          border: 1px solid;
+          border-radius: 4px;
+          font-size: 10px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: $transition;
+          
+          &.red {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+            
+            &:hover {
+              background: rgba(239, 68, 68, 0.2);
+              box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+            }
+          }
+          
+          &.yellow {
+            background: rgba(250, 204, 21, 0.1);
+            border-color: rgba(250, 204, 21, 0.4);
+            color: #facc15;
+            
+            &:hover {
+              background: rgba(250, 204, 21, 0.2);
+              box-shadow: 0 0 8px rgba(250, 204, 21, 0.4);
+            }
+          }
+          
+          &.green {
+            background: rgba(74, 222, 128, 0.1);
+            border-color: rgba(74, 222, 128, 0.4);
+            color: #4ade80;
+            
+            &:hover {
+              background: rgba(74, 222, 128, 0.2);
+              box-shadow: 0 0 8px rgba(74, 222, 128, 0.4);
+            }
+          }
+        }
+      }
+    }
+    
+    .warning-message {
+      padding: 10px;
+      background: rgba(251, 146, 60, 0.1);
+      border: 1px solid rgba(251, 146, 60, 0.3);
+      border-radius: 6px;
+      color: $neon-orange;
+      font-size: 11px;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  SECTION 5: RESPONSE TRACKER
+// ══════════════════════════════════════════════════════════════════════════════
+
+.response-tracker {
+  .response-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .response-team {
+    padding: 12px;
+    background: rgba(30, 35, 50, 0.6);
+    border: 1px solid $border-color;
+    border-radius: 8px;
+    transition: $transition;
+    
+    &:hover {
+      border-color: $border-glow;
+      box-shadow: 0 4px 16px rgba(96, 165, 250, 0.1);
+    }
+    
+    .team-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    
+    .team-info {
+      display: flex;
+      gap: 10px;
+      flex: 1;
+      
+      .team-icon {
+        font-size: 24px;
+        flex-shrink: 0;
+      }
+      
+      .team-details {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        
+        .team-name {
+          font-size: 13px;
+          font-weight: 600;
+          color: $text-primary;
+        }
+        
+        .team-meta {
+          display: flex;
+          gap: 12px;
+          font-size: 11px;
+          color: $text-secondary;
+          
+          span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+          }
+        }
+      }
+    }
+    
+    .team-status {
+      padding: 4px 10px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+    
+    .team-progress {
+      .progress-steps {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        position: relative;
+        
+        &::before {
+          content: '';
+          position: absolute;
+          top: 12px;
+          left: 24px;
+          right: 24px;
+          height: 2px;
+          background: rgba(100, 120, 160, 0.2);
+        }
+      }
+      
+      .progress-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        position: relative;
+        z-index: 1;
+        flex: 1;
+        
+        .progress-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background: rgba(100, 120, 160, 0.3);
+          border: 2px solid $bg-section;
+          transition: $transition;
+        }
+        
+        .progress-label {
+          font-size: 9px;
+          color: $text-dim;
+          font-weight: 500;
+          text-align: center;
+          transition: $transition;
+        }
+        
+        &.completed {
+          .progress-dot {
+            background: $neon-green;
+            box-shadow: 0 0 8px $neon-green;
+          }
+          
+          .progress-label {
+            color: $neon-green;
+            font-weight: 600;
+          }
+        }
+        
+        &.active {
+          .progress-dot {
+            background: $neon-blue;
+            box-shadow: 0 0 10px $neon-blue;
+            animation: pulse-blue 2s infinite;
+          }
+          
+          .progress-label {
+            color: $neon-blue;
+            font-weight: 700;
+          }
+        }
+      }
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  RESOLUTION SUMMARY
+// ══════════════════════════════════════════════════════════════════════════════
+
+.resolution-summary {
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.1) 0%, rgba(52, 211, 153, 0.1) 100%);
+  border-color: rgba(74, 222, 128, 0.4);
+  
+  .summary-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .summary-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(74, 222, 128, 0.2);
+    border-radius: 8px;
+    text-align: center;
+    
+    .stat-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: $text-dim;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .stat-value {
+      font-size: 16px;
+      font-weight: 700;
+      color: $text-primary;
+      
+      &.success {
+        color: $neon-green;
+      }
+    }
+  }
+  
+  .close-incident-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px;
+    background: rgba(74, 222, 128, 0.2);
+    border: 1px solid $neon-green;
+    border-radius: 8px;
+    color: $neon-green;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: $transition;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    
+    .btn-icon {
+      font-size: 18px;
+    }
+    
+    &:hover {
+      background: rgba(74, 222, 128, 0.3);
+      box-shadow: 0 0 20px rgba(74, 222, 128, 0.4);
+      transform: translateY(-2px);
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  ANIMATIONS
+// ══════════════════════════════════════════════════════════════════════════════
+
+@keyframes pulse-red {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 8px $neon-red;
+  }
+  50% {
+    opacity: 0.6;
+    box-shadow: 0 0 16px $neon-red;
+  }
+}
+
+@keyframes pulse-orange {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 8px $neon-orange;
+  }
+  50% {
+    opacity: 0.6;
+    box-shadow: 0 0 16px $neon-orange;
+  }
+}
+
+@keyframes pulse-blue {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 10px $neon-blue;
+  }
+  50% {
+    opacity: 0.7;
+    box-shadow: 0 0 18px $neon-blue;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

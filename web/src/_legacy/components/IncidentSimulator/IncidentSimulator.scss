@@ -1,0 +1,1064 @@
+// ── Incident Simulator Panel ─────────────────────────────────────────────────
+// Dark neon command-center aesthetic matching the overall map theme.
+
+$neon-cyan:    #00e5ff;
+$neon-border:  rgba($neon-cyan, 0.28);
+$bg-dark:      rgba(6, 12, 28, 0.97);
+$bg-panel:     rgba(8, 16, 36, 0.98);
+$bg-item:      rgba(0, 200, 255, 0.04);
+$bg-item-hover:rgba(0, 200, 255, 0.10);
+$text-primary: #e2f4ff;
+$text-muted:   rgba($text-primary, 0.55);
+$font:         'Inter', 'Segoe UI', sans-serif;
+
+// ── Modal overlay — replaces the old sidebar panel ───────────────────────────
+.isim-modal-overlay {
+  position:   fixed;
+  inset:      0;
+  z-index:    8000;
+  display:    flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(6px);
+  animation:  isim-fade-in 0.2s ease-out;
+}
+
+.isim-workflow-modal {
+  position:   relative;
+  width:      min(520px, 94vw);
+  max-height: 88vh;
+  background: $bg-panel;
+  border:     1px solid $neon-border;
+  border-radius: 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-shadow: 0 0 60px rgba($neon-cyan, 0.16), 0 8px 48px rgba(0, 0, 0, 0.88);
+  font-family: $font;
+  color: $text-primary;
+  animation:  isim-slide-up 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &::-webkit-scrollbar       { width: 4px; }
+  &::-webkit-scrollbar-thumb { background: rgba($neon-cyan, 0.25); border-radius: 2px; }
+}
+
+@keyframes isim-fade-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes isim-slide-up { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+@keyframes blink-live {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0.2; }
+}
+
+// ── Vertical Incident Button List ────────────────────────────────────────────
+.isim-list {
+  display:        flex;
+  flex-direction: column;
+  gap:            4px;
+  padding:        0 10px;
+}
+
+.isim-list__btn {
+  display:      flex;
+  align-items:  center;
+  gap:          10px;
+  padding:      8px 10px;
+  background:   $bg-item;
+  border:       1px solid $neon-border;
+  border-left:  3px solid transparent;
+  border-radius: 7px;
+  cursor:       pointer;
+  color:        $text-primary;
+  font-family:  $font;
+  text-align:   left;
+  transition:   background .15s, border-color .15s, box-shadow .15s;
+
+  &:hover {
+    background:   $bg-item-hover;
+    border-color: rgba($neon-cyan, 0.55);
+    box-shadow:   0 0 10px rgba($neon-cyan, 0.12);
+  }
+
+  &[data-severity='critical'] { border-left-color: #FF2222; }
+  &[data-severity='high']     { border-left-color: #FF6600; }
+  &[data-severity='medium']   { border-left-color: #FFAA00; }
+  &[data-severity='low']      { border-left-color: #00CC66; }
+}
+
+.isim-list__btn-icon  { font-size: 20px; flex-shrink: 0; }
+.isim-list__btn-info  { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.isim-list__btn-title { font-size: 11px; font-weight: 700; line-height: 1.2; }
+.isim-list__btn-cat   { font-size: 9px; color: $text-muted; }
+.isim-list__btn-badge {
+  font-size:    8px;
+  font-weight:  700;
+  padding:      2px 5px;
+  border-radius: 3px;
+  letter-spacing: .06em;
+  color:        #fff;
+  white-space:  nowrap;
+  flex-shrink:  0;
+}
+
+// ── Command Centre View ───────────────────────────────────────────────────────
+.isim-cmd {
+  padding: 0 12px 6px;
+}
+
+.isim-cmd__iheader {
+  display:      flex;
+  align-items:  flex-start;
+  gap:          10px;
+  border-left:  3px solid $neon-cyan;
+  padding-left: 10px;
+  margin-bottom: 10px;
+}
+.isim-cmd__iheader-icon  { font-size: 24px; line-height: 1; flex-shrink: 0; }
+.isim-cmd__iheader-title { font-size: 12px; font-weight: 700; line-height: 1.35; margin-bottom: 5px; }
+.isim-cmd__iheader-sev, .isim-cmd__iheader-stage {
+  display: inline-block;
+  font-size: 9px; font-weight: 700;
+  padding: 2px 6px; border-radius: 3px;
+  color: #fff; letter-spacing: .06em;
+  margin-right: 4px;
+}
+
+// Info grid
+.isim-cmd__grid {
+  background:    rgba(0,0,0,0.22);
+  border:        1px solid $neon-border;
+  border-radius: 6px;
+  overflow:      hidden;
+  margin-bottom: 10px;
+}
+.isim-cmd__grid-row {
+  display:      flex;
+  gap:          8px;
+  padding:      5px 10px;
+  border-bottom: 1px solid rgba($neon-cyan, 0.07);
+  &:last-child { border-bottom: none; }
+}
+.isim-cmd__grid-key {
+  font-size:      9px;
+  font-weight:    700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color:          $text-muted;
+  flex-shrink:    0;
+  width:          88px;
+  padding-top:    1px;
+}
+.isim-cmd__grid-val {
+  font-size:  10.5px;
+  color:      $text-primary;
+  flex:       1;
+  word-break: break-word;
+  line-height: 1.4;
+
+  &--id     { font-weight: 700; color: $neon-cyan; font-family: monospace; letter-spacing: .04em; }
+  &--sensor { color: #FFD700; font-family: monospace; font-size: 9.5px; }
+  &--team   { font-weight: 600; }
+  &--wo     { font-family: monospace; color: #AADDFF; }
+}
+
+.isim-cmd__section-label {
+  font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: $text-muted; margin: 0 0 5px;
+  border-bottom: 1px solid rgba($neon-cyan, 0.12);
+  padding-bottom: 3px;
+}
+
+// ── Stage Progress Dots ───────────────────────────────────────────────────────
+.isim-stage-progress {
+  display:         flex;
+  justify-content: center;
+  gap:             10px;
+  margin:          8px 0 10px;
+
+  &__dot {
+    width:        10px;
+    height:       10px;
+    border-radius: 50%;
+    border:        2px solid rgba($neon-cyan, 0.25);
+    background:    transparent;
+    transition:    background .3s, border-color .3s;
+
+    &.--done    { background: $neon-cyan; border-color: $neon-cyan; opacity: .55; }
+    &.--current {
+      border-width: 2px;
+      background:   rgba($neon-cyan, 0.25);
+      box-shadow:   0 0 6px rgba($neon-cyan, 0.6);
+      animation:    dot-pulse .9s ease-in-out infinite alternate;
+    }
+  }
+}
+@keyframes dot-pulse {
+  from { box-shadow: 0 0 4px rgba($neon-cyan, 0.3); }
+  to   { box-shadow: 0 0 10px rgba($neon-cyan, 0.8); }
+}
+
+// ── Action buttons ────────────────────────────────────────────────────────────
+.isim-action-btn {
+  width:        100%;
+  padding:      11px;
+  border-radius: 7px;
+  border:        1px solid;
+  font-family:   $font;
+  font-size:     12px;
+  font-weight:   700;
+  letter-spacing: .06em;
+  cursor:        pointer;
+  transition:    background .15s, box-shadow .15s;
+  margin-bottom: 6px;
+
+  &.isim-action--acknowledge {
+    background:   rgba(255,150,0,0.09);
+    border-color: rgba(255,150,0,0.55);
+    color:        #FFAA00;
+    &:hover { background: rgba(255,150,0,0.2); box-shadow: 0 0 12px rgba(255,150,0,0.25); }
+  }
+  &.isim-action--dispatch {
+    background:   rgba(0,150,255,0.09);
+    border-color: rgba(0,150,255,0.55);
+    color:        #44AAFF;
+    &:hover { background: rgba(0,150,255,0.2); box-shadow: 0 0 12px rgba(0,150,255,0.25); }
+  }
+  &.isim-action--resolve {
+    background:   rgba(0,204,102,0.09);
+    border-color: rgba(0,204,102,0.55);
+    color:        #00CC66;
+    &:hover { background: rgba(0,204,102,0.2); box-shadow: 0 0 12px rgba(0,204,102,0.25); }
+  }
+}
+
+// ── Notification Panel ────────────────────────────────────────────────────────
+.isim-notify {
+  margin-bottom: 8px;
+}
+.isim-notify__heading {
+  font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: $neon-cyan; margin-bottom: 6px;
+  border-bottom: 1px solid rgba($neon-cyan, 0.18); padding-bottom: 4px;
+}
+.isim-notify__incident-box {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; margin-bottom: 8px;
+  background: rgba($neon-cyan, 0.05); border: 1px solid $neon-border;
+  border-radius: 5px; padding: 5px 8px;
+}
+.isim-notify__sev {
+  font-size: 8px; font-weight: 700; padding: 2px 5px; border-radius: 3px;
+  color: #fff; letter-spacing: .06em; white-space: nowrap;
+}
+.isim-notify__label {
+  font-size: 10px; color: $text-muted; margin-bottom: 5px;
+}
+.isim-notify__roles {
+  display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px;
+}
+.isim-notify__role {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 5px 8px; border-radius: 6px;
+  border: 1px solid $neon-border; cursor: pointer;
+  transition: background .15s, border-color .15s;
+
+  input[type="radio"] { margin-top: 3px; flex-shrink: 0; accent-color: $neon-cyan; }
+
+  &--active {
+    background:   rgba($neon-cyan, 0.08);
+    border-color: rgba($neon-cyan, 0.5);
+  }
+  &:hover { background: rgba($neon-cyan, 0.05); }
+}
+.isim-notify__role-info { display: flex; flex-direction: column; gap: 1px; }
+.isim-notify__role-name { font-size: 11px; font-weight: 600; color: $text-primary; }
+.isim-notify__role-resp { font-size: 9px; color: $text-muted; }
+
+// ── Technician Card (simulated mobile notification) ───────────────────────────
+.isim-techcard {
+  border: 1px solid rgba(0, 200, 255, 0.35);
+  border-radius: 8px; overflow: hidden; margin-bottom: 8px;
+  background: rgba(0, 10, 30, 0.6);
+}
+.isim-techcard__header {
+  background: linear-gradient(90deg, rgba(0,150,255,0.15), rgba(0,50,100,0.15));
+  border-bottom: 1px solid rgba(0,200,255,0.25);
+  padding: 6px 10px; font-size: 10px; font-weight: 700; letter-spacing: .09em;
+  color: #44AAFF; text-transform: uppercase;
+}
+.isim-techcard__body {
+  padding: 8px 10px;
+}
+.isim-techcard__title {
+  font-size: 12px; font-weight: 700; margin-bottom: 5px;
+}
+.isim-techcard__sev {
+  display: inline-block; font-size: 8px; font-weight: 700; padding: 2px 6px;
+  border-radius: 3px; color: #fff; letter-spacing: .06em; margin-bottom: 7px;
+}
+.isim-techcard__rows {
+  display: flex; flex-direction: column; gap: 3px;
+}
+.isim-techcard__row {
+  display: flex; justify-content: space-between; gap: 8px;
+  font-size: 10px;
+  span:first-child { color: $text-muted; }
+  span:last-child  { font-weight: 600; text-align: right; }
+}
+.isim-techcard__eta { color: #00AAFF; font-weight: 700; }
+.isim-techcard__actions {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px 10px;
+  border-top: 1px solid rgba(0,200,255,0.12);
+}
+.isim-techcard__accept {
+  padding: 7px; border: 1px solid rgba(0,204,102,0.5); border-radius: 6px;
+  background: rgba(0,204,102,0.09); color: #00CC66;
+  font-family: $font; font-size: 11px; font-weight: 700; cursor: pointer;
+  transition: background .15s;
+  &:hover { background: rgba(0,204,102,0.2); }
+}
+.isim-techcard__decline {
+  padding: 7px; border: 1px solid rgba(255,80,80,0.4); border-radius: 6px;
+  background: rgba(255,30,30,0.06); color: #ff8888;
+  font-family: $font; font-size: 11px; font-weight: 700; cursor: pointer;
+  transition: background .15s;
+  &:hover { background: rgba(255,30,30,0.14); }
+}
+
+// ── En-route Panel ────────────────────────────────────────────────────────────
+.isim-enroute {
+  border: 1px solid rgba(0,170,255,0.35);
+  border-radius: 8px; overflow: hidden; margin-bottom: 8px;
+}
+.isim-enroute__header {
+  background: linear-gradient(90deg, rgba(0,120,255,0.12), transparent);
+  border-bottom: 1px solid rgba(0,170,255,0.2);
+  padding: 6px 10px; font-size: 10px; font-weight: 700; letter-spacing: .08em;
+  color: #44AAFF; text-transform: uppercase;
+}
+.isim-enroute__rows {
+  display: flex; flex-direction: column; gap: 3px; padding: 8px 10px;
+}
+.isim-enroute__row {
+  display: flex; justify-content: space-between; gap: 8px;
+  font-size: 10px;
+  span:first-child { color: $text-muted; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 8.5px; }
+  span:last-child  { font-weight: 600; text-align: right; }
+}
+.isim-enroute__eta    { color: #00AAFF; font-weight: 700 !important; }
+.isim-enroute__status { color: #00CC66 !important; }
+.isim-enroute__hint {
+  font-size: 9.5px; color: $text-muted; padding: 4px 10px 8px;
+  border-top: 1px solid rgba(0,200,255,0.08);
+}
+
+// ── Resolved Banner ───────────────────────────────────────────────────────────
+.isim-resolved-banner {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  text-align: center; padding: 10px 12px;
+  background: rgba(0,204,102,0.07); border: 1px solid rgba(0,204,102,0.3);
+  border-radius: 7px; margin-bottom: 8px;
+
+  &__icon { font-size: 28px; }
+  span { font-size: 12px; font-weight: 700; color: #00CC66; letter-spacing: .06em; }
+  p    { font-size: 10px; color: $text-muted; margin: 0; }
+}
+
+// ── Timeline ──────────────────────────────────────────────────────────────────
+.isim-timeline {
+  margin: 8px 0;
+}
+.isim-timeline__label {
+  font-size: 8.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: $text-muted; margin-bottom: 5px;
+  border-bottom: 1px solid rgba($neon-cyan, 0.12); padding-bottom: 3px;
+}
+.isim-timeline__list {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 0;
+  border-left: 2px solid rgba($neon-cyan, 0.2);
+  margin-left: 6px;
+}
+.isim-timeline__item {
+  display: flex; align-items: baseline; gap: 5px;
+  padding: 3px 0 3px 8px; font-size: 9.5px; position: relative;
+
+  &::before {
+    content: '';
+    position: absolute; left: -6px; top: 7px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: $neon-cyan; opacity: 0.5;
+    border: 2px solid rgba($neon-cyan, 0.2);
+  }
+  &:last-child::before { opacity: 1; background: $neon-cyan; }
+}
+.isim-timeline__time  { color: $neon-cyan; font-weight: 700; white-space: nowrap; font-family: monospace; font-size: 9px; }
+.isim-timeline__icon  { flex-shrink: 0; }
+.isim-timeline__text  { color: $text-primary; flex: 1; line-height: 1.4; }
+
+// ── Action button — notify variant ────────────────────────────────────────────
+.isim-action--notify {
+  background:   rgba(255,150,0,0.09);
+  border-color: rgba(255,150,0,0.55);
+  color:        #FFAA00;
+  &:hover:not(:disabled) { background: rgba(255,150,0,0.20); box-shadow: 0 0 12px rgba(255,150,0,0.25); }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+// ── Validation Panel ──────────────────────────────────────────────────────────
+.isim-validation {
+  margin-bottom: 8px;
+}
+.isim-validation__heading {
+  font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: #FFD700; margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255,215,0,0.2); padding-bottom: 4px;
+}
+.isim-validation__sensor-box {
+  background: rgba(0,0,0,0.3); border: 1px solid rgba(255,215,0,0.25);
+  border-radius: 6px; overflow: hidden; margin-bottom: 8px;
+}
+.isim-validation__sensor-row {
+  display: flex; justify-content: space-between; gap: 8px;
+  padding: 5px 10px; border-bottom: 1px solid rgba(255,215,0,0.08);
+  font-size: 10px;
+  &:last-child { border-bottom: none; }
+}
+.isim-validation__sensor-key {
+  font-size: 8.5px; font-weight: 700; letter-spacing: .1em; color: $text-muted;
+  text-transform: uppercase; flex-shrink: 0; min-width: 70px;
+}
+.isim-validation__sensor-val {
+  font-weight: 600; text-align: right; font-family: monospace;
+  &--alert { color: #FF6600; font-weight: 700; }
+}
+.isim-validation__secondary {
+  margin-bottom: 8px;
+}
+.isim-validation__secondary-label {
+  font-size: 9px; font-weight: 700; letter-spacing: .07em; color: $text-muted;
+  text-transform: uppercase; margin-bottom: 4px;
+}
+.isim-validation__secondary-item {
+  display: flex; align-items: center; gap: 6px; font-size: 10px;
+  padding: 3px 0; color: $text-muted;
+}
+.isim-validation__dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  &--ok { background: #00CC66; }
+}
+.isim-validation__ok {
+  color: #00CC66; font-size: 9px; font-weight: 600; margin-left: auto;
+}
+.isim-validation__status {
+  font-size: 10px; font-weight: 700; padding: 6px 8px; border-radius: 5px;
+  margin-bottom: 8px;
+  &--alert {
+    color: #FF8800; background: rgba(255,136,0,0.08); border: 1px solid rgba(255,136,0,0.3);
+  }
+  &--ok {
+    color: #00CC66; background: rgba(0,204,102,0.08); border: 1px solid rgba(0,204,102,0.3);
+  }
+}
+
+// ── Classification Panel ──────────────────────────────────────────────────────
+.isim-classify {
+  margin-bottom: 8px;
+}
+.isim-classify__heading {
+  font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: #FFAA00; margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255,170,0,0.2); padding-bottom: 4px;
+}
+.isim-classify__grid {
+  background: rgba(0,0,0,0.25); border: 1px solid rgba(255,170,0,0.2);
+  border-radius: 6px; overflow: hidden; margin-bottom: 6px;
+}
+.isim-classify__row {
+  display: flex; gap: 10px; padding: 5px 10px;
+  border-bottom: 1px solid rgba(255,170,0,0.08);
+  font-size: 10px; align-items: center;
+  &:last-child { border-bottom: none; }
+}
+.isim-classify__key {
+  font-size: 8.5px; font-weight: 700; letter-spacing: .1em; color: $text-muted;
+  text-transform: uppercase; flex-shrink: 0; min-width: 70px;
+}
+.isim-classify__val { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.isim-classify__badge {
+  font-size: 8px; font-weight: 700; padding: 2px 6px; border-radius: 3px;
+  color: #fff; letter-spacing: .06em;
+}
+.isim-classify__score { font-size: 9.5px; color: $text-muted; }
+.isim-classify__formula {
+  font-size: 9px; color: $text-muted; font-style: italic; margin-bottom: 8px;
+  text-align: center; background: rgba(255,170,0,0.04);
+  border-radius: 4px; padding: 4px 8px;
+}
+
+// ── AI Advisory Panel ─────────────────────────────────────────────────────────
+.isim-advisory {
+  margin-bottom: 8px;
+  border: 1px solid rgba(170,68,255,0.35); border-radius: 8px; overflow: hidden;
+}
+.isim-advisory__heading {
+  background: linear-gradient(90deg, rgba(170,68,255,0.15), transparent);
+  border-bottom: 1px solid rgba(170,68,255,0.25);
+  padding: 7px 10px; font-size: 10px; font-weight: 700; letter-spacing: .08em;
+  color: #CC88FF; text-transform: uppercase;
+}
+.isim-advisory__header-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 7px 10px; border-bottom: 1px solid rgba(170,68,255,0.12);
+}
+.isim-advisory__incident-name { font-size: 11px; font-weight: 600; }
+.isim-advisory__risk {
+  font-size: 8px; font-weight: 700; padding: 2px 7px; border-radius: 3px;
+  color: #fff; letter-spacing: .07em; white-space: nowrap;
+}
+.isim-advisory__section { padding: 7px 10px; border-bottom: 1px solid rgba(170,68,255,0.08); }
+.isim-advisory__section-label {
+  font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: #CC88FF; margin-bottom: 5px;
+}
+.isim-advisory__list {
+  margin: 0; padding: 0 0 0 14px;
+  display: flex; flex-direction: column; gap: 2px;
+  &--numbered { list-style: decimal; }
+}
+.isim-advisory__list-item {
+  font-size: 10px; line-height: 1.4;
+  &--impact { color: #FF9966; list-style-type: disc; }
+  &--action { color: $text-primary; }
+}
+.isim-advisory__meta {
+  padding: 7px 10px; display: flex; flex-direction: column; gap: 3px;
+  border-bottom: 1px solid rgba(170,68,255,0.1);
+}
+.isim-advisory__meta-row {
+  display: flex; justify-content: space-between; font-size: 10px;
+  span:first-child { color: $text-muted; }
+}
+.isim-advisory__meta-val { font-weight: 700; color: #CC88FF; }
+.isim-advisory__confidence-bar {
+  height: 3px; background: rgba(170,68,255,0.15); margin: 0 10px 8px;
+}
+.isim-advisory__confidence-fill {
+  height: 100%; background: linear-gradient(90deg, #AA44FF, #00E5FF);
+  border-radius: 2px; box-shadow: 0 0 6px #AA44FF;
+  transition: width .6s ease;
+}
+.isim-advisory__actions {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px 10px;
+}
+.isim-advisory__approve {
+  padding: 8px; border: 1px solid rgba(0,204,102,0.5); border-radius: 6px;
+  background: rgba(0,204,102,0.09); color: #00CC66;
+  font-family: $font; font-size: 11px; font-weight: 700; cursor: pointer;
+  transition: background .15s;
+  &:hover { background: rgba(0,204,102,0.2); }
+  &--custom {
+    border-color: rgba(170,68,255,0.45); background: rgba(170,68,255,0.07);
+    color: #CC88FF;
+    &:hover { background: rgba(170,68,255,0.16); }
+  }
+}
+
+// ── Dispatch Panel ────────────────────────────────────────────────────────────
+.isim-dispatch {
+  margin-bottom: 8px;
+}
+.isim-dispatch__heading {
+  font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: #44AAFF; margin-bottom: 6px;
+  border-bottom: 1px solid rgba(68,170,255,0.2); padding-bottom: 4px;
+}
+.isim-dispatch__label {
+  font-size: 10px; color: $text-muted; margin: 0 0 6px;
+}
+
+// ── Field Status Panel ────────────────────────────────────────────────────────
+.isim-field {
+  border: 1px solid rgba(0,170,255,0.3); border-radius: 8px; overflow: hidden;
+  margin-bottom: 8px;
+}
+.isim-field__heading {
+  background: linear-gradient(90deg, rgba(0,120,255,0.12), transparent);
+  border-bottom: 1px solid rgba(0,170,255,0.2);
+  padding: 6px 10px; font-size: 10px; font-weight: 700; letter-spacing: .08em;
+  color: #44AAFF; text-transform: uppercase;
+}
+.isim-field__tech-row {
+  display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px;
+  border-bottom: 1px solid rgba(0,170,255,0.1);
+}
+.isim-field__tech-icon { font-size: 22px; line-height: 1; }
+.isim-field__tech-info {
+  display: flex; flex-direction: column; gap: 1px;
+}
+.isim-field__tech-name { font-size: 12px; font-weight: 700; }
+.isim-field__tech-role { font-size: 10px; color: $text-muted; }
+.isim-field__tech-phone { font-size: 9.5px; color: $neon-cyan; font-family: monospace; }
+
+.isim-field__steps {
+  display: flex; flex-direction: column; gap: 0; padding: 8px 10px;
+  border-bottom: 1px solid rgba(0,170,255,0.1);
+  border-left: 2px solid rgba(0,200,255,0.15); margin-left: 18px;
+}
+.isim-field__step {
+  display: flex; align-items: center; gap: 8px; padding: 4px 0 4px 8px;
+  font-size: 10px; color: $text-muted; position: relative;
+  &.--done  { color: #00CC66; }
+  &.--current { color: $text-primary; font-weight: 600;
+    &::after { content: ''; position: absolute; left: -12px; top: 50%; transform: translateY(-50%);
+      width: 8px; height: 8px; border-radius: 50%; background: $neon-cyan;
+      box-shadow: 0 0 6px $neon-cyan; animation: dot-pulse .9s ease-in-out infinite alternate; }
+  }
+}
+.isim-field__step-dot { font-size: 12px; width: 14px; text-align: center; flex-shrink: 0; }
+.isim-field__step-label { flex: 1; }
+.isim-field__meta {
+  display: flex; justify-content: space-between; padding: 5px 10px;
+  font-size: 9.5px; color: $text-muted;
+  border-bottom: 1px solid rgba(0,170,255,0.1);
+}
+.isim-field__hint {
+  font-size: 9.5px; color: $text-muted; padding: 5px 10px 0;
+}
+
+// ── Repair Panel ──────────────────────────────────────────────────────────────
+.isim-repair {
+  border: 1px solid rgba(255,102,0,0.35); border-radius: 8px; overflow: hidden;
+  margin-bottom: 8px;
+}
+.isim-repair__heading {
+  background: linear-gradient(90deg, rgba(255,100,0,0.12), transparent);
+  border-bottom: 1px solid rgba(255,102,0,0.2);
+  padding: 6px 10px; font-size: 10px; font-weight: 700; letter-spacing: .08em;
+  color: #FF8844; text-transform: uppercase;
+}
+.isim-repair__status-badge {
+  margin: 8px 10px 4px;
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 700; color: #FF8844;
+  animation: blink-live 1.2s step-start infinite;
+}
+.isim-repair__rows {
+  display: flex; flex-direction: column; gap: 4px; padding: 6px 10px;
+}
+.isim-repair__row {
+  display: flex; justify-content: space-between; font-size: 10px; gap: 8px;
+  span:first-child { color: $text-muted; }
+  span:last-child  { font-weight: 600; text-align: right; }
+}
+.isim-repair__log {
+  background: rgba(0,0,0,0.3); margin: 4px 10px 8px; border-radius: 5px;
+  border: 1px solid rgba(255,102,0,0.15); padding: 6px 8px;
+}
+.isim-repair__log-label {
+  font-size: 8.5px; font-weight: 700; letter-spacing: .1em; color: $text-muted;
+  text-transform: uppercase; margin-bottom: 5px;
+}
+.isim-repair__log-entry {
+  font-size: 10px; color: $text-muted; padding: 2px 0; line-height: 1.4;
+  &--active { color: #FF8844; font-weight: 600; animation: blink-live 1.8s step-start infinite; }
+}
+
+// ── Analytics Panel ───────────────────────────────────────────────────────────
+.isim-analytics {
+  margin-bottom: 8px;
+}
+.isim-analytics__banner {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 8px 12px; margin-bottom: 8px;
+  background: rgba(0,204,102,0.08); border: 1px solid rgba(0,204,102,0.3);
+  border-radius: 7px;
+}
+.isim-analytics__banner-icon { font-size: 22px; }
+.isim-analytics__banner-text {
+  font-size: 13px; font-weight: 700; color: #00CC66; letter-spacing: .06em;
+}
+.isim-analytics__heading {
+  font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: $neon-cyan; margin-bottom: 8px;
+  border-bottom: 1px solid rgba($neon-cyan,0.15); padding-bottom: 4px;
+}
+.isim-analytics__grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 8px;
+}
+.isim-analytics__card {
+  background: rgba(0,0,0,0.3); border: 1px solid $neon-border; border-radius: 6px;
+  padding: 6px 8px;
+}
+.isim-analytics__card-label {
+  font-size: 8px; font-weight: 700; letter-spacing: .1em; color: $text-muted;
+  text-transform: uppercase; margin-bottom: 3px;
+}
+.isim-analytics__card-val {
+  font-size: 13px; font-weight: 700; color: $text-primary;
+  &--id   { font-size: 9px; font-family: monospace; color: $neon-cyan; }
+  &--time { color: #44AAFF; }
+}
+.isim-analytics__section {
+  display: flex; flex-direction: column; gap: 0;
+  border: 1px solid $neon-border; border-radius: 6px; overflow: hidden;
+}
+.isim-analytics__row {
+  display: flex; gap: 10px; padding: 5px 10px;
+  border-bottom: 1px solid rgba($neon-cyan, 0.06); font-size: 10px;
+  &:last-child { border-bottom: none; }
+}
+.isim-analytics__key {
+  font-size: 8.5px; font-weight: 700; letter-spacing: .09em; color: $text-muted;
+  text-transform: uppercase; flex-shrink: 0; min-width: 88px; padding-top: 1px;
+}
+.isim-analytics__val {
+  flex: 1; line-height: 1.45; word-break: break-word;
+  &--rec { color: #FFCC44; font-style: italic; }
+}
+
+// ── Action button variants ────────────────────────────────────────────────────
+.isim-action--validate {
+  background:   rgba(255,215,0,0.07); border-color: rgba(255,215,0,0.45); color: #FFD700;
+  &:hover { background: rgba(255,215,0,0.16); box-shadow: 0 0 12px rgba(255,215,0,0.2); }
+}
+.isim-action--advisory {
+  background:   rgba(170,68,255,0.07); border-color: rgba(170,68,255,0.45); color: #CC88FF;
+  &:hover { background: rgba(170,68,255,0.18); box-shadow: 0 0 12px rgba(170,68,255,0.25); }
+}
+.isim-action--dispatch {
+  background:   rgba(0,150,255,0.09); border-color: rgba(0,150,255,0.55); color: #44AAFF;
+  &:hover:not(:disabled) { background: rgba(0,150,255,0.2); box-shadow: 0 0 12px rgba(0,150,255,0.25); }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+.isim-action--field {
+  background:   rgba(0,200,255,0.07); border-color: rgba(0,200,255,0.45); color: $neon-cyan;
+  &:hover { background: rgba(0,200,255,0.16); box-shadow: 0 0 10px rgba(0,200,255,0.2); }
+}
+
+// ── Active Incident View ──────────────────────────────────────────────────────
+.isim-active {
+  padding: 0 12px 4px;
+}
+
+.isim-active__header {
+  display:      flex;
+  align-items:  flex-start;
+  gap:          10px;
+  border-left:  3px solid $neon-cyan;
+  padding-left: 10px;
+  margin-bottom: 8px;
+}
+
+.isim-active__header-icon  { font-size: 24px; line-height: 1; flex-shrink: 0; }
+.isim-active__header-info  { flex: 1; min-width: 0; }
+.isim-active__header-title { font-size: 12px; font-weight: 700; line-height: 1.35; }
+.isim-active__header-meta  { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+.isim-active__header-zone  { font-size: 10px; color: $text-muted; }
+.isim-active__header-sev {
+  font-size: 9px; font-weight: 700; padding: 1px 5px;
+  border-radius: 3px; color: #fff; letter-spacing: .06em;
+}
+.isim-active__header-resolved { font-size: 10px; font-weight: 700; color: #00CC66; }
+
+.isim-active__desc {
+  font-size: 11px; color: $text-muted; line-height: 1.55;
+  margin: 0 0 8px; padding: 6px 8px;
+  background: rgba(0,0,0,0.25); border-radius: 5px;
+  border-left: 2px solid rgba($neon-cyan, 0.2);
+}
+
+.isim-active__sensors {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px;
+}
+.isim-active__sensor-tag {
+  font-size: 9px; padding: 2px 6px;
+  background: rgba($neon-cyan, 0.06); border: 1px solid rgba($neon-cyan, 0.18);
+  border-radius: 10px; color: $text-muted;
+}
+
+.isim-active__section-label {
+  font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: $text-muted; margin: 0 0 6px; border-bottom: 1px solid rgba($neon-cyan, 0.12);
+  padding-bottom: 3px;
+}
+
+// ── Step Flow ─────────────────────────────────────────────────────────────────
+.isim-steps {
+  list-style: none; margin: 0 0 10px; padding: 0;
+  display: flex; flex-direction: column; gap: 3px;
+}
+
+.isim-steps__item {
+  display:     flex;
+  align-items: flex-start;
+  gap:         8px;
+  padding:     5px 8px;
+  border-radius: 5px;
+  border-left: 2px solid transparent;
+  transition:  background .2s, border-color .2s;
+
+  &--done {
+    opacity: 0.5;
+    border-left-color: #00CC66;
+    background: rgba(0,204,102,0.04);
+    .isim-steps__icon { color: #00CC66; }
+    .isim-steps__label { text-decoration: line-through; color: $text-muted; }
+  }
+
+  &--current {
+    background: rgba($neon-cyan, 0.08);
+    border-left-color: $neon-cyan;
+    animation: step-pulse 1.5s ease-in-out infinite;
+    .isim-steps__icon { color: $neon-cyan; }
+    .isim-steps__label { color: $text-primary; font-weight: 600; }
+  }
+
+  &--pending {
+    opacity: 0.35;
+    .isim-steps__icon  { color: $text-muted; }
+    .isim-steps__label { color: $text-muted; }
+  }
+}
+
+@keyframes step-pulse {
+  0%, 100% { box-shadow: none; }
+  50%       { box-shadow: 0 0 8px rgba($neon-cyan, 0.25); }
+}
+
+.isim-steps__icon  { font-size: 13px; flex-shrink: 0; width: 18px; text-align: center; }
+.isim-steps__label { font-size: 11px; line-height: 1.45; }
+
+// ── Progress bar ──────────────────────────────────────────────────────────────
+.isim-progress {
+  height: 3px; background: rgba($neon-cyan, 0.12); border-radius: 2px;
+  margin: 0 0 12px; overflow: hidden;
+}
+.isim-progress__bar {
+  height: 100%; border-radius: 2px;
+  transition: width .5s ease;
+  box-shadow: 0 0 6px currentColor;
+}
+
+// ── Roles table ───────────────────────────────────────────────────────────────
+.isim-roles {
+  width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 12px;
+
+  th {
+    text-align: left; padding: 4px 6px;
+    background: rgba($neon-cyan, 0.06);
+    border-bottom: 1px solid $neon-border;
+    color: $text-muted; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  }
+  td {
+    padding: 4px 6px;
+    border-bottom: 1px solid rgba($neon-cyan, 0.06);
+    vertical-align: top;
+    &:first-child { font-weight: 600; color: $text-primary; white-space: nowrap; }
+    &:last-child  { color: $text-muted; }
+  }
+  tr:last-child td { border-bottom: none; }
+}
+
+// ── Stop button ───────────────────────────────────────────────────────────────
+.isim-stop-btn {
+  width: 100%; padding: 9px; border: 1px solid rgba(255,80,80,0.4);
+  background: rgba(255,30,30,0.06); border-radius: 7px; color: #ff8888;
+  font-family: $font; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: background .15s, border-color .15s;
+  margin-top: 6px;
+
+  &:hover { background: rgba(255,30,30,0.14); border-color: rgba(255,80,80,0.7); }
+
+  &--cancel {
+    border-color: rgba(255,150,0,0.4); color: #ffaa44;
+    background: rgba(255,100,0,0.06);
+    &:hover { background: rgba(255,100,0,0.14); border-color: rgba(255,150,0,0.7); }
+  }
+}
+
+// ── Next Step / Mark Resolved button ──────────────────────────────────────────
+.isim-next-btn {
+  width: 100%; padding: 10px;
+  background: rgba(0,229,255,0.07);
+  border: 1px solid rgba(0,229,255,0.45);
+  border-radius: 7px; color: $neon-cyan;
+  font-family: $font; font-size: 12px; font-weight: 700;
+  cursor: pointer; letter-spacing: .04em;
+  transition: background .15s, border-color .15s, box-shadow .15s;
+  margin-bottom: 6px;
+
+  &:hover {
+    background:   rgba(0,229,255,0.15);
+    border-color: rgba(0,229,255,0.9);
+    box-shadow:   0 0 12px rgba(0,229,255,0.2);
+  }
+
+  &--resolve {
+    background:   rgba(0,204,102,0.08);
+    border-color: rgba(0,204,102,0.5);
+    color:        #00CC66;
+    &:hover {
+      background:   rgba(0,204,102,0.18);
+      border-color: #00CC66;
+      box-shadow:   0 0 12px rgba(0,204,102,0.25);
+    }
+  }
+}
+
+// ── Alert state — panel border changes to orange/yellow ──────────────────────
+.isim--alert {
+  border-color: rgba(255,180,0,0.45);
+  box-shadow:   0 0 28px rgba(255,150,0,0.15), 0 4px 20px rgba(0,0,0,0.7);
+}
+.isim__header-live--alert {
+  color:     #FFAA00;
+  animation: blink-live 0.9s step-start infinite;
+}
+
+// ── Alert Waiting View ────────────────────────────────────────────────────────
+.isim-alert-waiting {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  text-align:      center;
+  padding:         16px 12px 8px;
+  gap:             8px;
+}
+
+.isim-alert-waiting__icon {
+  font-size:   42px;
+  line-height: 1;
+  animation:   alert-icon-pulse 1.4s ease-in-out infinite;
+}
+@keyframes alert-icon-pulse {
+  0%, 100% { transform: scale(1);    }
+  50%       { transform: scale(1.15); }
+}
+
+.isim-alert-waiting__title {
+  font-size:   12px;
+  font-weight: 700;
+  color:       $text-primary;
+  line-height: 1.4;
+}
+
+.isim-alert-waiting__badge {
+  font-size:    9px; font-weight: 700;
+  padding:      3px 8px; border-radius: 3px;
+  color:        #fff; letter-spacing: .08em;
+}
+
+.isim-alert-waiting__hint {
+  font-size:   10.5px;
+  color:       $text-muted;
+  line-height: 1.6;
+  margin:      0;
+  background:  rgba(255,150,0,0.06);
+  border:      1px solid rgba(255,150,0,0.2);
+  border-radius: 6px;
+  padding:     8px 10px;
+
+  strong { color: #FFAA00; }
+}
+
+.isim-alert-waiting__pulse {
+  width:        8px; height: 8px;
+  border-radius: 50%;
+  opacity:      0.8;
+  animation:    alert-dot-pulse 1s ease-in-out infinite;
+}
+@keyframes alert-dot-pulse {
+  0%, 100% { transform: scale(1);   opacity: 0.8; }
+  50%       { transform: scale(1.5); opacity: 0.3; }
+}
+
+// ── Pulse marker injected via MapLibre Marker ─────────────────────────────────
+.incident-pulse {
+  position: relative; width: 32px; height: 32px; pointer-events: none;
+
+  // Alert state: full beacon
+  &--alert {
+    width: 52px; height: 52px;
+    pointer-events: all;
+
+    .incident-pulse__ring {
+      inset: -12px;
+      animation-duration: 1.0s;
+      animation-timing-function: ease-out;
+    }
+    .incident-pulse__ring--outer {
+      inset: -22px;
+      border-width: 2px;
+      animation-duration: 1.6s;
+      animation-delay: 0.4s;
+    }
+    .incident-pulse__icon {
+      inset: 8px;
+    }
+  }
+}
+.incident-pulse__ring {
+  position: absolute; inset: -6px;
+  border: 3px solid; border-radius: 50%;
+  animation: pulse-ring 1.8s cubic-bezier(.3,.6,.4,1) infinite;
+}
+.incident-pulse__ring--outer {
+  position: absolute; inset: -14px;
+  border: 2px solid; border-radius: 50%;
+  animation: pulse-ring 2.6s cubic-bezier(.2,.5,.3,1) infinite;
+  opacity: 0.6;
+}
+// Warning icon in centre (replaces old __dot)
+.incident-pulse__icon {
+  position: absolute; inset: 6px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; line-height: 1;
+  animation: pulse-dot 1.0s cubic-bezier(.3,.6,.4,1) infinite;
+  color: #fff; font-weight: 900;
+  text-shadow: 0 0 4px rgba(0,0,0,0.6);
+}
+// Backward-compat alias so non-alert incidents still work
+.incident-pulse__dot {
+  position: absolute; inset: 4px;
+  border-radius: 50%;
+  animation: pulse-dot 1.8s cubic-bezier(.3,.6,.4,1) infinite;
+}
+// Floating label chip above the marker
+.incident-pulse__label {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%; transform: translateX(-50%);
+  white-space: nowrap;
+  background: rgba(8,12,20,0.90);
+  border: 1px solid;
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 11px; font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+  display: flex; align-items: center; gap: 5px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+  animation: label-fade-in 0.3s ease;
+}
+.incident-pulse__sev {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.05em;
+  padding: 1px 5px; border-radius: 6px;
+  &--high { background: rgba(248,81,73,0.25); color: #f85149; border: 1px solid rgba(248,81,73,0.4); }
+  &--med  { background: rgba(240,136,62,0.25); color: #f0883e; border: 1px solid rgba(240,136,62,0.4); }
+}
+
+@keyframes pulse-ring {
+  0%   { transform: scale(0.4); opacity: 1; }
+  100% { transform: scale(2.8); opacity: 0; }
+}
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1);    opacity: 1; }
+  50%       { transform: scale(1.25); opacity: 0.7; }
+}
+@keyframes label-fade-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}

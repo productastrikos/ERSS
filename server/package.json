@@ -1,0 +1,45 @@
+{
+  "name": "@erss/server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ERSS Dubai backend — Express 5 + Socket.IO + PostGIS on a single port (4327)",
+  "main": "index.js",
+  "engines": {
+    "node": ">=22.9"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --watch index.js",
+    "start": "node --env-file-if-exists=.env index.js",
+    "db:schema": "node --env-file-if-exists=.env db/run-sql.js db/schema.sql",
+    "db:views": "node --env-file-if-exists=.env db/run-sql.js db/views.sql",
+    "seed": "node --env-file-if-exists=.env db/seed/index.js all",
+    "seed:reference": "node --env-file-if-exists=.env db/seed/index.js reference",
+    "seed:history": "node --env-file-if-exists=.env db/seed/index.js history",
+    "seed:derived": "node --env-file-if-exists=.env db/seed/index.js derived",
+    "seed:reset": "node --env-file-if-exists=.env db/seed/index.js reset",
+    "seed:catchup": "node --env-file-if-exists=.env db/seed/index.js catchup",
+    "seed:weather": "node --env-file-if-exists=.env db/seed/index.js weather",
+    "seed:verify": "node --env-file-if-exists=.env db/seed/index.js verify",
+    "seed:resting": "node --env-file-if-exists=.env db/seed/index.js resting",
+    "test": "node --env-file-if-exists=.env --test \"test/*.test.js\"",
+    "test:flow": "node --env-file-if-exists=.env --test --test-concurrency=1 --test-timeout=120000 --test-force-exit \"test/flow/*.test.js\""
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "multer": "^2.0.2",
+    "pg": "^8.16.3",
+    "pg-copy-streams": "^7.0.0",
+    "pino": "^9.9.5",
+    "pino-http": "^10.5.0",
+    "socket.io": "^4.8.3",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.3"
+  }
+}

@@ -1,0 +1,435 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   The universal filter bar.
+
+   It sits above the charts on every analytical page, so it has to be dense without being
+   cramped, and it has to stay legible when eight chips are on. No colour literals —
+   tokens only, both themes.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.fbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  position: relative;
+  padding: var(--sp-10) var(--sp-12);
+  background: var(--app-surface);
+  border: 1px solid var(--app-border-soft);
+  border-radius: var(--r-10, 10px);
+
+  &__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-10);
+  }
+
+  &__spacer { flex: 1 1 var(--sp-16); }
+
+  &__dates {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-6);
+    font-size: 12px;
+    color: var(--app-text-muted);
+
+    input {
+      font: inherit;
+      font-family: var(--font-mono);
+      padding: var(--sp-4) var(--sp-6);
+      background: var(--app-surface-soft);
+      color: var(--app-text);
+      border: 1px solid var(--app-border);
+      border-radius: var(--r-6);
+      color-scheme: light dark;
+    }
+  }
+
+  /* ── The always-visible priority toggles ────────────────────────────────── */
+
+  &__inline {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+  }
+  &__inline-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--app-text-faint);
+    margin-inline-end: var(--sp-2);
+  }
+  &__toggle {
+    appearance: none;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    padding: var(--sp-4) var(--sp-8);
+    background: var(--app-surface-soft);
+    color: var(--app-text-muted);
+    border: 1px solid var(--app-border-soft);
+    border-radius: var(--r-6);
+    cursor: pointer;
+    transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+
+    &:hover { color: var(--app-text); }
+    &[aria-pressed='true'] {
+      background: var(--app-accent);
+      border-color: var(--app-accent);
+      color: var(--app-accent-ink, #fff);
+    }
+    &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 1px; }
+  }
+
+  /* ── Prediction controls ────────────────────────────────────────────────── */
+
+  &__switch {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-6);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--app-text-muted);
+    cursor: pointer;
+    user-select: none;
+
+    input { position: absolute; opacity: 0; width: 0; height: 0; }
+
+    &-track {
+      width: 30px;
+      height: 16px;
+      border-radius: 999px;
+      background: var(--app-border);
+      position: relative;
+      transition: background var(--dur-fast) var(--ease);
+      flex: none;
+
+      &::after {
+        content: '';
+        position: absolute;
+        inset-block-start: 2px;
+        inset-inline-start: 2px;
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        background: var(--app-surface);
+        transition: transform var(--dur-fast) var(--ease);
+      }
+    }
+    input:checked + &-track {
+      background: var(--app-accent);
+      &::after { transform: translateX(14px); }
+    }
+    input:focus-visible + &-track { outline: 2px solid var(--app-accent); outline-offset: 2px; }
+    svg { width: 13px; height: 13px; }
+  }
+
+  &__horizon {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    font-size: 12px;
+    color: var(--app-text-muted);
+
+    input {
+      width: 3.5em;
+      font: inherit;
+      font-family: var(--font-mono);
+      text-align: center;
+      padding: var(--sp-4);
+      background: var(--app-surface-soft);
+      color: var(--app-text);
+      border: 1px solid var(--app-border);
+      border-radius: var(--r-6);
+    }
+  }
+  &__unit { color: var(--app-text-faint); }
+
+  &__badge {
+    display: inline-grid;
+    place-items: center;
+    min-width: 16px;
+    height: 16px;
+    padding-inline: 4px;
+    border-radius: 999px;
+    background: var(--app-accent);
+    color: var(--app-accent-ink, #fff);
+    font-size: 10px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+  }
+
+  /* ── Active chips: nothing filters invisibly ────────────────────────────── */
+
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-6);
+  }
+  &__chip {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    max-width: 30ch;
+    font: inherit;
+    font-size: 11.5px;
+    padding: var(--sp-2) var(--sp-6);
+    background: var(--app-surface-soft);
+    color: var(--app-text-muted);
+    border: 1px solid var(--app-border-soft);
+    border-radius: var(--r-6);
+    cursor: pointer;
+
+    strong { color: var(--app-text); font-weight: 700; }
+    svg { width: 11px; height: 11px; flex: none; opacity: 0.6; }
+    &:hover { border-color: var(--app-danger); svg { opacity: 1; color: var(--app-danger); } }
+    &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 1px; }
+
+    &--reset {
+      border-style: dashed;
+      &:hover { border-color: var(--app-accent); svg { color: var(--app-accent); } }
+    }
+  }
+
+  &__note {
+    margin: 0;
+    font-size: 11px;
+    color: var(--app-text-faint);
+  }
+
+  /* ── The full panel ─────────────────────────────────────────────────────── */
+
+  &__panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: var(--sp-16);
+    padding-top: var(--sp-12);
+    margin-top: var(--sp-2);
+    border-top: 1px solid var(--app-border-soft);
+
+    &-foot {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: flex-end;
+      gap: var(--sp-8);
+      padding-top: var(--sp-8);
+      border-top: 1px solid var(--app-border-soft);
+    }
+  }
+}
+
+/* ── A group of fields inside the panel ─────────────────────────────────────── */
+
+.fgroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  min-width: 0;
+
+  &__title {
+    margin: 0;
+    font-size: 10.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--app-text-faint);
+  }
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-10);
+    min-width: 0;
+  }
+}
+
+/* ── One field ──────────────────────────────────────────────────────────────── */
+
+.ffield {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+
+  &--inline {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--sp-6);
+    font-size: 12px;
+    color: var(--app-text-muted);
+    cursor: pointer;
+  }
+
+  &__label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--app-text-muted);
+  }
+  &__help {
+    font-size: 10.5px;
+    color: var(--app-text-faint);
+    line-height: 1.4;
+  }
+
+  &__toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-4);
+
+    button {
+      appearance: none;
+      font: inherit;
+      font-size: 11px;
+      padding: 3px var(--sp-6);
+      background: var(--app-surface-soft);
+      color: var(--app-text-muted);
+      border: 1px solid var(--app-border-soft);
+      border-radius: var(--r-6);
+      cursor: pointer;
+
+      &[aria-pressed='true'] {
+        background: var(--app-accent);
+        border-color: var(--app-accent);
+        color: var(--app-accent-ink, #fff);
+      }
+      &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 1px; }
+    }
+  }
+
+  &__hours,
+  &__band {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    font-size: 11px;
+    color: var(--app-text-faint);
+
+    input {
+      width: 4.5em;
+      font: inherit;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      text-align: center;
+      padding: var(--sp-4);
+      background: var(--app-surface-soft);
+      color: var(--app-text);
+      border: 1px solid var(--app-border);
+      border-radius: var(--r-6);
+    }
+  }
+
+  &__clear {
+    appearance: none;
+    background: none;
+    border: 0;
+    padding: 2px;
+    color: var(--app-text-faint);
+    cursor: pointer;
+    display: inline-flex;
+    svg { width: 12px; height: 12px; }
+    &:hover { color: var(--app-danger); }
+  }
+}
+
+/* ── The multi-select ───────────────────────────────────────────────────────── */
+
+.fselect {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-6);
+  width: 100%;
+  font: inherit;
+  font-size: 12px;
+  text-align: start;
+  padding: var(--sp-6) var(--sp-8);
+  background: var(--app-surface-soft);
+  color: var(--app-text-muted);
+  border: 1px solid var(--app-border);
+  border-radius: var(--r-6);
+  cursor: pointer;
+
+  &.is-on { border-color: var(--app-accent); color: var(--app-text); }
+  &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 1px; }
+  svg { width: 13px; height: 13px; flex: none; opacity: 0.7; }
+
+  &__summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  &__menu {
+    position: absolute;
+    top: 100%;
+    inset-inline-start: 0;
+    z-index: 30;
+    min-width: 100%;
+    max-width: 320px;
+    margin-top: var(--sp-4);
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: var(--r-6);
+    box-shadow: var(--shadow-2, 0 6px 20px rgb(0 0 0 / 22%));
+    overflow: hidden;
+  }
+
+  &__search {
+    width: 100%;
+    font: inherit;
+    font-size: 12px;
+    padding: var(--sp-6) var(--sp-8);
+    background: var(--app-surface-soft);
+    color: var(--app-text);
+    border: 0;
+    border-bottom: 1px solid var(--app-border-soft);
+  }
+
+  &__list {
+    max-height: 240px;
+    overflow-y: auto;
+  }
+
+  &__opt {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-4) var(--sp-8);
+    font-size: 12px;
+    color: var(--app-text);
+    cursor: pointer;
+
+    &:hover { background: var(--app-surface-soft); }
+    &-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    &-n {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--app-text-faint);
+    }
+  }
+
+  &__empty {
+    padding: var(--sp-10);
+    font-size: 11.5px;
+    color: var(--app-text-faint);
+    text-align: center;
+  }
+
+  &__clear {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-4);
+    width: 100%;
+    font: inherit;
+    font-size: 11.5px;
+    padding: var(--sp-6);
+    background: var(--app-surface-soft);
+    color: var(--app-text-muted);
+    border: 0;
+    border-top: 1px solid var(--app-border-soft);
+    cursor: pointer;
+    svg { width: 11px; height: 11px; }
+    &:hover { color: var(--app-danger); }
+  }
+}

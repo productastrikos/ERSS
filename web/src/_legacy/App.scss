@@ -1,0 +1,121 @@
+// ── App layout ─────────────────────────────────────────────────────────────
+// Astriverse-style command center: TopBar / Body(Sidebar+Map) / Footer
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.app {
+  display: grid;
+  grid-template-rows: 60px 1fr 32px;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(180deg, #080c16 0%, #0a0e1a 35%, #0c1020 100%);
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  overflow: hidden;
+  color: rgba(200, 225, 255, 0.92);
+}
+
+// ── Body ──────────────────────────────────────────────────────────────────────
+
+.app-body {
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+
+// ── Map area ─────────────────────────────────────────────────────────────────
+
+.app-map {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+}
+
+// ── Footer / status bar ───────────────────────────────────────────────────────
+
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background: linear-gradient(90deg, rgba(6, 10, 20, 0.98) 0%, rgba(8, 12, 24, 0.98) 50%, rgba(6, 10, 20, 0.98) 100%);
+  border-top: 1px solid rgba(0, 229, 255, 0.18);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.5);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+  font-weight: 600;
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: rgba(140, 190, 230, 0.55);
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  &__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #00FF88;
+    box-shadow: 0 0 6px rgba(0, 255, 136, 0.6);
+    animation: app-footer-blink 3s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+
+  &__status {
+    font-weight: 700;
+    color: #00FF88;
+  }
+
+  &__sep {
+    color: rgba(0, 229, 255, 0.2);
+  }
+
+  &__loc {
+    color: rgba(140, 190, 230, 0.45);
+  }
+
+  &__center {
+    font-size: 10px;
+    font-weight: 500;
+    color: rgba(180, 210, 240, 0.55);
+    letter-spacing: 0.02em;
+
+    strong {
+      font-weight: 800;
+      color: rgba(0, 229, 255, 0.8);
+      letter-spacing: 0.04em;
+      text-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+    }
+  }
+
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__tag {
+    font-size: 9px;
+    font-weight: 600;
+    color: rgba(0, 229, 255, 0.5);
+    background: rgba(0, 229, 255, 0.06);
+    border: 1px solid rgba(0, 229, 255, 0.12);
+    padding: 2px 7px;
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+}
+
+@keyframes app-footer-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}

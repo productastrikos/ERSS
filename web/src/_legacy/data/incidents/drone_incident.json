@@ -1,0 +1,33 @@
+{
+  "incident_id": "DSO-DRN-006",
+  "type": "drone_signal_loss",
+  "severity": "high",
+  "location": {
+    "name": "Dubai Digital Park Airspace",
+    "zone": "Smart District — Dubai Digital Park (35 m altitude)",
+    "coordinates": [55.3798, 25.1195]
+  },
+  "sensor": {
+    "sensor_id": "DRN_5G_SIG_006",
+    "name": "5G Signal Strength Monitor",
+    "value": -112,
+    "unit": "dBm",
+    "threshold": -90,
+    "status": "SIGNAL_LOST"
+  },
+  "work_order_id": "WO-DSO-2026-0047",
+  "assigned_team": "Drone Operations — Flight Control",
+  "contact": "drone-ops@dso.ae | +971-4-501-5505",
+  "status": "detected",
+  "timestamp": "2026-03-16T14:22:00Z",
+  "drone_id": "DRN-DP-006",
+  "altitude_m": 35,
+  "last_known_position": [55.3798, 25.1195],
+  "flight_path": [[55.3810, 25.1175], [55.3805, 25.1183], [55.3798, 25.1195]],
+  "landing_pad": [55.3792, 25.1200],
+  "map_effect": {
+    "type": "drone",
+    "epicenter": [55.3798, 25.1195],
+    "radius_m": 250
+  }
+}

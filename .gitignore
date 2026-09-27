@@ -1,0 +1,20 @@
+node_modules/
+dist/
+build/
+*.log
+npm-debug.log*
+
+# Secrets — never commit real credentials
+.env
+.env.*
+!.env.example
+
+# Editor/OS cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Uploaded runtime data (server/data/uploads)
+server/data/uploads/*
+!server/data/uploads/.gitkeep

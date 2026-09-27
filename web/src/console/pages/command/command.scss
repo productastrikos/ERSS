@@ -1,0 +1,20 @@
+/* Command Centre — one tab strip over six existing pages. NO COLOUR LITERALS.
+
+   Operations fills the space it's given (`.ops { height: 100% }`) rather than scrolling
+   itself; the other five tabs are ordinary documents that scroll. Both need to work
+   under the SAME wrapper, so the body gets a determinate height (flex:1 in a height:100%
+   column) and `overflow: auto` — Operations exactly fills it and never triggers that
+   scrollbar, the document-flow pages use it exactly as they used `.shell-main`'s before. */
+
+.command-centre {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.command-centre__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}

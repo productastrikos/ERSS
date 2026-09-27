@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#FFFFFF" />
+    <meta name="description" content="Emergency Response Support System — Dubai" />
+
+    <title>ERSS Dubai</title>
+
+    <link rel="icon" type="image/png" href="/brand/Astrikos_solo_logo.png" />
+    <link rel="apple-touch-icon" href="/brand/Astrikos_solo_logo.png" />
+
+    <!-- Fonts are SELF-HOSTED (see src/theme/fonts.css). No font CDN: a command room
+         may be air-gapped and a demo room may have hostile Wi-Fi. -->
+    <link rel="preload" href="/fonts/lexend-deca-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/lato-400-latin.woff2"    as="font" type="font/woff2" crossorigin />
+
+    <script>
+      // Apply the stored theme before first paint so there is no flash of the wrong
+      // one. Light is the default.
+      (function () {
+        try {
+          var t = localStorage.getItem('erss.theme');
+          if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+          var d = localStorage.getItem('erss.density');
+          if (d === 'wall') document.documentElement.setAttribute('data-density', d);
+        } catch (e) { /* private mode, blocked storage — the default stands */ }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>
+      ERSS Dubai requires JavaScript. For emergencies call 998 (Ambulance), 999 (Police),
+      997 (Civil Defence) or 996 (Coastguard).
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

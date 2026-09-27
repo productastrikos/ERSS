@@ -1,0 +1,30 @@
+{
+  "incident_id": "DSO-WST-003",
+  "type": "smart_waste_overflow",
+  "severity": "medium",
+  "location": {
+    "name": "Silicon Gates Residential Block",
+    "zone": "Residential — Silicon Gates Tower Block A",
+    "coordinates": [55.3817, 25.1284]
+  },
+  "sensor": {
+    "sensor_id": "BIN_FLL_SG_012",
+    "name": "Fill-Level Ultrasonic Sensor",
+    "value": 94,
+    "unit": "%",
+    "threshold": 90,
+    "status": "OVERFLOW"
+  },
+  "work_order_id": "WO-DSO-2026-0044",
+  "assigned_team": "Waste Management & Collection",
+  "contact": "waste@dso.ae | +971-4-501-5502",
+  "status": "detected",
+  "timestamp": "2026-03-16T09:45:00Z",
+  "affected_assets": ["BIN_SG_012", "BIN_SG_013"],
+  "truck_route": [[55.3817, 25.1284], [55.3810, 25.1270], [55.3796, 25.1260], [55.3783, 25.1252]],
+  "map_effect": {
+    "type": "waste",
+    "epicenter": [55.3817, 25.1284],
+    "radius_m": 150
+  }
+}

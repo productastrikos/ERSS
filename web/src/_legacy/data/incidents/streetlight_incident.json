@@ -1,0 +1,29 @@
+{
+  "incident_id": "DSO-LGT-002",
+  "type": "smart_streetlight_failure",
+  "severity": "medium",
+  "location": {
+    "name": "Semmer Villas — Villa Road",
+    "zone": "Villa Community — Semmer Villas Area",
+    "coordinates": [55.3778, 25.1304]
+  },
+  "sensor": {
+    "sensor_id": "SL_CTL_0078",
+    "name": "Streetlight IoT Controller",
+    "value": 0,
+    "unit": "lux",
+    "threshold": 50,
+    "status": "FAULT"
+  },
+  "work_order_id": "WO-DSO-2026-0043",
+  "assigned_team": "City Lighting Maintenance",
+  "contact": "facilities@dso.ae | +971-4-501-5501",
+  "status": "detected",
+  "timestamp": "2026-03-16T20:14:00Z",
+  "affected_assets": ["SL_POLE_SEG_078", "SL_POLE_SEG_079", "SL_POLE_SEG_080"],
+  "map_effect": {
+    "type": "streetlight",
+    "epicenter": [55.3778, 25.1304],
+    "radius_m": 180
+  }
+}

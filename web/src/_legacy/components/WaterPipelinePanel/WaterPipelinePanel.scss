@@ -1,0 +1,1151 @@
+// ─── Water Pipeline Panel ──────────────────────────────────────────────────
+.wpp-panel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 360px;
+  max-height: calc(100vh - 80px);
+  background: linear-gradient(160deg, rgba(2,8,22,0.97) 0%, rgba(4,18,50,0.95) 100%);
+  border: 1px solid rgba(79,195,247,0.20);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.65), 0 0 0 1px rgba(79,195,247,0.06) inset;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 1100;
+  font-family: 'Inter', sans-serif;
+  backdrop-filter: blur(16px);
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px 8px;
+    background: rgba(79,195,247,0.05);
+    border-bottom: 1px solid rgba(79,195,247,0.12);
+    flex-shrink: 0;
+
+    &-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    &-icon {
+      font-size: 20px;
+      filter: drop-shadow(0 0 8px rgba(79,195,247,0.5));
+    }
+
+    &-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #4FC3F7;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+    }
+
+    &-sub {
+      font-size: 10px;
+      color: rgba(255,255,255,0.35);
+      margin-top: 1px;
+    }
+  }
+
+  &__close {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.35);
+    font-size: 14px;
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+
+    &:hover {
+      background: rgba(255,255,255,0.08);
+      color: white;
+    }
+  }
+
+  &__live {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 14px;
+    font-size: 9px;
+    color: rgba(255,255,255,0.45);
+    border-bottom: 1px solid rgba(79,195,247,0.06);
+  }
+
+  &__tabs {
+    display: flex;
+    gap: 2px;
+    padding: 6px 10px;
+    border-bottom: 1px solid rgba(79,195,247,0.08);
+    flex-shrink: 0;
+  }
+
+  &__body {
+    overflow-y: auto;
+    flex: 1;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(79,195,247,0.2) transparent;
+
+    &::-webkit-scrollbar { width: 4px; }
+    &::-webkit-scrollbar-track { background: transparent; }
+    &::-webkit-scrollbar-thumb { background: rgba(79,195,247,0.2); border-radius: 4px; }
+  }
+}
+
+// ── Tabs ────────────────────────────────────────────────────────────────────
+.wpp-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 0;
+  font-size: 10px;
+  color: rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover { background: rgba(79,195,247,0.08); color: rgba(255,255,255,0.7); }
+
+  &--active {
+    background: rgba(79,195,247,0.14);
+    border-color: rgba(79,195,247,0.3);
+    color: #4FC3F7;
+    font-weight: 600;
+  }
+
+  &__icon { font-size: 12px; }
+  &__label { letter-spacing: 0.3px; }
+}
+
+// ── Content area ────────────────────────────────────────────────────────────
+.wpp-content {
+  padding: 10px 14px 14px;
+}
+
+.wpp-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.55);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 6px;
+}
+
+.wpp-subtitle {
+  font-size: 9px;
+  color: rgba(79,195,247,0.5);
+  letter-spacing: 0.3px;
+  margin-bottom: 10px;
+}
+
+.wpp-empty {
+  font-size: 11px;
+  color: rgba(255,255,255,0.3);
+  padding: 8px 0;
+}
+
+// ── Live tag ────────────────────────────────────────────────────────────────
+.wpp-live-tag {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 8px;
+}
+
+.wpp-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4CAF50;
+  box-shadow: 0 0 6px #4CAF50;
+  animation: wpp-pulse 1.5s ease infinite;
+}
+
+@keyframes wpp-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+// ── KPI Grid ────────────────────────────────────────────────────────────────
+.wpp-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.wpp-kpi {
+  text-align: center;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 8px 4px;
+
+  &__val {
+    display: block;
+    font-size: 16px;
+    font-weight: 700;
+    color: #4FC3F7;
+  }
+
+  &__lbl {
+    display: block;
+    font-size: 8px;
+    color: rgba(255,255,255,0.35);
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  &--ok .wpp-kpi__val { color: #81C784; }
+  &--warning .wpp-kpi__val { color: #FFB74D; }
+  &--danger .wpp-kpi__val { color: #ef5350; }
+}
+
+// ── Gauge row ───────────────────────────────────────────────────────────────
+.wpp-gauge-row {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 10px;
+}
+
+.wpp-gauge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  &__label {
+    font-size: 8px;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+}
+
+// ── Node list ───────────────────────────────────────────────────────────────
+.wpp-node-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wpp-node-group {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 6px;
+  padding: 6px 8px;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 4px;
+  }
+
+  &__icon { font-size: 13px; }
+  &__label { font-size: 10px; font-weight: 600; flex: 1; }
+  &__count {
+    font-size: 9px;
+    background: rgba(255,255,255,0.06);
+    padding: 1px 5px;
+    border-radius: 8px;
+    color: rgba(255,255,255,0.5);
+  }
+
+  &__items {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+.wpp-node-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 4px;
+  font-size: 10px;
+  color: rgba(255,255,255,0.55);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover { background: rgba(79,195,247,0.08); }
+
+  &__name { flex: 1; }
+  &__status {
+    font-size: 8px;
+    padding: 1px 5px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    font-weight: 600;
+
+    &--active { color: #81C784; background: rgba(129,199,132,0.12); }
+    &--warning { color: #FFB74D; background: rgba(255,183,77,0.12); }
+    &--critical { color: #ef5350; background: rgba(239,83,80,0.12); }
+    &--offline { color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.04); }
+  }
+
+  &--more {
+    font-size: 9px;
+    color: rgba(79,195,247,0.5);
+    cursor: default;
+    &:hover { background: none; }
+  }
+}
+
+// ── Zone cards ──────────────────────────────────────────────────────────────
+.wpp-zones {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+
+.wpp-zone-card {
+  background: rgba(79,195,247,0.04);
+  border: 1px solid rgba(79,195,247,0.10);
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    background: rgba(79,195,247,0.10);
+    border-color: rgba(79,195,247,0.25);
+  }
+
+  &__name {
+    font-size: 9px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 3px;
+  }
+
+  &__stats {
+    display: flex;
+    gap: 8px;
+    font-size: 8px;
+    color: rgba(255,255,255,0.35);
+  }
+}
+
+// ── Pipeline breakdown rows ─────────────────────────────────────────────────
+.wpp-pipe-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+
+  &__type {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.6);
+    border-left: 3px solid;
+    padding-left: 6px;
+    min-width: 80px;
+  }
+
+  &__stats {
+    display: flex;
+    gap: 10px;
+    font-size: 9px;
+    color: rgba(255,255,255,0.4);
+  }
+}
+
+// ── Alert rows ──────────────────────────────────────────────────────────────
+.wpp-alert-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  background: rgba(239,83,80,0.06);
+  border: 1px solid rgba(239,83,80,0.12);
+  border-radius: 6px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover { background: rgba(239,83,80,0.12); }
+
+  &__icon { font-size: 14px; }
+  &__info { flex: 1; }
+  &__pipe { font-size: 10px; font-weight: 600; color: #ef5350; display: block; }
+  &__detail { font-size: 9px; color: rgba(255,255,255,0.4); }
+}
+
+// ── Incident card ───────────────────────────────────────────────────────────
+.wpp-incident {
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-left: 3px solid;
+    background: rgba(255,255,255,0.03);
+    border-radius: 0 6px 6px 0;
+    margin-bottom: 8px;
+  }
+
+  &__sev {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: white;
+  }
+
+  &__type {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.7);
+  }
+
+  &__detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  &__detail {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 6px;
+    padding: 5px 7px;
+
+    &-lbl {
+      display: block;
+      font-size: 8px;
+      color: rgba(255,255,255,0.35);
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    &-val {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.7);
+
+      &--idle      { color: rgba(255,255,255,0.4); }
+      &--assigned  { color: #FFB74D; }
+      &--en_route  { color: #4FC3F7; }
+      &--repairing { color: #81C784; }
+      &--resolved  { color: #4CAF50; }
+    }
+  }
+}
+
+// ── Impact analysis ─────────────────────────────────────────────────────────
+.wpp-impact {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 6px;
+  padding: 6px 8px;
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: rgba(255,255,255,0.6);
+    padding: 3px 0;
+  }
+
+  &__icon { font-size: 13px; }
+
+  &__node {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &:hover { background: rgba(79,195,247,0.08); }
+
+    &-icon { font-size: 12px; }
+    &-name { flex: 1; font-size: 9px; color: rgba(255,255,255,0.5); }
+    &-pop { font-size: 8px; color: #FFB74D; }
+  }
+
+  &__more {
+    font-size: 9px;
+    color: rgba(79,195,247,0.4);
+    padding: 2px 4px;
+  }
+}
+
+// ── AI Advisory ─────────────────────────────────────────────────────────────
+.wpp-advisory {
+  background: rgba(79,195,247,0.04);
+  border: 1px solid rgba(79,195,247,0.12);
+  border-radius: 6px;
+  padding: 8px 10px;
+
+  &__title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #4FC3F7;
+    margin-bottom: 6px;
+  }
+
+  &__impacts {
+    margin-bottom: 6px;
+  }
+
+  &__impact {
+    font-size: 9px;
+    color: rgba(255,255,255,0.5);
+    padding: 2px 0;
+  }
+
+  &__actions-title {
+    font-size: 9px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.45);
+    margin-bottom: 3px;
+  }
+
+  &__actions {
+    margin: 0;
+    padding-left: 16px;
+    font-size: 9px;
+    color: rgba(255,255,255,0.5);
+
+    li { padding: 1px 0; }
+  }
+
+  &__eta {
+    margin-top: 6px;
+    font-size: 9px;
+    color: #FFB74D;
+    font-weight: 600;
+  }
+}
+
+// ── Workflow steps ──────────────────────────────────────────────────────────
+.wpp-workflow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+
+  &__step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px;
+    font-size: 10px;
+    color: rgba(255,255,255,0.3);
+    border-radius: 4px;
+    transition: all 0.2s;
+
+    &--done { color: rgba(255,255,255,0.5); }
+    &--active {
+      background: rgba(79,195,247,0.08);
+      color: #4FC3F7;
+      font-weight: 600;
+    }
+  }
+
+  &__marker {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    flex-shrink: 0;
+
+    .wpp-workflow__step--done & { border-color: #81C784; color: #81C784; background: rgba(129,199,132,0.1); }
+    .wpp-workflow__step--active & { border-color: #4FC3F7; color: #4FC3F7; background: rgba(79,195,247,0.12); }
+  }
+}
+
+// ── Buttons ─────────────────────────────────────────────────────────────────
+.wpp-btn-row {
+  display: flex;
+  gap: 6px;
+}
+
+.wpp-btn {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: none;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &--primary {
+    background: rgba(79,195,247,0.18);
+    color: #4FC3F7;
+    border: 1px solid rgba(79,195,247,0.3);
+
+    &:hover { background: rgba(79,195,247,0.28); }
+  }
+
+  &--secondary {
+    background: rgba(255,255,255,0.05);
+    color: rgba(255,255,255,0.5);
+    border: 1px solid rgba(255,255,255,0.08);
+
+    &:hover { background: rgba(255,255,255,0.10); }
+  }
+
+  &--danger {
+    background: rgba(239,83,80,0.15);
+    color: #ef5350;
+    border: 1px solid rgba(239,83,80,0.3);
+
+    &:hover { background: rgba(239,83,80,0.25); }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// ── Spinner ─────────────────────────────────────────────────────────────────
+.wpp-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(79,195,247,0.2);
+  border-top-color: #4FC3F7;
+  border-radius: 50%;
+  animation: wpp-spin 0.8s linear infinite;
+  margin: 0 auto 8px;
+}
+
+@keyframes wpp-spin {
+  to { transform: rotate(360deg); }
+}
+
+// ── Live incident badge ─────────────────────────────────────────────────────
+.wpp-live-incident {
+  color: #ef5350;
+  font-weight: 700;
+  animation: wpp-pulse 1s ease infinite;
+}
+
+// ── Tab badge (notification dot) ────────────────────────────────────────────
+.wpp-tab {
+  position: relative;
+
+  &__badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 7px;
+    height: 7px;
+    background: #ef5350;
+    border-radius: 50%;
+    box-shadow: 0 0 6px #ef5350;
+    animation: wpp-pulse 1s ease infinite;
+  }
+}
+
+// ── Incident status bar (new lifecycle UI) ───────────────────────────────────
+.wpp-incident {
+  &__status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-left: 3px solid;
+    background: rgba(255,255,255,0.03);
+    border-radius: 0 6px 6px 0;
+    margin-bottom: 8px;
+  }
+
+  &__sev {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    color: white;
+    text-transform: uppercase;
+  }
+
+  &__type {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.7);
+    flex: 1;
+  }
+
+  &__stage {
+    font-size: 9px;
+    background: rgba(255,255,255,0.06);
+    padding: 2px 7px;
+    border-radius: 8px;
+    color: rgba(255,255,255,0.55);
+    white-space: nowrap;
+  }
+
+  &__detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+    margin-bottom: 6px;
+  }
+}
+
+// ── Detail cells (shorthand) ─────────────────────────────────────────────────
+.wpp-d {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 6px;
+  padding: 5px 7px;
+
+  &__l {
+    display: block;
+    font-size: 8px;
+    color: rgba(255,255,255,0.35);
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+
+  &__v {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.75);
+  }
+}
+
+// ── Validation card ─────────────────────────────────────────────────────────
+.wpp-validation-card {
+  background: rgba(79,195,247,0.04);
+  border: 1px solid rgba(79,195,247,0.14);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.wpp-validation-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 8px;
+}
+
+.wpp-validation-bar-wrap {
+  height: 5px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.wpp-validation-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #4FC3F7, #81C784);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 8px rgba(79,195,247,0.4);
+}
+
+.wpp-validation-pct {
+  font-size: 11px;
+  font-weight: 700;
+  color: #81C784;
+  margin-bottom: 8px;
+}
+
+// ── Sensor readings ─────────────────────────────────────────────────────────
+.wpp-sensor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.wpp-sensor-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 5px;
+  font-size: 9px;
+
+  &--anomaly {
+    background: rgba(239,83,80,0.07);
+    border-color: rgba(239,83,80,0.2);
+    animation: wpp-flicker 1.5s ease infinite;
+  }
+}
+
+.wpp-sensor-id   { color: rgba(255,255,255,0.35); min-width: 40px; }
+.wpp-sensor-label { color: rgba(255,255,255,0.55); flex: 1; }
+.wpp-sensor-trend {
+  font-size: 10px; font-weight: 700; width: 12px; text-align: center;
+
+  &--dropping { color: #ef5350; }
+  &--rising   { color: #FFB74D; }
+  &--stable   { color: rgba(255,255,255,0.3); }
+}
+.wpp-sensor-val   { font-weight: 600; font-size: 10px; }
+.wpp-sensor-alert { color: #ef5350; font-size: 11px; }
+
+@keyframes wpp-flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+// ── Root cause ──────────────────────────────────────────────────────────────
+.wpp-root-cause {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: rgba(255,183,77,0.06);
+  border: 1px solid rgba(255,183,77,0.18);
+  border-radius: 7px;
+  padding: 7px 10px;
+  margin-bottom: 6px;
+
+  &__icon { font-size: 16px; flex-shrink: 0; }
+
+  &__title {
+    font-size: 8px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.35);
+    margin-bottom: 2px;
+    letter-spacing: 0.5px;
+  }
+
+  &__label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #FFB74D;
+  }
+}
+
+// ── Impact grid ─────────────────────────────────────────────────────────────
+.wpp-impact-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+  margin-bottom: 6px;
+}
+
+.wpp-impact-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 7px;
+  padding: 6px 3px;
+
+  &--critical {
+    background: rgba(239,83,80,0.08);
+    border-color: rgba(239,83,80,0.2);
+  }
+
+  &__icon { font-size: 14px; }
+
+  &__val {
+    font-size: 13px;
+    font-weight: 700;
+    color: white;
+    margin-top: 1px;
+  }
+
+  &__lbl {
+    font-size: 7px;
+    color: rgba(255,255,255,0.35);
+    text-align: center;
+    text-transform: uppercase;
+    margin-top: 1px;
+  }
+}
+
+// ── Auto-action cards ───────────────────────────────────────────────────────
+.wpp-auto-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.wpp-auto-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  border-radius: 7px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  transition: all 0.35s;
+
+  &--done {
+    background: rgba(129,199,132,0.07);
+    border-color: rgba(129,199,132,0.18);
+  }
+
+  &--executing {
+    background: rgba(79,195,247,0.06);
+    border-color: rgba(79,195,247,0.18);
+    animation: wpp-flicker 0.9s ease infinite;
+  }
+
+  &--pending {
+    opacity: 0.45;
+  }
+
+  &__icon  { font-size: 16px; flex-shrink: 0; }
+  &__body  { flex: 1; }
+  &__name  { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.7); }
+  &__detail { font-size: 8.5px; color: rgba(255,255,255,0.35); margin-top: 1px; }
+  &__status { font-size: 13px; flex-shrink: 0; }
+}
+
+// ── Assigned card ───────────────────────────────────────────────────────────
+.wpp-assigned-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+
+  &__icon { font-size: 22px; }
+
+  &__name {
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.8);
+  }
+
+  &__id {
+    font-size: 9px;
+    color: rgba(255,255,255,0.35);
+    margin-top: 1px;
+  }
+
+  &__sub {
+    font-size: 9px;
+    color: rgba(255,255,255,0.4);
+    margin-top: 1px;
+  }
+
+  &__badge {
+    margin-left: auto;
+    font-size: 8px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 8px;
+    text-transform: uppercase;
+
+    &--assigned  { background: rgba(255,183,77,0.14); color: #FFB74D; }
+    &--en_route  { background: rgba(79,195,247,0.14); color: #4FC3F7; }
+    &--repairing { background: rgba(129,199,132,0.14); color: #81C784; }
+  }
+}
+
+// ── Assignment overlay popup ─────────────────────────────────────────────────
+.wpp-assign-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: flex-end;
+  z-index: 200;
+  border-radius: 12px;
+}
+
+.wpp-assign-popup {
+  width: 100%;
+  background: linear-gradient(160deg, rgba(2,8,22,0.99) 0%, rgba(4,18,50,0.97) 100%);
+  border-top: 1px solid rgba(79,195,247,0.2);
+  border-radius: 0 0 12px 12px;
+  padding: 14px;
+  max-height: 80%;
+  overflow-y: auto;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 700;
+    color: #4FC3F7;
+    margin-bottom: 6px;
+  }
+
+  &__close {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.45);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 2px 5px;
+    border-radius: 4px;
+
+    &:hover { background: rgba(255,255,255,0.08); color: white; }
+  }
+
+  &__sub {
+    font-size: 9.5px;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 8px;
+  }
+
+  &__msg {
+    font-size: 9px;
+    color: rgba(255,183,77,0.7);
+    background: rgba(255,183,77,0.06);
+    border: 1px solid rgba(255,183,77,0.15);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin-bottom: 10px;
+    line-height: 1.5;
+
+    em { font-style: italic; color: rgba(255,255,255,0.55); }
+  }
+}
+
+.wpp-assign-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.wpp-assign-member {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 7px;
+  transition: background 0.15s;
+
+  &:hover { background: rgba(255,255,255,0.06); }
+
+  &--offline { opacity: 0.4; }
+
+  &__dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+
+    &--available { background: #4CAF50; box-shadow: 0 0 5px #4CAF50; }
+    &--busy      { background: #FFB74D; box-shadow: 0 0 5px #FFB74D; }
+    &--offline   { background: rgba(255,255,255,0.2); }
+  }
+
+  &__info { flex: 1; }
+  &__name { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.7); }
+  &__meta { font-size: 8.5px; color: rgba(255,255,255,0.35); margin-top: 1px; }
+}
+
+// ── Analytics table ─────────────────────────────────────────────────────────
+.wpp-analytics {
+  background: rgba(129,199,132,0.05);
+  border: 1px solid rgba(129,199,132,0.15);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+
+  &__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 9.5px;
+    color: rgba(255,255,255,0.5);
+
+    &:last-child { border-bottom: none; }
+  }
+
+  &__val {
+    font-weight: 700;
+    color: #81C784;
+    font-size: 10px;
+  }
+}
+
+// ── Incident timeline ───────────────────────────────────────────────────────
+.wpp-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(79,195,247,0.15) transparent;
+}
+
+.wpp-timeline__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 5px 7px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 5px;
+}
+
+.wpp-timeline__icon { font-size: 12px; flex-shrink: 0; margin-top: 1px; }
+.wpp-timeline__body { display: flex; flex-direction: column; gap: 1px; }
+.wpp-timeline__time  { font-size: 8px; color: rgba(255,255,255,0.3); }
+.wpp-timeline__label { font-size: 9px; color: rgba(255,255,255,0.55); }
+
+// ── Section title resolved variant ─────────────────────────────────────────
+.wpp-section-title--resolved {
+  color: #81C784;
+}
+
+// ── Ghost button ────────────────────────────────────────────────────────────
+.wpp-btn--ghost {
+  background: transparent;
+  color: rgba(79,195,247,0.6);
+  border: 1px solid rgba(79,195,247,0.18);
+  font-size: 9.5px;
+  padding: 5px 10px;
+
+  &:hover {
+    background: rgba(79,195,247,0.08);
+    color: #4FC3F7;
+  }
+}
+
+.wpp-btn--sm {
+  flex: none;
+  padding: 4px 10px;
+  font-size: 9px;
+}
+
+.wpp-btn--sm:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

@@ -1,0 +1,88 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Fonts — SELF-HOSTED.
+
+   Two typefaces, no exceptions: Lexend Deca for every heading, label, eyebrow and
+   numeric display; Lato for every paragraph, table cell, input and button label.
+   JetBrains Mono is permitted for incident refs, callsigns, Makani codes and hashes
+   only.
+
+   Self-hosted rather than loaded from a CDN because a command room may be air-gapped
+   and a demo room may have hostile Wi-Fi — a font CDN is a single point of failure for
+   the entire visual identity.
+
+   Files are fetched by:  node ops/scripts/fetch-fonts.mjs
+   If they are absent the fallback stack applies and the app still works, just not
+   on-brand. `npm run audit:theme` warns when they are missing.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Lexend Deca ────────────────────────────────────────────────────────────── */
+
+@font-face {
+  font-family: 'Lexend Deca';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/fonts/lexend-deca-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC,
+                 U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ── Lato ───────────────────────────────────────────────────────────────────── */
+
+@font-face {
+  font-family: 'Lato';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/lato-400-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC,
+                 U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Lato';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/lato-700-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC,
+                 U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Lato';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url('/fonts/lato-900-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC,
+                 U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Lato';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/lato-400-italic-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC,
+                 U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ── JetBrains Mono — refs, callsigns, Makani codes, hashes ONLY ───────────── */
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC,
+                 U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}

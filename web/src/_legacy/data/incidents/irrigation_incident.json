@@ -1,0 +1,30 @@
+{
+  "incident_id": "DSO-IRR-008",
+  "type": "smart_irrigation_activation",
+  "severity": "low",
+  "location": {
+    "name": "DSO Central Park & Green Corridors",
+    "zone": "Landscape — DSO Central Park",
+    "coordinates": [55.3779, 25.1241]
+  },
+  "sensor": {
+    "sensor_id": "WS_DSOPARK_01",
+    "name": "Weather Station (Temperature)",
+    "value": 43,
+    "unit": "°C",
+    "threshold": 38,
+    "status": "HEAT_TRIGGER"
+  },
+  "work_order_id": "WO-DSO-2026-0049",
+  "assigned_team": "Landscape & Smart Environment",
+  "contact": "landscape@dso.ae | +971-4-501-5507",
+  "status": "detected",
+  "timestamp": "2026-03-16T13:30:00Z",
+  "irrigation_zones": ["PARK_ZONE_A", "PARK_ZONE_B", "CORRIDOR_EAST"],
+  "scheduled_duration_min": 45,
+  "map_effect": {
+    "type": "irrigation",
+    "epicenter": [55.3779, 25.1241],
+    "radius_m": 350
+  }
+}

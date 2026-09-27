@@ -1,0 +1,30 @@
+{
+  "incident_id": "DSO-CYB-009",
+  "type": "cybersecurity_intrusion",
+  "severity": "critical",
+  "location": {
+    "name": "DTEC Building — Data Centre",
+    "zone": "Tech District — DTEC, SCADA Network VLAN",
+    "coordinates": [55.3803, 25.1224]
+  },
+  "sensor": {
+    "sensor_id": "IDS_DTEC_SCADA_01",
+    "name": "Intrusion Detection System",
+    "value": 47,
+    "unit": "correlated events",
+    "threshold": 10,
+    "status": "INTRUSION_DETECTED"
+  },
+  "work_order_id": "WO-DSO-2026-0050",
+  "assigned_team": "Security Operations Center (SOC)",
+  "contact": "soc@dso.ae | +971-4-501-5508",
+  "status": "detected",
+  "timestamp": "2026-03-16T03:17:00Z",
+  "threat_actor_ips": ["192.0.2.45", "198.51.100.17"],
+  "affected_vlans": ["SCADA_VLAN_12", "OT_SEGMENT_04"],
+  "map_effect": {
+    "type": "cyber",
+    "epicenter": [55.3803, 25.1224],
+    "radius_m": 200
+  }
+}

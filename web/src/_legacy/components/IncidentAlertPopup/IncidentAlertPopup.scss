@@ -1,0 +1,188 @@
+// ── Incident Alert Popup ──────────────────────────────────────────────────────
+// Absolute-positioned card inside dso-map-wrapper, rendered at the marker
+// epicenter pixel position when the user clicks the blinking alert marker.
+
+$dark-bg:    rgba(6, 12, 28, 0.97);
+$border:     rgba(var(--effect-color, #00e5ff), 0.35);
+$font:       'Inter', 'Segoe UI', sans-serif;
+$text:       #e2f4ff;
+$text-muted: rgba(#e2f4ff, 0.55);
+
+.ialert {
+  position:     absolute;
+  z-index:      900;
+  width:        300px;
+  background:   $dark-bg;
+  border:       1px solid rgba(0, 229, 255, 0.3);
+  border-top:   2px solid var(--effect-color, #00e5ff);
+  border-radius: 10px;
+  box-shadow:   0 0 32px rgba(0, 0, 0, 0.7), 0 0 20px rgba(0, 229, 255, 0.12);
+  font-family:  $font;
+  color:        $text;
+  padding:      14px 14px 14px;
+  pointer-events: all;
+  animation:    ialert-enter 0.2s cubic-bezier(.2,.8,.3,1) both;
+  overflow:     hidden;
+
+  // Neon top-border glow line
+  &::before {
+    content:  '';
+    position: absolute;
+    top:      0; left: 0; right: 0;
+    height:   2px;
+    background: linear-gradient(90deg, transparent, var(--effect-color, #00e5ff), transparent);
+    opacity:  0.8;
+  }
+}
+
+@keyframes ialert-enter {
+  from { opacity: 0; transform: scale(0.92) translateY(-8px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);    }
+}
+
+// ── Close button ───────────────────────────────────────────────────────────────
+.ialert__close {
+  position:   absolute;
+  top:        8px; right: 8px;
+  width:      22px; height: 22px;
+  background: rgba(255,255,255,0.06);
+  border:     none;
+  border-radius: 50%;
+  color:      $text-muted;
+  font-size:  11px;
+  cursor:     pointer;
+  display:    flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+  &:hover { background: rgba(255,60,60,0.2); color: #ff8888; }
+}
+
+// ── Header ─────────────────────────────────────────────────────────────────────
+.ialert__header {
+  display:     flex;
+  align-items: flex-start;
+  gap:         10px;
+  margin-bottom: 10px;
+  padding-right: 20px;
+}
+.ialert__icon {
+  font-size:   28px;
+  line-height: 1;
+  flex-shrink: 0;
+  animation:   icon-pulse 2s ease-in-out infinite;
+}
+@keyframes icon-pulse {
+  0%, 100% { filter: drop-shadow(0 0 0px transparent); }
+  50%       { filter: drop-shadow(0 0 8px var(--effect-color, #00e5ff)); }
+}
+.ialert__header-info { flex: 1; min-width: 0; }
+.ialert__title {
+  font-size:   12px;
+  font-weight: 700;
+  line-height: 1.4;
+  color:       $text;
+}
+.ialert__meta { display: flex; gap: 5px; margin-top: 4px; flex-wrap: wrap; }
+.ialert__severity {
+  font-size:    9px; font-weight: 700;
+  padding:      2px 6px;
+  border-radius: 3px;
+  background:   var(--sev-color, #FF6600);
+  color:        #fff;
+  letter-spacing: .06em;
+}
+.ialert__category {
+  font-size:   9px;
+  color:       var(--effect-color, #00e5ff);
+  font-weight: 600;
+  opacity:     .8;
+  border:      1px solid rgba(0,229,255,0.25);
+  padding:     1px 5px;
+  border-radius: 3px;
+}
+
+// ── Location ───────────────────────────────────────────────────────────────────
+.ialert__location {
+  display:     flex;
+  align-items: flex-start;
+  gap:         5px;
+  font-size:   10px;
+  color:       $text-muted;
+  margin-bottom: 8px;
+  padding:     5px 7px;
+  background:  rgba(0,229,255,0.04);
+  border-radius: 5px;
+  border-left: 2px solid var(--effect-color, #00e5ff);
+}
+.ialert__location-icon { flex-shrink: 0; }
+.ialert__location-text { line-height: 1.4; }
+
+// ── Description ────────────────────────────────────────────────────────────────
+.ialert__desc {
+  font-size:   10.5px;
+  color:       rgba($text, .75);
+  line-height: 1.55;
+  margin:      0 0 10px;
+}
+
+// ── Sensors ────────────────────────────────────────────────────────────────────
+.ialert__sensors-label {
+  font-size:      9px;
+  font-weight:    700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color:          $text-muted;
+  margin-bottom:  5px;
+}
+.ialert__sensors { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+.ialert__sensor-tag {
+  font-size:     9px;
+  padding:       2px 6px;
+  background:    rgba(0, 229, 255, 0.05);
+  border:        1px solid rgba(0, 229, 255, 0.18);
+  border-radius: 10px;
+  color:         $text-muted;
+}
+
+// ── Steps hint ────────────────────────────────────────────────────────────────
+.ialert__steps-hint {
+  display:       flex;
+  align-items:   center;
+  gap:           6px;
+  font-size:     10px;
+  color:         $text-muted;
+  background:    rgba(0, 229, 255, 0.04);
+  border:        1px solid rgba(0, 229, 255, 0.12);
+  border-radius: 5px;
+  padding:       5px 7px;
+  margin-bottom: 12px;
+}
+.ialert__steps-hint-icon { flex-shrink: 0; }
+
+// ── Begin button ─────────────────────────────────────────────────────────────
+.ialert__begin-btn {
+  width:         100%;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  gap:           8px;
+  padding:       10px;
+  background:    linear-gradient(135deg, rgba(0,229,255,0.15), rgba(0,229,255,0.05));
+  border:        1px solid rgba(0, 229, 255, 0.5);
+  border-radius: 7px;
+  color:         #00e5ff;
+  font-family:   $font;
+  font-size:     12px;
+  font-weight:   700;
+  cursor:        pointer;
+  letter-spacing: .04em;
+  transition:    background .15s, border-color .15s, box-shadow .15s;
+
+  &:hover {
+    background:  linear-gradient(135deg, rgba(0,229,255,0.28), rgba(0,229,255,0.12));
+    border-color: rgba(0, 229, 255, 0.9);
+    box-shadow:  0 0 14px rgba(0, 229, 255, 0.3);
+  }
+  &:active {
+    transform: scale(0.98);
+  }
+}

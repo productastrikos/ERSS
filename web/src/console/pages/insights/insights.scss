@@ -1,0 +1,801 @@
+/* Insights — search & analytics (Concept Note screens). NO COLOUR LITERALS: tokens only.
+   The shared tab-strip look these pages used lives in pillar.scss now as
+   `.pillar__tabbar` — Command Centre uses the same class for its own subsystem tabs. */
+
+/* `.pillar` caps at 1400px and centres itself (pillar.scss) — right for Command Centre's
+   dense tab strip, but each Insights page is now its own full route with nothing beside
+   it, and that cap read as two blank margins eating the screen on anything wider than a
+   laptop. Insights runs the full width of `.shell-main` instead. */
+.pillar.insights {
+  max-width: none;
+  margin-inline: 0;
+}
+
+/* Each tab wraps its whole body in one of these. Without it, `.pillar`'s own gap stops
+   at the wrapper and the KPI row sits flush against whatever follows — the "cards too
+   close" report. One rule gives every tab the same vertical rhythm. */
+.insights__overview, .insights__compare, .insights__callcentre,
+.insights__performance, .insights__radial, .insights__replay {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-20);
+  min-width: 0;
+}
+
+.insights__kpirow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--sp-16);
+
+  &--tight { gap: var(--sp-10); margin-bottom: var(--sp-12); }
+}
+
+/* ── Overview: main column + narrow rail ─────────────────────────────────────── */
+
+.insights__split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: var(--sp-16);
+  align-items: start;
+}
+
+.insights__main, .insights__rail { display: flex; flex-direction: column; gap: var(--sp-16); min-width: 0; }
+
+.insights__list {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: var(--sp-8);
+
+  li {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--sp-10);
+    font-size: 12.5px; color: var(--app-text);
+    padding-block: var(--sp-2);
+    span:last-child { color: var(--app-text-muted); }
+  }
+}
+
+@media (max-width: 1100px) {
+  .insights__split { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── Priority badge, shared across the Insights tabs ─────────────────────────── */
+
+.insights__prio {
+  display: inline-grid; place-items: center;
+  min-width: 26px; height: 20px; padding: 0 var(--sp-4);
+  border-radius: var(--r-6);
+  font-family: var(--font-display);
+  font-size: 10.5px; font-weight: 800;
+  flex-shrink: 0;
+
+  &--P1 { background: var(--app-danger); color: var(--app-on-color); }
+  &--P2 { background: var(--app-danger-bg); color: var(--app-danger); box-shadow: inset 0 0 0 1px var(--app-danger-border); }
+  &--P3 { background: var(--app-info-bg); color: var(--app-info); }
+  &--P4 { background: var(--app-surface-raised); color: var(--app-text-muted); }
+}
+
+/* ── Radial search ─────────────────────────────────────────────────────────── */
+
+.insights__radial-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-16);
+  padding: var(--sp-12) var(--sp-16);
+  align-items: flex-end;
+
+  > * { min-width: 200px; }
+}
+
+.insights__radial-makani {
+  display: flex;
+  gap: var(--sp-8);
+  input { flex: 1; }
+}
+
+.insights__radial-radii {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  flex-wrap: wrap;
+
+  &-label { font-size: 11px; font-weight: 700; color: var(--app-text-faint); margin-inline-end: var(--sp-4); }
+
+  button {
+    min-width: 44px;
+    padding: var(--sp-4) var(--sp-8);
+    border-radius: var(--r-6);
+    border: 1px solid var(--app-border-soft);
+    font-size: 11.5px; font-weight: 700;
+    color: var(--app-text-muted);
+    &:hover { color: var(--app-text); }
+    &[aria-pressed='true'] { background: var(--app-accent-bg); color: var(--app-accent); border-color: var(--app-accent-border); }
+  }
+}
+
+.insights__radial-map {
+  position: relative;
+  height: 380px;
+  border-radius: var(--r-14);
+  overflow: hidden;
+  box-shadow: var(--app-shadow-sm), var(--app-edge-light);
+}
+
+.insights__map-hint {
+  position: absolute;
+  z-index: var(--z-overlay);
+  inset-block-end: var(--sp-12);
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: var(--sp-6);
+  padding: var(--sp-4) var(--sp-10);
+  border-radius: var(--r-pill);
+  background: var(--app-bg-elevated);
+  box-shadow: var(--app-shadow-sm);
+  font-size: 10.5px;
+  color: var(--app-text-faint);
+  pointer-events: none;
+  white-space: nowrap;
+
+  svg { width: 12px; height: 12px; }
+}
+
+/* ── Replay ────────────────────────────────────────────────────────────────── */
+
+.insights__replay-list {
+  list-style: none; margin: 0; padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+
+  li + li { border-top: 1px solid var(--app-border-soft); }
+
+  button {
+    display: flex; align-items: center; gap: var(--sp-10);
+    width: 100%;
+    padding: var(--sp-8) var(--sp-16);
+    text-align: start;
+    transition: background var(--dur-fast) var(--ease);
+    &:hover { background: var(--app-surface-raised); }
+    &[aria-pressed='true'] { background: var(--app-accent-bg); }
+  }
+}
+
+.insights__replay-what {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 1px;
+  strong { font-size: 12.5px; color: var(--app-text); }
+  span { font-size: 11px; color: var(--app-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+
+.insights__replay-nums {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 1px;
+  font-size: 11px; font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  > span:first-child { font-weight: 700; color: var(--app-text); }
+}
+
+
+
+
+/* A bar inside a table cell: the ranking at a glance, the number still exact. */
+.insights__cellbar {
+  display: inline-block;
+  width: 54px;
+  height: 6px;
+  margin-inline-end: var(--sp-8);
+  border-radius: var(--r-6);
+  background: var(--app-surface-soft);
+  vertical-align: middle;
+  overflow: hidden;
+
+  i { display: block; height: 100%; min-width: 2px; border-radius: var(--r-6); background: var(--app-accent); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Priority performance (console/pages/insights/PriorityPanel.tsx)
+
+   Four rows, four columns, everything in the same place on every row so the eye
+   compares down a column rather than hunting across a card. The left edge carries
+   priority as a bar, the way the response rail does, so urgency survives greyscale.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.priperf {
+  display: flex;
+  flex-direction: column;
+}
+
+.priperf__head,
+.priperf__row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.1fr) minmax(120px, 0.9fr) minmax(200px, 1.5fr) minmax(120px, 0.8fr);
+  align-items: center;
+  gap: var(--sp-14);
+  padding: var(--sp-10) var(--sp-16);
+}
+
+.priperf__head {
+  padding-block: var(--sp-6);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--app-text-faint);
+  border-bottom: 1px solid var(--app-border-soft);
+
+  span:last-child { text-align: end; }
+}
+
+.priperf__row {
+  font: inherit;
+  text-align: start;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--app-border-soft);
+  border-inline-start: 3px solid transparent;
+  color: inherit;
+  cursor: pointer;
+
+  &[data-priority='P1'] { border-inline-start-color: var(--app-danger); }
+  &[data-priority='P2'] { border-inline-start-color: var(--app-accent); }
+  &[data-priority='P3'] { border-inline-start-color: var(--app-info); }
+  &[data-priority='P4'] { border-inline-start-color: var(--app-text-faint); }
+
+  &:last-of-type { border-bottom: 0; }
+  &:hover { background: var(--app-surface-soft); }
+  &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: -2px; }
+  &.is-on { background: var(--app-accent-bg); }
+}
+
+.priperf__who {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-10);
+  min-width: 0;
+}
+
+.priperf__chip {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--app-text);
+  background: var(--app-surface-soft);
+  border: 1px solid var(--app-border-soft);
+  border-radius: var(--r-6, 6px);
+  padding: 2px var(--sp-6);
+}
+
+.priperf__label {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  strong { font-size: 12.5px; font-weight: 600; color: var(--app-text); }
+  span { font-size: 10.5px; font-family: var(--font-mono); color: var(--app-text-faint); }
+}
+
+.priperf__volume {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-width: 0;
+}
+
+.priperf__bar {
+  flex: 1;
+  height: 8px;
+  border-radius: var(--r-6);
+  background: var(--app-surface-soft);
+  overflow: hidden;
+
+  i { display: block; height: 100%; min-width: 2px; border-radius: var(--r-6); background: var(--app-accent); }
+}
+
+.priperf__nums {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-4);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: nowrap;
+
+  strong { font-weight: 700; color: var(--app-text); }
+  span { font-size: 10.5px; color: var(--app-text-faint); }
+}
+
+.priperf__speed {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+/* The state in words — the colour is never the only thing saying it. */
+.priperf__state {
+  font-size: 10.5px;
+  color: var(--app-text-faint);
+
+  &.is-good { color: var(--app-success); }
+  &.is-bad { color: var(--app-danger); }
+}
+
+.priperf__attain {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+
+  strong { font-family: var(--font-mono); font-size: 15px; font-weight: 700; color: var(--app-text); }
+}
+
+.priperf__delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 10.5px;
+  color: var(--app-text-faint);
+  white-space: nowrap;
+
+  svg { width: 11px; height: 11px; }
+  &.is-good { color: var(--app-success); }
+  &.is-bad { color: var(--app-danger); }
+}
+
+.priperf__foot {
+  margin: 0;
+  padding: var(--sp-8) var(--sp-16) var(--sp-12);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--app-text-faint);
+}
+
+@media (max-width: 900px) {
+  .priperf__head { display: none; }
+  .priperf__row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    row-gap: var(--sp-8);
+  }
+  .priperf__speed { grid-column: 1 / -1; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   The demand surface (console/pages/insights/DemandSurface.tsx)
+
+   Controls above, map below, legend and inspector over the canvas. The map is the
+   subject: chrome that steals layout from it is what made the old radial map a
+   postage stamp nobody could read a pattern from.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.geo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-10);
+  padding: var(--sp-12) var(--sp-14) var(--sp-14);
+
+  &.is-stale { opacity: 0.6; }
+}
+
+.geo__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-10);
+}
+
+.geo__group {
+  display: inline-flex;
+  padding: 2px;
+  background: var(--app-surface-soft);
+  border: 1px solid var(--app-border-soft);
+  border-radius: var(--r-8, 8px);
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: var(--sp-4) var(--sp-8);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--app-text-muted);
+    background: none;
+    border: 0;
+    border-radius: var(--r-6, 6px);
+    cursor: pointer;
+
+    svg { width: 13px; height: 13px; }
+    &:hover { color: var(--app-text); }
+    &[aria-pressed='true'] { color: var(--app-accent); background: var(--app-panel); box-shadow: var(--app-shadow-sm); }
+  }
+}
+
+.geo__field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--app-text-faint);
+
+  select {
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--app-text);
+    background: var(--app-surface-soft);
+    border: 1px solid var(--app-border-soft);
+    border-radius: var(--r-6, 6px);
+    padding: var(--sp-4) var(--sp-6);
+    &:disabled { opacity: 0.45; }
+  }
+}
+
+.geo__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  height: 28px;
+  padding-inline: var(--sp-10);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--app-text-muted);
+  background: var(--app-surface-soft);
+  border: 1px solid var(--app-border-soft);
+  border-radius: var(--r-8, 8px);
+  cursor: pointer;
+
+  svg { width: 13px; height: 13px; }
+  &:hover:not(:disabled) { color: var(--app-text); }
+  &:disabled { opacity: 0.45; cursor: default; }
+  &[aria-pressed='true'] { color: var(--app-accent); border-color: var(--app-accent); }
+}
+
+.geo__lapse { display: inline-flex; align-items: center; gap: var(--sp-8); }
+
+.geo__hour {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--app-accent);
+
+  button {
+    font: inherit;
+    font-size: 10.5px;
+    font-family: var(--font-body);
+    color: var(--app-text-faint);
+    background: none;
+    border: 0;
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    &:hover { color: var(--app-text); }
+  }
+}
+
+.geo__map {
+  position: relative;
+  height: 520px;
+  border-radius: var(--r-12);
+  overflow: hidden;
+  box-shadow: var(--app-shadow-sm), var(--app-edge-light);
+}
+
+.geo__hint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  padding: var(--sp-4) var(--sp-10);
+  font-size: 11px;
+  color: var(--app-text-muted);
+  background: var(--app-panel);
+  border: 1px solid var(--app-border-soft);
+  border-radius: var(--r-pill);
+  svg { width: 13px; height: 13px; }
+}
+
+/* The ramp, with the number each band starts at — the order is never left to colour. */
+.geo__legend {
+  padding: var(--sp-8) var(--sp-10);
+  background: var(--app-panel);
+  border: 1px solid var(--app-border-soft);
+  border-radius: var(--r-10, 10px);
+  box-shadow: var(--app-shadow-sm);
+
+  ol {
+    list-style: none;
+    display: flex;
+    margin: var(--sp-6) 0 var(--sp-4);
+    padding: 0;
+    gap: 1px;
+  }
+
+  li {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: flex-start;
+
+    i { display: block; width: 34px; height: 8px; border-radius: 2px; }
+    span { font-family: var(--font-mono); font-size: 9.5px; color: var(--app-text-faint); }
+  }
+}
+
+.geo__legend-title {
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--app-text-muted);
+}
+
+.geo__legend-foot { font-size: 10.5px; color: var(--app-text-faint); }
+
+
+/* The hover read-out: follows the pointer, never takes the click. */
+.geo__tip {
+  position: absolute;
+  z-index: var(--z-overlay);
+  transform: translate(var(--sp-12), calc(-100% - var(--sp-12)));
+  min-width: 150px;
+  padding: var(--sp-8) var(--sp-10);
+  pointer-events: none;
+  background: var(--app-panel);
+  border: 1px solid var(--app-border-soft);
+  border-radius: var(--r-10, 10px);
+  box-shadow: var(--app-shadow-md, var(--app-shadow-sm));
+
+  > strong {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 17px;
+    line-height: 1.1;
+    color: var(--app-text);
+  }
+
+  > span {
+    display: block;
+    font-size: 10.5px;
+    color: var(--app-text-muted);
+  }
+
+  dl {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: var(--sp-6) 0 0;
+    padding-block-start: var(--sp-6);
+    border-block-start: 1px solid var(--app-border-soft);
+
+    div { display: flex; justify-content: space-between; gap: var(--sp-10); font-size: 11px; }
+    dt { color: var(--app-text-muted); }
+    dd { margin: 0; font-family: var(--font-mono); color: var(--app-text); }
+  }
+}
+
+.geo__tip-hint {
+  margin-block-start: var(--sp-6);
+  font-size: 10px !important;
+  color: var(--app-text-faint) !important;
+}
+
+/* One hexagon, opened. */
+.geo__inspect {
+  width: 232px;
+  padding: var(--sp-10);
+  background: var(--app-panel);
+  border: 1px solid var(--app-border-soft);
+  border-radius: var(--r-10, 10px);
+  box-shadow: var(--app-shadow-md, var(--app-shadow-sm)), var(--app-edge-light);
+
+  header {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: baseline;
+    gap: var(--sp-6);
+    margin-block-end: var(--sp-8);
+
+    strong { font-family: var(--font-display); font-size: 20px; color: var(--app-text); }
+    span { font-size: 11px; color: var(--app-text-muted); }
+    button {
+      font: inherit; font-size: 15px; line-height: 1;
+      color: var(--app-text-faint); background: none; border: 0; cursor: pointer;
+      &:hover { color: var(--app-text); }
+    }
+  }
+
+  dl {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin: 0 0 var(--sp-10);
+
+    div { display: flex; justify-content: space-between; gap: var(--sp-8); font-size: 11.5px; }
+    dt { color: var(--app-text-muted); }
+    dd { margin: 0; font-family: var(--font-mono); font-weight: 700; color: var(--app-text); }
+  }
+
+  > button { width: 100%; justify-content: center; }
+}
+
+@media (max-width: 900px) {
+  .geo__map { height: 380px; }
+}
+
+.insights__replay-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(220px, 1fr);
+  gap: var(--sp-16);
+  padding: var(--sp-14) var(--sp-16);
+}
+
+@media (max-width: 900px) {
+  .insights__replay-body { grid-template-columns: minmax(0, 1fr); }
+}
+
+.insights__replay-map {
+  position: relative;
+  /* The job is replayed in the city it happened in: tall enough for a tilted view with
+     the towers standing up, which is the whole reason the buildings are on. */
+  height: 460px;
+  border-radius: var(--r-12);
+  overflow: hidden;
+  box-shadow: var(--app-shadow-sm), var(--app-edge-light);
+}
+
+.insights__replay-facts {
+  display: flex; flex-direction: column; gap: var(--sp-14);
+  min-width: 0;
+}
+
+.insights__scrub {
+  position: absolute;
+  z-index: var(--z-overlay);
+  inset-inline: var(--sp-10);
+  inset-block-end: var(--sp-10);
+  display: flex; align-items: center; gap: var(--sp-8);
+  padding: var(--sp-6) var(--sp-10);
+  border-radius: var(--r-pill);
+  background: var(--app-bg-elevated);
+  box-shadow: var(--app-shadow-sm), var(--app-edge-light);
+  border: 1px solid var(--app-border-soft);
+}
+
+.insights__scrub-track {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 80px;
+
+  input[type='range'] { width: 100%; accent-color: var(--app-accent); }
+}
+
+/* A stage is a place on the bar, not a number to hunt for in the timeline. */
+.insights__scrub-stage {
+  position: absolute;
+  inset-block-start: 50%;
+  width: 9px; height: 9px;
+  margin-block-start: -12px;
+  margin-inline-start: -4px;
+  padding: 0;
+  border: 1px solid var(--app-panel);
+  border-radius: 50%;
+  background: var(--app-text-muted);
+  cursor: pointer;
+
+  &:hover { background: var(--app-accent); }
+  &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 1px; }
+}
+
+.insights__scrub-time {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-6);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--app-text);
+  white-space: nowrap;
+
+  em { font-style: normal; font-weight: 400; color: var(--app-text-faint); }
+}
+
+.insights__scrub-speeds {
+  display: flex;
+  gap: 2px;
+
+  button {
+    font: inherit;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 2px var(--sp-6);
+    color: var(--app-text-faint);
+    background: none;
+    border: 1px solid transparent;
+    border-radius: var(--r-6, 6px);
+    cursor: pointer;
+
+    &:hover { color: var(--app-text); }
+    &[aria-pressed='true'] { color: var(--app-accent); border-color: var(--app-accent); }
+  }
+}
+
+.insights__replay-tools .insights__replay-ride,
+.insights__replay-ride {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  height: 30px;
+  padding-inline: var(--sp-10);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--app-text-muted);
+  background: var(--app-panel);
+  border: 1px solid var(--app-border-soft);
+  border-radius: var(--r-8, 8px);
+  box-shadow: var(--app-shadow-sm), var(--app-edge-light);
+  cursor: pointer;
+
+  svg { width: 14px; height: 14px; }
+  &:hover:not(:disabled) { color: var(--app-text); }
+  &:disabled { opacity: 0.5; cursor: default; }
+  &.is-on { color: var(--app-accent); border-color: var(--app-accent); }
+}
+
+/* Which part of the job is on screen right now. */
+.insights__replay-stage {
+  position: absolute;
+  z-index: var(--z-overlay);
+  inset-block-start: var(--sp-10);
+  inset-inline-start: var(--sp-10);
+  padding: var(--sp-4) var(--sp-10);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--app-text);
+  background: var(--app-panel);
+  border: 1px solid var(--app-border-soft);
+  border-radius: var(--r-pill);
+  box-shadow: var(--app-shadow-sm);
+}
+
+.insights__replay-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-6);
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--app-text-muted);
+
+  svg { width: 14px; height: 14px; flex-shrink: 0; margin-block-start: 2px; color: var(--app-text-faint); }
+}
+
+.insights__timeline-jump {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+
+  &:hover { color: var(--app-accent); }
+}
+
+.insights__timeline {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: var(--sp-6);
+
+  li {
+    display: flex; justify-content: space-between; gap: var(--sp-10);
+    font-size: 12px; color: var(--app-text);
+    span:last-child { color: var(--app-text-faint); white-space: nowrap; }
+  }
+}

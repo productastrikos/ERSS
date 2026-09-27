@@ -1,0 +1,29 @@
+{
+  "incident_id": "DSO-PWR-001",
+  "type": "power_transformer_overload",
+  "severity": "critical",
+  "location": {
+    "name": "DSO Power Substation",
+    "zone": "Infrastructure — Power Substation (South DSO)",
+    "coordinates": [55.3810, 25.1187]
+  },
+  "sensor": {
+    "sensor_id": "TX_TEMP_332",
+    "name": "Transformer Temperature Sensor",
+    "value": 96,
+    "unit": "°C",
+    "threshold": 80,
+    "status": "CRITICAL"
+  },
+  "work_order_id": "WO-DSO-2026-0042",
+  "assigned_team": "Power Grid Operations",
+  "contact": "ops-power@dso.ae | +971-4-501-5555",
+  "status": "detected",
+  "timestamp": "2026-03-16T10:25:00Z",
+  "affected_assets": ["DSO_BLDG_SUBSTATION_S01", "Silicon Central Mall", "Innovation Hub Towers"],
+  "map_effect": {
+    "type": "power_outage",
+    "epicenter": [55.3810, 25.1187],
+    "radius_m": 320
+  }
+}

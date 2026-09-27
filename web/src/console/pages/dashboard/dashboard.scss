@@ -1,0 +1,608 @@
+/* Dashboard — the DCAS live picture. NO COLOUR LITERALS: tokens only. */
+
+.dash {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-rows: auto minmax(0, 1fr) 232px;
+  grid-template-areas:
+    'hero   hero'
+    'map    rail'
+    'bottom rail';
+  gap: var(--sp-12);
+  padding: var(--sp-12);
+  height: 100%;
+  min-height: 0;
+
+  &__map {
+    grid-area: map;
+    position: relative;
+    min-height: 0;
+    border-radius: var(--r-14);
+    overflow: hidden;
+    background: var(--app-panel);
+    box-shadow: var(--app-shadow-sm), var(--app-edge-light);
+
+    /* Same livery cap as every dash-card and the header — the live map is the one
+       surface on the page big enough that a stripe down its side would compete with
+       the operational data on it, so it takes the cap instead. */
+    &::before {
+      content: '';
+      position: absolute;
+      inset-inline: 0;
+      inset-block-start: 0;
+      height: 3px;
+      background: var(--app-brand-gradient);
+      z-index: 1;
+    }
+  }
+
+  &__rail { grid-area: rail; display: flex; flex-direction: column; gap: var(--sp-12); min-height: 0; }
+
+  &__bottom {
+    grid-area: bottom;
+    display: grid;
+    /* incident card | ambulance-on-this-incident, side by side (the reported "these two
+       belong together") | hospitals. */
+    grid-template-columns: minmax(260px, 340px) minmax(280px, 1fr) 300px;
+    gap: var(--sp-12);
+    min-height: 0;
+  }
+
+  &__onmap {
+    display: flex;
+    gap: var(--sp-6);
+    flex-wrap: wrap;
+  }
+  &__onmap-item {
+    display: inline-flex; align-items: center; gap: var(--sp-6);
+    padding: var(--sp-4) var(--sp-10);
+    border-radius: var(--r-pill);
+    background: var(--app-panel);
+    box-shadow: var(--app-shadow-sm), var(--app-edge-light);
+    font-size: 11.5px; font-weight: 700;
+    color: var(--app-text);
+    svg { width: 13px; height: 13px; color: var(--app-accent); }
+  }
+
+  &__selected {
+    position: absolute;
+    z-index: var(--z-overlay);
+    inset-block-end: var(--sp-12);
+    inset-inline-start: 50%;
+    transform: translateX(-50%);
+    display: flex; align-items: center; gap: var(--sp-12);
+    padding: var(--sp-8) var(--sp-8) var(--sp-8) var(--sp-14);
+    border-radius: var(--r-12);
+    background: var(--app-panel);
+    box-shadow: var(--app-shadow-md), var(--app-edge-light);
+    max-width: calc(100% - var(--sp-24));
+  }
+  &__selected-text {
+    display: flex; align-items: center; gap: var(--sp-8); min-width: 0;
+    font-size: 12.5px; color: var(--app-text-muted); white-space: nowrap; overflow: hidden;
+    strong { color: var(--app-text); }
+    .mono { font-family: var(--font-mono); font-size: 11px; color: var(--app-text-faint); }
+  }
+}
+
+/* ── Priority badge (shared by the rail, cards and feed) ───────────────────── */
+
+.prio {
+  display: inline-grid; place-items: center;
+  min-width: 24px; height: 18px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-6);
+  font-family: var(--font-display);
+  font-size: 10px; font-weight: 800; letter-spacing: 0.02em;
+  flex-shrink: 0;
+
+  &--P1 { background: var(--app-danger); color: var(--app-on-color); }
+  &--P2 { background: var(--app-danger-bg); color: var(--app-danger); box-shadow: inset 0 0 0 1px var(--app-danger-border); }
+  &--P3 { background: var(--app-info-bg); color: var(--app-info); }
+  &--P4 { background: var(--app-surface-raised); color: var(--app-text-muted); }
+}
+
+/* ── Hero band ─────────────────────────────────────────────────────────────── */
+
+.dash__hero {
+  grid-area: hero;
+  display: grid;
+  grid-template-columns: minmax(300px, 1.7fr) repeat(4, minmax(160px, 1fr));
+  gap: var(--sp-12);
+}
+
+.hero-tile {
+  position: relative;
+  display: flex; flex-direction: column; gap: var(--sp-4);
+  padding: var(--sp-12) var(--sp-16);
+  border-radius: var(--r-14);
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow-sm), var(--app-edge-light);
+  min-width: 0;
+
+  /* The livery stripe — every tile in the row carries a sliver of the client's own
+     red-to-blue, same token as the header's hairline and the map's cap. Faint here so
+     five stripes read as one row, not five separate flags. */
+  &::before {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    width: 3px;
+    border-radius: var(--r-14) 0 0 var(--r-14);
+    background: var(--app-brand-gradient);
+    opacity: 0.45;
+  }
+
+  &--primary {
+    background: linear-gradient(120deg, var(--app-accent-bg), var(--app-panel) 65%);
+    /* Today's response time is the figure DCAS is judged on — its stripe runs at full
+       strength and width, the rest of the row at a quieter one (above). */
+    &::before { width: 4px; opacity: 1; }
+  }
+
+  &__split { display: flex; gap: var(--sp-16); align-items: stretch; min-width: 0; }
+  &__main { flex: 1 1 55%; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+
+  &__label {
+    display: flex; align-items: center; gap: var(--sp-6);
+    font-family: var(--font-display);
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--app-text-faint);
+    svg { width: 13px; height: 13px; color: var(--app-accent); }
+  }
+
+  &__row { display: flex; align-items: baseline; gap: var(--sp-8); flex-wrap: wrap; }
+
+  &__value {
+    font-family: var(--font-display);
+    font-size: 30px; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    color: var(--app-text);
+    &.is-good { color: var(--app-success); }
+    &.is-warn { color: var(--app-warning); }
+    &.is-bad  { color: var(--app-danger); }
+  }
+
+  /* The unit on the figure's own baseline — "4:32 min", "5 / 8", "87 %" — set smaller so
+     the eye reads the number first and what it counts a beat later. */
+  &__suffix {
+    margin-inline-start: 0.22em;
+    font-family: var(--font-body);
+    font-size: 0.46em; font-weight: 700; letter-spacing: 0;
+    color: var(--app-text-muted);
+  }
+
+  &__unit { font-size: 12px; font-weight: 600; color: var(--app-text-muted); }
+  &__sub  { font-size: 11.5px; color: var(--app-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            &.is-bad { color: var(--app-danger); font-weight: 700; } }
+}
+
+.gauge {
+  margin-top: var(--sp-6);
+
+  &__track {
+    position: relative;
+    height: 8px;
+    border-radius: var(--r-pill);
+    background: var(--app-surface-raised);
+  }
+  &__fill {
+    position: absolute; inset-block: 0; inset-inline-start: 0;
+    border-radius: var(--r-pill);
+    transition: width var(--dur-slow) var(--ease);
+    &.is-good { background: var(--app-success); }
+    &.is-bad  { background: var(--app-danger); }
+  }
+  &__target {
+    position: absolute; top: -4px; bottom: -4px; width: 2px;
+    background: var(--app-text);
+    transform: translateX(-1px);
+  }
+  &__p90 {
+    position: absolute; top: 1px; bottom: 1px; width: 2px;
+    background: var(--app-warning);
+    transform: translateX(-1px);
+  }
+  &__scale {
+    position: relative;
+    /* Two rows: the target on the first, the 90th percentile on the second, so the two
+       marks can sit a few pixels apart on the track without their labels touching. */
+    height: 26px;
+    margin-top: var(--sp-4);
+    font-size: 9.5px; font-family: var(--font-mono);
+    color: var(--app-text-faint);
+    span { position: absolute; top: 0; white-space: nowrap; }
+  }
+  &__target-label { transform: translateX(-50%); color: var(--app-text); font-weight: 700; }
+  &__p90-label { transform: translateX(-50%); color: var(--app-warning); top: 12px !important; }
+}
+
+/* ── Cards on this page ────────────────────────────────────────────────────── */
+
+.dash-card {
+  position: relative;
+  display: flex; flex-direction: column;
+  min-height: 0;
+  border-radius: var(--r-14);
+  overflow: hidden;
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow-sm), var(--app-edge-light);
+
+  /* The same livery cap as the map and the header — every card on the page carries it,
+     so the brand thread runs the whole surface rather than stopping at the hero row. */
+  &::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    inset-block-start: 0;
+    height: 3px;
+    background: var(--app-brand-gradient);
+    z-index: 1;
+  }
+
+  &__head {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
+    padding: var(--sp-10) var(--sp-14);
+    border-bottom: 1px solid var(--app-border-soft);
+  }
+  &__title {
+    display: flex; align-items: center; gap: var(--sp-8);
+    font-family: var(--font-display);
+    font-size: 12.5px; font-weight: 700;
+    color: var(--app-text);
+    svg { width: 14px; height: 14px; color: var(--app-accent); }
+  }
+  &__count {
+    min-width: 22px; padding: 0 var(--sp-6);
+    border-radius: var(--r-pill);
+    background: var(--app-surface-raised);
+    text-align: center;
+    font-size: 11px; font-weight: 700; color: var(--app-text);
+  }
+  &__link { font-size: 11px; font-weight: 700; color: var(--app-accent); }
+  &__hint { font-size: 10.5px; color: var(--app-text-faint); white-space: nowrap; }
+}
+
+/* ── Automatic dispatch ────────────────────────────────────────────────────── */
+
+.autodispatch {
+  flex-shrink: 0;
+
+  &__status {
+    display: inline-flex; align-items: center; gap: var(--sp-6);
+    font-size: 11px; font-weight: 700; color: var(--app-text-faint);
+    &.is-on { color: var(--app-success); }
+  }
+
+  &__facts {
+    display: grid; gap: var(--sp-6);
+    margin: 0; padding: var(--sp-10) var(--sp-14);
+    div { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-8); }
+    dt {
+      display: inline-flex; align-items: center; gap: var(--sp-6);
+      font-size: 11px; font-weight: 600; color: var(--app-text-muted);
+      svg { width: 13px; height: 13px; color: var(--app-text-faint); }
+    }
+    dd { margin: 0; font-size: 12px; font-weight: 700; color: var(--app-text); text-align: end; }
+  }
+
+  &__queue {
+    display: flex; flex-direction: column; gap: var(--sp-6);
+    padding: var(--sp-10) var(--sp-14) var(--sp-12);
+    border-top: 1px solid var(--app-border-soft);
+    background: var(--app-accent-bg);
+    border-end-start-radius: var(--r-14);
+    border-end-end-radius: var(--r-14);
+  }
+  &__label {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--app-text-faint);
+  }
+  &__empty { font-size: 11.5px; color: var(--app-text-muted); }
+}
+
+.countdown {
+  display: flex; align-items: center; gap: var(--sp-6);
+  width: 100%; padding: var(--sp-4) 0;
+  border: 0; background: none; cursor: pointer; text-align: start;
+  border-radius: var(--r-6);
+  &:hover .countdown__what { color: var(--app-accent); }
+  &:focus-visible { outline: 2px solid var(--app-accent-border); outline-offset: 2px; }
+
+  &__what {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column; align-items: flex-start;
+    font-size: 12px; font-weight: 700; color: var(--app-text); text-align: start;
+    span { font-size: 10.5px; font-weight: 500; color: var(--app-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  }
+  &__clock {
+    font-family: var(--font-mono); font-size: 14px; font-weight: 700;
+    color: var(--app-accent);
+    font-variant-numeric: tabular-nums;
+    min-width: 38px; text-align: end;
+    small { font-family: var(--font-body); font-size: 10px; font-weight: 700; color: var(--app-text-muted); }
+  }
+  .u-btn--sm { width: 28px; padding: 0; }
+}
+
+/* ── Feed ──────────────────────────────────────────────────────────────────── */
+
+.feed {
+  flex: 1;
+
+  &__live {
+    display: inline-flex; align-items: center; gap: var(--sp-6);
+    font-family: var(--font-display); font-size: 10px; font-weight: 800; letter-spacing: 0.1em;
+    color: var(--app-danger);
+  }
+  &__pulse {
+    width: 7px; height: 7px; border-radius: var(--r-pill);
+    background: var(--app-danger);
+    animation: dash-live 1.6s var(--ease) infinite;
+  }
+
+  &__list {
+    list-style: none; margin: 0; padding: var(--sp-4) 0;
+    overflow-y: auto; min-height: 0; flex: 1;
+    scrollbar-gutter: stable;
+  }
+  &__empty { padding: var(--sp-16); font-size: 12px; color: var(--app-text-faint); text-align: center; }
+
+  &__row {
+    button {
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr) auto;
+      gap: var(--sp-8);
+      align-items: start;
+      width: 100%;
+      padding: var(--sp-6) var(--sp-14);
+      text-align: start;
+      transition: background var(--dur-fast) var(--ease);
+      &:hover { background: var(--app-surface-raised); }
+    }
+
+    &.is-fresh button { animation: dash-fresh 2.8s var(--ease); }
+
+    &[data-tone='call'] .feed__icon { color: var(--app-accent); background: var(--app-accent-bg); }
+    &[data-tone='ai']   .feed__icon { color: var(--app-info); background: var(--app-info-bg); }
+    &[data-tone='good'] .feed__icon { color: var(--app-success); background: var(--app-success-bg); }
+    &[data-tone='info'] .feed__icon { color: var(--app-info); background: var(--app-info-bg); }
+    &[data-tone='warn'] .feed__icon { color: var(--app-warning); background: var(--app-warning-bg); }
+  }
+
+  &__icon {
+    display: grid; place-items: center;
+    width: 26px; height: 26px;
+    border-radius: var(--r-8);
+    background: var(--app-surface-raised);
+    color: var(--app-text-muted);
+    svg { width: 14px; height: 14px; }
+  }
+  &__body { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+  &__label { font-size: 12px; font-weight: 600; color: var(--app-text); line-height: 1.3; }
+  &__meta {
+    display: flex; align-items: center; gap: var(--sp-4);
+    font-size: 10.5px; color: var(--app-text-faint);
+    white-space: nowrap; overflow: hidden;
+    .prio { height: 15px; min-width: 20px; font-size: 9px; }
+  }
+  &__time { font-family: var(--font-mono); font-size: 10px; color: var(--app-text-faint); padding-top: var(--sp-2); }
+}
+
+@keyframes dash-live { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+@keyframes dash-fresh {
+  0% { background: var(--app-accent-bg); transform: translateX(-6px); }
+  15% { transform: translateX(0); }
+  100% { background: transparent; }
+}
+
+/* ── Live responses ────────────────────────────────────────────────────────── */
+
+.responses {
+  min-width: 0;
+  .u-empty { padding: var(--sp-16); }
+
+  &__row {
+    display: flex; gap: var(--sp-10);
+    padding: var(--sp-10) var(--sp-12) var(--sp-12);
+    overflow-x: auto; overflow-y: hidden;
+    flex: 1; min-height: 0;
+    align-items: stretch;
+  }
+}
+
+.rcard {
+  position: relative;
+  /* The dashboard now shows one incident at a time — let its card fill the column
+     instead of sitting at a fixed width meant for a horizontal fan-out. */
+  flex: 1 1 auto;
+  display: flex; flex-direction: column;
+  border-radius: var(--r-12);
+  background: var(--app-surface);
+  box-shadow: inset 0 0 0 1px var(--app-border-soft);
+  overflow: hidden;
+
+  &--P1 { box-shadow: inset 3px 0 0 var(--app-danger), inset 0 0 0 1px var(--app-danger-border); }
+  &--P2 { box-shadow: inset 3px 0 0 var(--app-danger-soft), inset 0 0 0 1px var(--app-border-soft); }
+  &.is-waiting { animation: dash-waiting 1.8s var(--ease) infinite; }
+
+  &__main {
+    flex: 1;
+    display: flex; flex-direction: column; gap: var(--sp-4);
+    padding: var(--sp-10) var(--sp-12) var(--sp-8);
+    text-align: start;
+    &:hover { background: var(--app-surface-raised); }
+  }
+
+  &__top { display: flex; align-items: center; gap: var(--sp-6); min-width: 0; }
+  &__kind { font-size: 12.5px; font-weight: 700; color: var(--app-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  &__where { font-size: 11px; color: var(--app-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+             span { color: var(--app-accent); font-weight: 700; } }
+  &__stage { font-size: 11px; font-weight: 600; color: var(--app-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  &__clock { display: flex; align-items: baseline; gap: var(--sp-6); margin-top: auto; }
+  &__elapsed {
+    font-family: var(--font-display); font-size: 22px; font-weight: 800;
+    font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+    color: var(--app-text);
+    small { font-family: var(--font-body); font-size: 11px; font-weight: 700; letter-spacing: 0; color: var(--app-text-muted); }
+  }
+  &__target { font-size: 10.5px; color: var(--app-text-faint); white-space: nowrap; }
+
+  &__bar {
+    height: 4px; border-radius: var(--r-pill);
+    background: var(--app-surface-raised);
+    overflow: hidden;
+    span { display: block; height: 100%; border-radius: var(--r-pill); transition: width 1s linear; }
+  }
+
+  &[data-tone='good'] { .rcard__bar span { background: var(--app-success); } }
+  &[data-tone='warn'] { .rcard__bar span { background: var(--app-warning); } .rcard__elapsed { color: var(--app-warning); } }
+  &[data-tone='bad']  { .rcard__bar span { background: var(--app-danger); }  .rcard__elapsed { color: var(--app-danger); } }
+
+  &__open {
+    padding: var(--sp-4) var(--sp-12);
+    border-top: 1px solid var(--app-border-soft);
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--app-text-faint); text-align: start;
+    &:hover { color: var(--app-accent); }
+  }
+}
+
+@keyframes dash-waiting {
+  0%, 100% { background: var(--app-surface); }
+  50% { background: var(--app-danger-bg); }
+}
+
+/* ── Ambulance on this incident ───────────────────────────────────────────────
+   Sits beside "Live responses" rather than buried in the rail — the same crew/
+   vehicle card the rail's AI log uses (AssignedCrewCard), fed by the same live
+   poll so it keeps updating straight through arrival. */
+.assigned {
+  min-width: 0;
+  .u-empty { padding: var(--sp-16); }
+
+  &__body {
+    flex: 1; min-height: 0;
+    /* Compact mode (AssignedCrewCard's `compact` prop) keeps this to head + a 3-column
+       kv grid — fits the fixed-height strip with no scroll, unlike the rail's full card. */
+    padding: var(--sp-8) var(--sp-12) var(--sp-10);
+    .dtl-crew { gap: var(--sp-6); }
+  }
+}
+
+/* ── Hospitals ─────────────────────────────────────────────────────────────── */
+
+.hospitals {
+  &__list { list-style: none; margin: 0; padding: var(--sp-8) var(--sp-14); display: flex; flex-direction: column; gap: var(--sp-6); overflow-y: auto; min-height: 0; }
+  &__row {
+    display: grid;
+    /* The last two columns carry their units now — "82% full", "2 inbound" — and are
+       sized to hold them on one line. */
+    grid-template-columns: minmax(0, 1fr) 48px 62px auto;
+    align-items: center; gap: var(--sp-8);
+    font-size: 11px;
+
+    &[data-tone='good'] .hospitals__bar span { background: var(--app-success); }
+    &[data-tone='warn'] .hospitals__bar span { background: var(--app-warning); }
+    &[data-tone='bad']  { .hospitals__bar span { background: var(--app-danger); } .hospitals__pct { color: var(--app-danger); } }
+  }
+  &__name { color: var(--app-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  &__bar { height: 6px; border-radius: var(--r-pill); background: var(--app-surface-raised); overflow: hidden;
+           span { display: block; height: 100%; border-radius: var(--r-pill); } }
+  &__pct { font-family: var(--font-mono); font-size: 10.5px; color: var(--app-text-muted); text-align: end; white-space: nowrap; }
+  &__inbound { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--app-info); font-weight: 700; white-space: nowrap;
+               svg { width: 12px; height: 12px; } }
+}
+
+/* ── Trend ─────────────────────────────────────────────────────────────────── */
+
+.trend {
+  flex: 1 1 45%;
+  min-width: 120px;
+  display: flex; flex-direction: column;
+
+  &__label {
+    display: flex; align-items: center; gap: var(--sp-4);
+    font-size: 9.5px; color: var(--app-text-faint); white-space: nowrap;
+    svg { width: 10px; height: 10px; }
+  }
+  &__svg { display: block; width: 100%; height: 44px; margin-top: var(--sp-4); flex: 1; min-height: 0; }
+  &__bar { fill: var(--app-accent); &.is-over { fill: var(--app-danger); } }
+  /* The hours still ahead: hollow and dashed, so an expectation can never be mistaken
+     for a measurement on the live picture. */
+  &__expected {
+    fill: none;
+    stroke: var(--app-accent);
+    stroke-width: 1;
+    stroke-dasharray: 2 2;
+    opacity: 0.65;
+  }
+  &__legend {
+    margin-inline-start: auto;
+    padding-inline-start: var(--sp-6);
+    font-size: 9px;
+    color: var(--app-text-faint);
+    border-bottom: 1px dashed var(--app-accent);
+  }
+  &__empty { fill: var(--app-border); }
+  &__target { stroke: var(--app-text-muted); stroke-width: 1; stroke-dasharray: 4 3; }
+  &__axis {
+    display: flex; justify-content: space-between;
+    padding-top: var(--sp-2);
+    font-family: var(--font-mono); font-size: 8.5px; color: var(--app-text-faint);
+  }
+}
+
+/* ── Narrower screens: stack, and let the page scroll ─────────────────────── */
+
+@media (max-width: 1400px) {
+  .dash__bottom { grid-template-columns: minmax(0, 1fr); grid-template-rows: 216px 216px; }
+  .dash { grid-template-rows: auto minmax(460px, 1fr) auto; height: auto; min-height: 100%; }
+  .dash__hero { grid-template-columns: minmax(300px, 1.7fr) repeat(2, minmax(160px, 1fr)); }
+}
+
+@media (max-width: 1100px) {
+  .dash {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 60vh auto auto;
+    grid-template-areas: 'hero' 'map' 'rail' 'bottom';
+  }
+  .dash__hero { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .dash__rail .feed { max-height: 420px; }
+  .dash__bottom { grid-template-rows: auto; }
+  .hero-tile__split { flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feed__pulse, .rcard.is-waiting, .feed__row.is-fresh button { animation: none; }
+}
+
+/* ── Cards that open their detail in the rail ─────────────────────────────── */
+
+.is-openable {
+  cursor: pointer;
+  transition: box-shadow 0.15s ease;
+  &:hover { box-shadow: var(--app-shadow-sm), var(--app-edge-light), inset 0 0 0 1px var(--app-accent-border); }
+  &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
+  &.is-open { box-shadow: var(--app-shadow-sm), inset 0 0 0 1px var(--app-accent); }
+}
+.hospitals__row.is-openable { border-radius: var(--r-6); &:hover { box-shadow: inset 0 0 0 1px var(--app-accent-border); } }
+
+.autodispatch__more {
+  display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-2);
+  padding: 0 var(--sp-14) var(--sp-10);
+  font-size: 11px; font-weight: 700; color: var(--app-accent);
+  svg { width: 13px; height: 13px; }
+}
+
+.dash-card__title--btn {
+  border: 0; background: none; padding: 0; cursor: pointer; font: inherit;
+  font-family: var(--font-display); font-size: 12.5px; font-weight: 700; color: var(--app-text);
+  svg:last-child { width: 13px; height: 13px; color: var(--app-text-faint); }
+  &:hover svg:last-child { color: var(--app-accent); }
+}
+
+/* The detail panel takes the whole rail. */
+.dash__rail > .dtl { flex: 1; }

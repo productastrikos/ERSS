@@ -1,0 +1,195 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   ERSS Dubai — base layer: reset, type ramp, focus, motion.
+   Imports theme.css first so every rule below can consume tokens.
+   NO COLOUR LITERALS IN THIS FILE.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+@import './theme.css';
+@import './fonts.css';
+
+/* ── Reset ──────────────────────────────────────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--app-bg);
+  color: var(--app-text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  margin: 0;
+}
+
+p { margin: 0 0 var(--sp-12); max-width: 68ch; }
+
+img, svg, video, canvas { display: block; max-width: 100%; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: none; padding: 0; }
+button:disabled { cursor: not-allowed; }
+
+a { color: var(--app-accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+ul, ol { margin: 0; padding: 0; list-style: none; }
+
+table { border-collapse: collapse; width: 100%; }
+
+code, pre, kbd, samp { font-family: var(--font-mono); font-size: 0.92em; }
+
+[hidden] { display: none !important; }
+
+/* ── Type ramp ──────────────────────────────────────────────────────────────── */
+
+.astk-h1 { font-family: var(--font-display); font-size: 64px; line-height: 1.04; letter-spacing: -0.035em; font-weight: 700; }
+.astk-h2 { font-family: var(--font-display); font-size: 32px; line-height: 1.14; letter-spacing: -0.024em; font-weight: 700; }
+.astk-h3 { font-family: var(--font-display); font-size: 20px; line-height: 1.26; letter-spacing: -0.014em; font-weight: 700; }
+.astk-h4 { font-family: var(--font-display); font-size: 12px; line-height: 1.34; letter-spacing:  0.02em;  font-weight: 700; }
+
+.astk-body1      { font-family: var(--font-body); font-size: 16px;   line-height: 1.6;  font-weight: 400; }
+.astk-body1-bold { font-family: var(--font-body); font-size: 16px;   line-height: 1.6;  font-weight: 700; }
+.astk-body2      { font-family: var(--font-body); font-size: 14px;   line-height: 1.55; font-weight: 400; }
+.astk-tiny       { font-family: var(--font-body); font-size: 10px;   line-height: 1.4;  letter-spacing: 0.04em; font-weight: 400; }
+.astk-tiny-bold  { font-family: var(--font-body); font-size: 10px;   line-height: 1.4;  letter-spacing: 0.04em; font-weight: 700; }
+
+.astk-eyebrow {
+  font-family: var(--font-display);
+  font-size: 10px; letter-spacing: 0.14em; font-weight: 600;
+  text-transform: uppercase; color: var(--app-text-faint);
+}
+
+/* Every metric, KPI, table number, currency, percentage and axis label. */
+.astk-numeric,
+.numeric,
+td.numeric, th.numeric {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+}
+
+/* Incident refs, unit callsigns, Makani codes, hashes — and nothing else (docs/05 §6). */
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  letter-spacing: 0;
+}
+
+/* A predicted value is never presented as fact. The dotted underline reveals the
+   method and confidence on hover — see docs/06 §11. */
+.is-predicted {
+  border-bottom: 1px dotted var(--app-text-faint);
+  cursor: help;
+}
+
+/* ── Focus — ONE visible style, everywhere ──────────────────────────────────── */
+
+:focus { outline: none; }
+
+:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 2px;
+  border-radius: var(--r-6);
+}
+
+/* Keyboard users get the ring; pointer users do not. Never remove it entirely. */
+::selection {
+  background: var(--app-accent-bg);
+  color: var(--app-text);
+}
+
+/* ── Scrollbars ─────────────────────────────────────────────────────────────── */
+
+* { scrollbar-width: thin; scrollbar-color: var(--app-border-strong) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--app-border-strong);
+  border-radius: var(--r-pill);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background-color: var(--app-text-faint); background-clip: content-box; }
+
+/* ── Motion ─────────────────────────────────────────────────────────────────── */
+
+/* The three earned exceptions to "nothing loops" — see docs/05 §8. */
+
+@keyframes erss-pulse-ring {
+  0%   { transform: scale(1);   opacity: 0.85; }
+  70%  { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+@keyframes erss-fade-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes erss-shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+
+.erss-enter { animation: erss-fade-up var(--dur) var(--ease) both; }
+
+/* P1 pulse: a life-threatening call arriving must be noticed peripherally. */
+.erss-pulse::after {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  border: 2px solid var(--app-danger);
+  animation: erss-pulse-ring 2s var(--ease) infinite;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* The pulse becomes a static double ring rather than disappearing — the signal
+     must survive the accessibility preference, only the movement goes. */
+  .erss-pulse::after {
+    animation: none;
+    transform: scale(1.35);
+    opacity: 0.5;
+  }
+}
+
+/* ── Touch targets ──────────────────────────────────────────────────────────── */
+
+@media (pointer: coarse) {
+  button, a[role='button'], [role='tab'], input[type='checkbox'], input[type='radio'] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* The mobile surface goes further: 48px, because a responder acknowledging an
+   assignment is doing it one-handed, in a moving vehicle, possibly gloved. */
+.surface-mobile button,
+.surface-mobile a[role='button'] {
+  min-height: 48px;
+}
+
+/* ── Print — scorecards and after-action reports ────────────────────────────── */
+
+@media print {
+  :root { color-scheme: light; }
+  /* Print forces maximum contrast on paper — the tokens are defined in theme.css. */
+  body { background: var(--print-bg); color: var(--print-ink); }
+  .no-print { display: none !important; }
+}

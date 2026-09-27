@@ -1,0 +1,33 @@
+{
+  "incident_id": "DSO-FIR-004",
+  "type": "building_fire_alarm",
+  "severity": "critical",
+  "location": {
+    "name": "DSO Headquarters Building",
+    "zone": "Admin District — DSO HQ, Floor 3",
+    "coordinates": [55.3796, 25.1219]
+  },
+  "sensor": {
+    "sensor_id": "SMK_BMS_HQ_F3_04",
+    "name": "Photoelectric Smoke Detector — Floor 3",
+    "value": 4.2,
+    "unit": "obs/m",
+    "threshold": 1.5,
+    "status": "ALARM"
+  },
+  "work_order_id": "WO-DSO-2026-0045",
+  "assigned_team": "Civil Defence + Security",
+  "contact": "999 / security@dso.ae | +971-4-501-5503",
+  "status": "detected",
+  "timestamp": "2026-03-16T11:03:00Z",
+  "affected_assets": ["DSO_HQ_B01", "Floor_3_Zone_A", "Floor_3_Zone_B"],
+  "evacuation_zone": {
+    "center": [55.3796, 25.1219],
+    "radius_m": 150
+  },
+  "map_effect": {
+    "type": "fire",
+    "epicenter": [55.3796, 25.1219],
+    "radius_m": 220
+  }
+}

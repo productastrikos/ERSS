@@ -1,0 +1,31 @@
+{
+  "incident_id": "DSO-WTR-005",
+  "type": "water_pipeline_leak",
+  "severity": "high",
+  "location": {
+    "name": "DSO Central Park Irrigation Main",
+    "zone": "Infrastructure — Central Park Water Main",
+    "coordinates": [55.3779, 25.1241]
+  },
+  "sensor": {
+    "sensor_id": "WPS_PARK_MAIN_07",
+    "name": "Water Pressure Sensor",
+    "value": 0.7,
+    "unit": "bar",
+    "threshold": 2.0,
+    "previous_value": 2.1,
+    "status": "PRESSURE_DROP"
+  },
+  "work_order_id": "WO-DSO-2026-0046",
+  "assigned_team": "Water Network Maintenance",
+  "contact": "water@dso.ae | +971-4-501-5504",
+  "status": "detected",
+  "timestamp": "2026-03-16T08:38:00Z",
+  "affected_assets": ["PIPE_SEG_CP_07", "VALVE_CP_07A"],
+  "pipeline_segment": [[55.3779, 25.1241], [55.3787, 25.1251], [55.3800, 25.1258]],
+  "map_effect": {
+    "type": "water",
+    "epicenter": [55.3779, 25.1241],
+    "radius_m": 200
+  }
+}

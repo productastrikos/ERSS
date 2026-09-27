@@ -1,0 +1,588 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   The raw chart set. NO COLOUR LITERALS — every value is a token or a --series-N.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.c-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+
+  &__label {
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--app-text-muted);
+  }
+  &__sim { color: var(--app-accent); margin-inline-start: var(--sp-4); }
+  &__value {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--app-text);
+    line-height: 1.1;
+  }
+  &__unit { font-size: 13px; font-weight: 500; color: var(--app-text-muted); margin-inline-start: var(--sp-4); }
+  &__delta {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--app-text-muted);
+    &.is-good { color: var(--app-success); }
+    &.is-bad { color: var(--app-danger); }
+  }
+  &__sub { font-size: 12px; color: var(--app-text-muted); }
+}
+
+.c-spark {
+  display: block;
+  &--empty { background: var(--app-surface-soft); border-radius: var(--r-6); }
+}
+
+/* ── Bar list ─────────────────────────────────────────────────────────────── */
+
+.c-barlist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+
+  &__row {
+    display: grid;
+    grid-template-columns: minmax(90px, 30%) 1fr auto;
+    align-items: center;
+    gap: var(--sp-10);
+  }
+  &__label {
+    font-size: 12.5px;
+    color: var(--app-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &__track {
+    height: 8px;
+    border-radius: var(--r-6);
+    background: var(--app-surface-soft);
+    overflow: hidden;
+  }
+  &__fill {
+    height: 100%;
+    border-radius: var(--r-6);
+    min-width: 2px;
+  }
+  &__value {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--app-text-muted);
+    text-align: right;
+    min-width: 3.5em;
+  }
+}
+
+
+/* ── Histogram: the marked bin ────────────────────────────────────────────── */
+
+.c-hist__stack { position: relative; }
+
+.c-hist__bar.is-peak {
+  outline: 1px solid var(--app-text);
+  outline-offset: 1px;
+}
+
+.c-hist__peak {
+  position: absolute;
+  inset-inline: -50%;
+  margin-bottom: 3px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--app-text);
+  pointer-events: none;
+}
+
+.c-hist__label.is-peak { color: var(--app-text); font-weight: 700; }
+
+/* ── Bullet — measurement, target, comparison, on one track ───────────────── */
+
+.c-bullet {
+  display: grid;
+  grid-template-columns: minmax(60px, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-10);
+
+  &__track {
+    position: relative;
+    height: 10px;
+    border-radius: var(--r-6);
+    background: var(--app-surface-soft);
+    overflow: hidden;
+  }
+
+  /* Everything inside target. Quiet: it is the ground the bar is read against. */
+  &__band {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    background: var(--app-surface-raised);
+    border-start-end-radius: var(--r-6);
+    border-end-end-radius: var(--r-6);
+  }
+
+  &__fill {
+    position: absolute;
+    inset-block: 1px;
+    inset-inline-start: 0;
+    min-width: 3px;
+    border-radius: var(--r-6);
+    background: var(--app-success);
+
+    &.is-over { background: var(--app-danger); }
+  }
+
+  /* The target: a rule across the track, not a colour change. */
+  &__target {
+    position: absolute;
+    inset-block: -1px;
+    width: 2px;
+    margin-inline-start: -1px;
+    background: var(--app-text);
+    opacity: 0.75;
+  }
+
+  /* The comparison: a hollow tick, deliberately weaker than the measurement. */
+  &__compare {
+    position: absolute;
+    inset-block: 2px;
+    width: 2px;
+    margin-inline-start: -1px;
+    background: var(--app-text-faint);
+  }
+
+  &__value {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-4);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    white-space: nowrap;
+
+    strong { font-weight: 700; color: var(--app-text); }
+  }
+
+  &__target-text { font-size: 10.5px; color: var(--app-text-faint); }
+}
+
+/* ── Line chart ───────────────────────────────────────────────────────────── */
+
+.c-line {
+  &__grid { stroke: var(--app-border-soft); stroke-width: 1; }
+  &__ytick { fill: var(--app-text-faint); font-size: 9px; font-family: var(--font-mono); }
+  &__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-12);
+    margin-top: var(--sp-8);
+  }
+  &__legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-6);
+    font-size: 11.5px;
+    color: var(--app-text-muted);
+  }
+  &__swatch {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--r-6);
+  }
+}
+
+/* ── Factor bars — the explainability primitive every engine feeds ──────────── */
+
+.c-factors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+
+  &__row {
+    display: grid;
+    grid-template-columns: minmax(100px, 34%) 1fr;
+    align-items: center;
+    gap: var(--sp-10);
+  }
+  &__name { font-size: 12px; color: var(--app-text-muted); }
+  &__track {
+    height: 6px;
+    border-radius: var(--r-6);
+    background: var(--app-surface-soft);
+    overflow: hidden;
+  }
+  &__fill {
+    display: block;
+    height: 100%;
+    border-radius: var(--r-6);
+    &.is-up { background: var(--app-accent); }
+    &.is-down { background: var(--app-info); }
+  }
+  &__detail {
+    grid-column: 1 / -1;
+    font-size: 11px;
+    color: var(--app-text-faint);
+  }
+}
+
+/* ── Heat grid — hour × weekday, one hue light→dark ─────────────────────────── */
+
+.c-heatgrid {
+  overflow-x: auto;
+
+  &__grid { display: grid; gap: 2px; min-width: 560px; }
+  &__corner { min-width: 32px; }
+  &__collabel {
+    font-size: 9px; color: var(--app-text-faint); text-align: center;
+    padding-bottom: var(--sp-2);
+  }
+  &__rowlabel {
+    font-size: 9.5px; color: var(--app-text-faint);
+    display: flex; align-items: center; justify-content: flex-end;
+    padding-inline-end: var(--sp-6); white-space: nowrap;
+  }
+  &__cell {
+    aspect-ratio: 1;
+    min-height: 12px;
+    border-radius: var(--r-6);
+    background: var(--app-surface-soft);
+    transition: transform var(--dur-fast) var(--ease);
+    &:hover { transform: scale(1.15); }
+  }
+}
+
+/* ── Histogram — a distribution across fixed buckets ────────────────────────── */
+
+.c-hist {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 90px;
+
+  &__col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    min-width: 0;
+  }
+  &__bar {
+    width: 100%;
+    min-height: 2px;
+    border-radius: var(--r-6) var(--r-6) 0 0;
+  }
+  &__label {
+    margin-top: var(--sp-4);
+    font-size: 8.5px;
+    color: var(--app-text-faint);
+    white-space: nowrap;
+    transform: rotate(0deg);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Prediction and interaction furniture.
+
+   Everything below serves two rules: a forecast must LOOK like a forecast (dashed,
+   hollow, banded, never a solid line), and a chart the operator can click must look
+   clickable. No colour literals — tokens only.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Stat tile: the forecast beneath the measurement ─────────────────────────── */
+
+.c-stat {
+  &__pred {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-6);
+    font-size: 11.5px;
+    color: var(--app-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  &__pred-dash {
+    width: 14px;
+    height: 0;
+    border-top: 2px dashed var(--app-accent);
+    flex: none;
+  }
+}
+
+/* ── Bar list: the forecast ghost, and the click-to-filter row ──────────────── */
+
+.c-barlist {
+  &__track { position: relative; }
+
+  /* The forecast as a hollow extension of the same bar: same scale, same place, and
+     unmistakably not the measurement. */
+  &__ghost {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    border: 1.5px dashed;
+    border-radius: var(--r-6);
+    opacity: 0.55;
+    pointer-events: none;
+  }
+  /* A forecast BELOW the current value is a tick, not a shorter bar — a shorter bar
+     drawn over a longer one reads as the measurement having changed. */
+  &__mark {
+    position: absolute;
+    inset-block: 0;
+    width: 2px;
+    background: var(--app-text);
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  &__fill { position: relative; }
+  &__delta {
+    margin-inline-start: var(--sp-6);
+    font-size: 10.5px;
+    font-weight: 700;
+    &.is-up { color: var(--app-warning); }
+    &.is-down { color: var(--app-success); }
+  }
+
+  &--pickable &__row {
+    appearance: none;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: var(--r-6);
+    padding: var(--sp-2) var(--sp-4);
+    margin-inline: calc(var(--sp-4) * -1);
+    width: 100%;
+    text-align: start;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+
+    &:hover { background: var(--app-surface-soft); }
+    &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 1px; }
+    &.is-on {
+      border-color: var(--app-accent);
+      background: var(--app-surface-soft);
+    }
+  }
+}
+
+/* ── Line chart: bands, the future wash, the crosshair and the tooltip ──────── */
+
+.c-line {
+  &__plot { position: relative; }
+
+  svg.is-pickable { cursor: crosshair; }
+
+  /* The HTML tick overlay. Positioned in percentages that mirror the SVG's own scale,
+     so a label sits exactly on its gridline at any card width. */
+  &__axes {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--app-text-faint);
+  }
+  &__ytick {
+    position: absolute;
+    inset-inline-start: 0;
+    transform: translateY(-50%);
+    padding-inline-end: 6px;
+    text-align: end;
+    white-space: nowrap;
+  }
+  &__xtick {
+    position: absolute;
+    bottom: 2px;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+
+  /* The prediction interval. Low opacity on purpose: it must read as uncertainty, not
+     as a second series — and on a genuinely uncertain forecast (the hourly call profile
+     runs at ~39% backtest error) the band legitimately covers most of the plot, so it has
+     to stay well behind the measured lines rather than becoming an area chart. */
+  &__band { opacity: 0.1; }
+
+  /* Everything right of the divider has not happened yet. */
+  &__future { fill: var(--app-text-faint); opacity: 0.045; }
+  &__divider {
+    stroke: var(--app-text-faint);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+    opacity: 0.7;
+  }
+
+  &__target {
+    stroke: var(--app-success);
+    stroke-width: 1.25;
+    stroke-dasharray: 6 3;
+    opacity: 0.8;
+  }
+  &__target-label {
+    position: absolute;
+    inset-inline-end: 2px;
+    transform: translateY(-100%);
+    color: var(--app-success);
+    white-space: nowrap;
+  }
+
+  &__crosshair { stroke: var(--app-text-muted); stroke-width: 1; opacity: 0.5; }
+
+  &__tip {
+    position: absolute;
+    top: 4px;
+    transform: translateX(var(--sp-8));
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: var(--r-6);
+    box-shadow: var(--shadow-2, 0 4px 14px rgb(0 0 0 / 18%));
+    padding: var(--sp-6) var(--sp-8);
+    font-size: 11.5px;
+    pointer-events: none;
+    z-index: 2;
+    min-width: 120px;
+
+    /* Past the middle of the plot the tooltip would leave the card — flip it. */
+    &.is-left { transform: translateX(calc(-100% - var(--sp-8))); }
+
+    &-head {
+      font-weight: 700;
+      color: var(--app-text);
+      margin-bottom: var(--sp-4);
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+    }
+    &-row {
+      display: grid;
+      grid-template-columns: 8px 1fr auto;
+      align-items: center;
+      gap: var(--sp-6);
+      color: var(--app-text-muted);
+      &.is-muted { opacity: 0.4; }
+    }
+    &-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    &-val { font-family: var(--font-mono); color: var(--app-text); }
+  }
+
+  &__legend-item {
+    appearance: none;
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+    color: var(--app-text-muted);
+    &.is-muted { opacity: 0.4; text-decoration: line-through; }
+    &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; border-radius: var(--r-6); }
+  }
+  &__swatch.is-dashed {
+    /* A dashed swatch for a dashed line: the legend has to distinguish the two. */
+    background: none !important;
+    height: 0;
+    border-top: 2px dashed currentColor;
+    width: 12px;
+    border-radius: 0;
+  }
+}
+
+/* ── Heat grid: clickable cells, and the forecast mode ──────────────────────── */
+
+.c-heatgrid {
+  button.c-heatgrid__cell {
+    appearance: none;
+    border: 1px solid transparent;
+    padding: 0;
+    cursor: pointer;
+    &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 1px; }
+  }
+  &__cell.is-on {
+    border: 1.5px solid var(--app-accent);
+    transform: scale(1.1);
+  }
+  /* Forecast mode is dashed at the grid edge, so a screenshot of the grid still says
+     which of the two it is. */
+  &.is-predicted &__grid {
+    outline: 1.5px dashed var(--app-accent);
+    outline-offset: 3px;
+  }
+}
+
+/* ── Histogram: the forecast ghost behind each bar ──────────────────────────── */
+
+.c-hist {
+  &__col {
+    appearance: none;
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+  }
+  button.c-hist__col { cursor: pointer; &:focus-visible { outline: 2px solid var(--app-accent); } }
+
+  &__stack {
+    position: relative;
+    width: 100%;
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+  }
+  &__bar { position: relative; z-index: 1; }
+  &__ghost {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    border: 1.5px dashed;
+    border-bottom: 0;
+    border-radius: var(--r-6) var(--r-6) 0 0;
+    opacity: 0.55;
+  }
+}
+
+/* ── The notes under every chart ────────────────────────────────────────────── */
+
+.c-note {
+  margin: var(--sp-8) 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--app-text-faint);
+
+  &__dash {
+    display: inline-block;
+    width: 14px;
+    height: 0;
+    border-top: 2px dashed var(--app-accent);
+    vertical-align: middle;
+    margin-inline-end: var(--sp-4);
+  }
+  &__caveat { color: var(--app-warning); }
+  &--filter { color: var(--app-text-muted); }
+}
+
+.c-predlegend {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sp-10);
+  font-size: 11px;
+  color: var(--app-text-muted);
+
+  &__item { display: inline-flex; align-items: center; gap: var(--sp-4); }
+  &__solid { width: 14px; height: 0; border-top: 2px solid var(--app-accent); }
+  &__dash { width: 14px; height: 0; border-top: 2px dashed var(--app-accent); }
+  &__band {
+    width: 14px;
+    height: 9px;
+    border-radius: 2px;
+    background: var(--app-accent);
+    opacity: 0.18;
+  }
+}

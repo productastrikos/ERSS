@@ -1,0 +1,413 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   ERSS Dubai — design tokens
+
+   THIS IS THE ONLY FILE IN web/src PERMITTED TO CONTAIN A COLOUR LITERAL.
+   Enforced by `npm run audit:theme`. Every component consumes var(--app-*).
+   Retheming the entire product must be possible by editing this file alone.
+
+   Derived from ASTRIKOS-UI-THEME.md v1.0 with one documented divergence: the accent
+   hue is signal amber, not periwinkle. See docs/00-DECISIONS.md D-04 and
+   docs/05-DESIGN-SYSTEM.md.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  color-scheme: dark;
+
+  /* ── Surface ladder: ground → chrome → panel → raised ───────────────────── */
+  --app-bg:             #121212;
+  --app-chrome-bg:      #171717;
+  --app-panel:          #1A1A1A;
+  --app-surface:        #1E1E1E;
+  --app-surface-soft:   #161616;
+  --app-surface-raised: #272727;
+  --app-bg-elevated:    #212121;
+
+  /* ── Hairlines — they SEPARATE regions, they never ENCLOSE a component ──── */
+  --app-border:         #2B2B2B;
+  --app-border-soft:    #232323;
+  --app-border-strong:  #3A3A3A;
+  --app-panel-border:   #282828;
+
+  /* ── Type ───────────────────────────────────────────────────────────────── */
+  --app-text:           #ECECEC;
+  --app-text-muted:     #A6A6A6;
+  --app-text-faint:     #787878;
+
+  /* ── Accent — SIGNAL AMBER ──────────────────────────────────────────────────
+     6.85:1 on --app-panel: AA at every text size.
+     Appears ONLY on: the primary action, the active nav item, focus rings, and
+     selection. Never on a status surface — see the accent/warning rule below.     */
+  --app-accent:         #E0912F;
+  --app-accent-strong:  #EFA544;
+  --app-accent-soft:    #F0B96E;
+  --app-accent-deep:    #B87322;
+  --app-accent-bg:      rgba(224, 145, 47, 0.10);
+  --app-accent-border:  rgba(224, 145, 47, 0.26);
+  --app-glow:           rgba(224, 145, 47, 0.20);
+
+  /* ── Primary action — dark ink on amber, 8.3:1 ──────────────────────────── */
+  --app-btn:            #E0912F;
+  --app-btn-hover:      #EFA544;
+  --app-btn-active:     #C97F22;
+  --app-btn-text:       #1A1200;
+  --app-btn-shadow:     rgba(224, 145, 47, 0.24);
+
+  --app-on-accent:        #1A1200;
+  --app-on-color:         #FFFFFF;
+  --app-accent-chip-text: #1A1200;
+
+  /* ── AI / advisory — the single purple control (Law 8) ───────────────────── */
+  --app-advisory:        #8B5CF6;
+  --app-advisory-soft:   #A78BFA;
+  --app-advisory-strong: #7C3AED;
+  --app-advisory-deep:   #6D28D9;
+  --app-advisory-panel:  #7C3AED;
+  --app-advisory-border: rgba(139, 92, 246, 0.42);
+  --app-advisory-bg:     rgba(139, 92, 246, 0.12);
+  /* The advisory drawer's inner cards are a fixed warm cream, same in both themes — a
+     saturated purple panel needs a near-white card to read as a surface rather than a
+     wash, and a literal white would fight the purple hue instead of sitting with it. */
+  --app-advisory-card-bg:  #F6F2EA;
+  --app-advisory-card-ink: #241C3D;
+
+  /* ── Status — colour carries MEANING, never decoration ──────────────────── */
+  --app-success:        #22B15C;
+  --app-success-strong: #1B9A4E;
+  --app-success-soft:   #4CC47E;
+  --app-success-bg:     rgba(34, 177, 92, 0.13);
+  --app-success-border: rgba(34, 177, 92, 0.30);
+
+  --app-warning:        #D99B3C;
+  --app-warning-soft:   #E5B060;
+  --app-warning-strong: #B8801F;
+  --app-warning-bg:     rgba(217, 155, 60, 0.13);
+  --app-warning-border: rgba(217, 155, 60, 0.30);
+
+  --app-danger:         #DC4A4A;
+  --app-danger-soft:    #E86D6D;
+  --app-danger-strong:  #B93535;
+  --app-danger-bg:      rgba(220, 74, 74, 0.13);
+  --app-danger-border:  rgba(220, 74, 74, 0.30);
+
+  /* ── DCAS brand mark — fixed, sampled from the client lockup, same value in
+     both themes. NOT a RAG/status colour: only for the client badge and any
+     literal "DCAS" branding, never for state. ─────────────────────────────── */
+  --app-brand-red:      #E31936;
+  --app-brand-red-bg:   rgba(227, 25, 54, 0.13);
+  --app-brand-red-border: rgba(227, 25, 54, 0.30);
+  --app-brand-blue:     #005DAB;
+
+  /* Ambulance-livery accent — the red pulse line and the red-to-blue hairline under the
+     header, both sampled from the same lockup as --app-brand-red/--app-brand-blue above.
+     Fixed in both themes, same reasoning as the brand mark itself. */
+  --app-brand-gradient: linear-gradient(90deg, var(--app-brand-red) 0%, var(--app-brand-blue) 100%);
+  --app-brand-pulse-glow: rgba(227, 25, 54, 0.35);
+
+  /* A faint wash of the same red-to-blue, low enough opacity that existing text/icon
+     colours (--app-text-muted etc.) stay legible over it. For the main content area's
+     base, behind every panel — panels stay their normal opaque colour on top of it. */
+  --app-brand-wash: linear-gradient(160deg, rgba(227, 25, 54, 0.07) 0%, rgba(0, 93, 171, 0.07) 100%);
+
+  /* The header (full gradient) and sidebar (solid --app-brand-blue) both sit directly on
+     a brand colour, so they need their own ink scale rather than --app-text/
+     --app-text-muted (tuned for a near-white or near-black panel). White reads on the
+     gradient and on the blue alike; fixed in both themes because the brand colours are. */
+  --app-brand-ink:          #FFFFFF;
+  --app-brand-ink-muted:    rgba(255, 255, 255, 0.82);
+  --app-brand-ink-faint:    rgba(255, 255, 255, 0.58);
+  --app-brand-item-hover:   rgba(255, 255, 255, 0.14);
+  --app-brand-item-active:  rgba(255, 255, 255, 0.22);
+  --app-brand-divider:      rgba(255, 255, 255, 0.24);
+
+  --app-info:           #5E9BD1;
+  --app-info-soft:      #7FB2DF;
+  --app-info-strong:    #4179AE;
+  --app-info-bg:        rgba(94, 155, 209, 0.13);
+  --app-info-border:    rgba(94, 155, 209, 0.30);
+
+  /* ── Data series — VALIDATED, do not substitute by eye ──────────────────────
+     Passes every gate of the palette validator on the adjacent pairlist in both
+     modes: worst CVD ΔE 8.4, worst normal-vision ΔE 19.3, all ≥3:1 on #1A1A1A.
+     Scatter / bubble / choropleth / small-multiple forms cap at THREE series —
+     only slots 1–3 clear the all-pairs gate. Past three: fold to Other, or facet.  */
+  --series-1: #3987E5;   /* blue    */
+  --series-2: #D95926;   /* orange  */
+  --series-3: #199E70;   /* aqua    */
+  --series-4: #C98500;   /* yellow  */
+  --series-5: #D55181;   /* magenta */
+  --series-6: #008300;   /* green   */
+  --series-7: #9085E9;   /* violet  */
+  --series-8: #E66767;   /* red     */
+
+  /* Sequential ramp (magnitude: risk cells, demand surfaces, choropleths).
+     One hue, light → dark. Never a rainbow. */
+  --seq-100: #CDE2FB; --seq-200: #9EC5F4; --seq-300: #6DA7EC; --seq-400: #3987E5;
+  --seq-500: #256ABF; --seq-600: #184F95; --seq-700: #0D366B;
+
+  /* Diverging (polarity: forecast error, rank movement, period delta).
+     Two hues + a NEUTRAL GREY midpoint — never a hue at the middle. */
+  /* Demand surface — the magnitude ramp for the 3D hexagons and the heatmap on the
+     geospatial view. Six ordered bands, cool → hot.
+
+     This is the one ramp in the product that is NOT single-hue. A density surface is read
+     from across a room and its magnitude is carried twice over — column HEIGHT first,
+     colour second — and the cool-to-hot convention is what an operations room already
+     reads. The steps are chosen so that every ADJACENT pair is separable under deutan,
+     protan and tritan vision (validated, worst adjacent ΔE 15.0 deutan / 13.0 tritan),
+     and the legend always shows the numeric break for each band, so the order never has
+     to be inferred from the colour alone. The lowest band deliberately sits close to the
+     basemap: "hardly any calls here" should recede. */
+  --geo-1: #0C4F66; --geo-2: #1184A6; --geo-3: #36C0BE;
+  --geo-4: #EDD14F; --geo-5: #F07C2B; --geo-6: #CE2F3F;
+
+  --div-neg-3: #B93535; --div-neg-2: #DC4A4A; --div-neg-1: #E86D6D;
+  --div-mid:   #383835;
+  --div-pos-1: #6DA7EC; --div-pos-2: #3987E5; --div-pos-3: #184F95;
+
+  /* ── Charts ─────────────────────────────────────────────────────────────── */
+  --app-chart-surface:        #1A1A1A;
+  --app-chart-tooltip-bg:     #212121;
+  --app-chart-tooltip-border: #3A3A3A;
+  --app-chart-grid:           rgba(255, 255, 255, 0.055);
+  --app-chart-axis:           rgba(255, 255, 255, 0.12);
+
+  /* ── Elevation — depth is LIGHT, never outline (Law 1) ──────────────────── */
+  --app-shadow-xs:  0 1px 2px rgba(0, 0, 0, 0.55);
+  --app-shadow-sm:  0 2px 8px rgba(0, 0, 0, 0.42);
+  --app-shadow-md:  0 6px 20px rgba(0, 0, 0, 0.40);
+  --app-shadow-lg:  0 18px 48px rgba(0, 0, 0, 0.52);
+  --app-edge-light: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+  /* ── Tinted callout cards ───────────────────────────────────────────────── */
+  --app-modal-success-bg:  #102418;  --app-modal-success-border:  #1D4A30;
+  --app-modal-warning-bg:  #261C0D;  --app-modal-warning-border:  #4A3717;
+  --app-modal-danger-bg:   #271212;  --app-modal-danger-border:   #4D2222;
+  --app-modal-info-bg:     #141D26;  --app-modal-info-border:     #26384A;
+  --app-modal-accent-bg:   #251A0C;  --app-modal-accent-border:   #4A3517;
+
+  /* ── §1.0 chrome stops — purple-warmed metal, for dark ground ────────────── */
+  --astk-metal-1: #FFFFFF;  --astk-metal-2: #D9CCF5;  --astk-metal-3: #9B7FE0;
+  --astk-metal-4: #F3EEFC;  --astk-metal-5: #B79AEE;  --astk-metal-6: #6B46C1;
+  --astk-metal-7: #C9B6F2;  --astk-metal-8: #7C5CD1;
+  --astk-metal-bevel: rgba(255, 255, 255, 0.55);
+
+  /* ── Map — detail geometry for the close-up scenes (docs/05 §7.5) ───────────
+     Operational layers use the status, series and ramp tokens above. These cover
+     only geometry with no semantic colour of its own, kept low-contrast so that
+     operational data dominates the picture.                                       */
+  --map-water:         #0E171E;
+  --map-park:          #141C16;
+  --map-road:          #3A3A38;
+  --map-road-major:    #55534F;
+  --map-road-casing:   #161616;
+  --map-rail:          #4A4944;
+  --map-building:      #262625;
+  --map-building-high: #34332F;
+  --map-light:         #FFF4E2;
+
+  /* The displacement line — the straight link from a responding ambulance to its call.
+     Deliberately a hue NO operational layer uses (not the priority reds and ambers, not
+     the transport blue, not the ready green), so it can never be mistaken for the road
+     the crew is actually driving. It says "this ambulance is assigned to that call", and
+     nothing about the route.                                                          */
+  --map-link:          #B98CFF;
+  --map-link-soft:     rgba(185, 140, 255, 0.35);
+
+  --app-pattern-opacity: 0.05;
+  --app-pattern-stroke:  #E0912F;
+
+  /* Text shadow on the metallic advisory control — the one place a label sits on a
+     bright gradient and needs to be lifted off it. */
+  --astk-metal-text-shadow: rgba(0, 0, 0, 0.35);
+
+  /* Sign-in's caption text sits on the brand gradient (the art panel's own background,
+     shell.scss), which is bright enough at some stops that a plain shadow still helps
+     white/red text stay crisp. Fixed in both themes — same reasoning as the gradient. */
+  --login-text-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --login-text-shadow-lg: 0 2px 8px rgba(0, 0, 0, 0.4);
+
+  /* Print forces maximum contrast on paper, in both themes. */
+  --print-bg:  #FFFFFF;
+  --print-ink: #000000;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LIGHT THEME
+   De-tinted from the Astrikos light block: the violet cast is removed and the
+   neutrals become warm graphite, consistent with the accent decision.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --app-bg:             #F5F4F2;
+  --app-chrome-bg:      #FFFFFF;
+  --app-panel:          #FFFFFF;
+  --app-surface:        #FFFFFF;
+  --app-surface-soft:   #FAF9F7;
+  --app-surface-raised: #EFEDE9;
+  --app-bg-elevated:    #FFFFFF;
+
+  --app-border:         #E4E1DC;
+  --app-border-soft:    #EEECE8;
+  --app-border-strong:  #CFCBC4;
+  --app-panel-border:   #E7E4DF;
+
+  --app-text:           #262523;
+  --app-text-muted:     #56544F;
+  --app-text-faint:     #85817A;
+
+  /* Amber darkened to hold AA on paper — 5.19:1 on #FFFFFF */
+  --app-accent:         #A15C0F;
+  --app-accent-strong:  #8A4E0A;
+  --app-accent-soft:    #C07A22;
+  --app-accent-deep:    #6E3D06;
+  --app-accent-bg:      rgba(161, 92, 15, 0.075);
+  --app-accent-border:  rgba(161, 92, 15, 0.22);
+  --app-glow:           rgba(161, 92, 15, 0.15);
+
+  /* Light-mode primary is ink, per the Astrikos pattern; amber stays the accent. */
+  --app-btn:            #262523;
+  --app-btn-hover:      #3A3835;
+  --app-btn-active:     #171614;
+  --app-btn-text:       #FFFFFF;
+  --app-btn-shadow:     rgba(38, 37, 35, 0.22);
+
+  --app-on-accent:        #FFFFFF;
+  --app-on-color:         #FFFFFF;
+  --app-accent-chip-text: #FFFFFF;
+
+  --app-advisory:        #7C3AED;
+  --app-advisory-soft:   #8B5CF6;
+  --app-advisory-strong: #6D28D9;
+  --app-advisory-deep:   #5B21B6;
+  --app-advisory-panel:  #6D28D9;
+  --app-advisory-border: rgba(124, 58, 237, 0.38);
+  --app-advisory-bg:     rgba(124, 58, 237, 0.09);
+  --app-advisory-card-bg:  #F6F2EA;
+  --app-advisory-card-ink: #241C3D;
+
+  --app-success:        #0A8F42;  --app-success-strong: #077535;  --app-success-soft: #2FA45F;
+  --app-success-bg:     rgba(10, 143, 66, 0.09);  --app-success-border: rgba(10, 143, 66, 0.26);
+  --app-warning:        #9A6512;  --app-warning-soft:   #B8791A;  --app-warning-strong: #7A4F0C;
+  --app-warning-bg:     rgba(154, 101, 18, 0.09); --app-warning-border: rgba(154, 101, 18, 0.26);
+  --app-danger:         #BE2E2E;  --app-danger-soft:    #D14545;  --app-danger-strong: #9C2323;
+  --app-danger-bg:      rgba(190, 46, 46, 0.08);  --app-danger-border:  rgba(190, 46, 46, 0.24);
+
+  /* DCAS brand mark — same fixed value as dark; see the dark block for why. */
+  --app-brand-red:      #E31936;
+  --app-brand-red-bg:   rgba(227, 25, 54, 0.09);
+  --app-brand-red-border: rgba(227, 25, 54, 0.26);
+  --app-brand-blue:     #005DAB;
+
+  --app-info:           #2F6FBF;  --app-info-soft:      #4B87D1;  --app-info-strong:   #22558F;
+  --app-info-bg:        rgba(47, 111, 191, 0.08); --app-info-border:    rgba(47, 111, 191, 0.24);
+
+  --series-1: #2A78D6; --series-2: #EB6834; --series-3: #1BAF7A; --series-4: #EDA100;
+  --series-5: #E87BA4; --series-6: #008300; --series-7: #4A3AA7; --series-8: #E34948;
+
+  --seq-100: #CDE2FB; --seq-200: #9EC5F4; --seq-300: #6DA7EC; --seq-400: #2A78D6;
+  --seq-500: #256ABF; --seq-600: #184F95; --seq-700: #0D366B;
+
+  /* Same ramp, stepped down where the light basemap would swallow it. */
+  --geo-1: #0B455A; --geo-2: #0E7291; --geo-3: #1FA79E;
+  --geo-4: #C9A82A; --geo-5: #DC6A1E; --geo-6: #B72836;
+
+  --div-neg-3: #9C2323; --div-neg-2: #BE2E2E; --div-neg-1: #D14545;
+  --div-mid:   #F0EFEC;
+  --div-pos-1: #6DA7EC; --div-pos-2: #2A78D6; --div-pos-3: #184F95;
+
+  --app-chart-surface:        #FFFFFF;
+  --app-chart-tooltip-bg:     #FFFFFF;
+  --app-chart-tooltip-border: #CFCBC4;
+  --app-chart-grid:           rgba(38, 37, 35, 0.09);
+  --app-chart-axis:           rgba(38, 37, 35, 0.16);
+
+  --app-shadow-xs:  0 1px 2px rgba(38, 37, 35, 0.06);
+  --app-shadow-sm:  0 2px 8px rgba(38, 37, 35, 0.07);
+  --app-shadow-md:  0 6px 20px rgba(38, 37, 35, 0.09);
+  --app-shadow-lg:  0 18px 48px rgba(38, 37, 35, 0.14);
+  --app-edge-light: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+  --app-modal-success-bg:  rgba(10, 143, 66, 0.07);  --app-modal-success-border:  rgba(10, 143, 66, 0.28);
+  --app-modal-warning-bg:  rgba(154, 101, 18, 0.08); --app-modal-warning-border:  rgba(154, 101, 18, 0.28);
+  --app-modal-danger-bg:   rgba(190, 46, 46, 0.07);  --app-modal-danger-border:   rgba(190, 46, 46, 0.26);
+  --app-modal-info-bg:     rgba(47, 111, 191, 0.07); --app-modal-info-border:     rgba(47, 111, 191, 0.26);
+  --app-modal-accent-bg:   rgba(161, 92, 15, 0.07);  --app-modal-accent-border:   rgba(161, 92, 15, 0.26);
+
+  --astk-metal-1: #7C63A8;  --astk-metal-2: #4C3480;  --astk-metal-3: #34225C;
+  --astk-metal-4: #9482BE;  --astk-metal-5: #43306E;  --astk-metal-6: #241A3D;
+  --astk-metal-7: #6B5296;  --astk-metal-8: #362852;
+  --astk-metal-bevel: rgba(255, 255, 255, 0.30);
+
+  --map-water:         #D3DEE6;
+  --map-park:          #DCE5D6;
+  --map-road:          #FFFFFF;
+  --map-road-major:    #F4EEE2;
+  --map-road-casing:   #CFCBC4;
+  --map-rail:          #B5B1A9;
+  --map-building:      #E2DFD9;
+  --map-building-high: #CBC7BF;
+  --map-light:         #FFFFFF;
+
+  --map-link:          #7446D6;
+  --map-link-soft:     rgba(116, 70, 214, 0.30);
+
+  --app-pattern-opacity: 0.06;
+  --app-pattern-stroke:  #A15C0F;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   NON-COLOUR TOKENS — identical in both themes
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Spacing — 4px base. Nothing off this scale. */
+  --sp-2: 2px;   --sp-4: 4px;   --sp-6: 6px;   --sp-8: 8px;   --sp-10: 10px;
+  --sp-12: 12px; --sp-14: 14px; --sp-16: 16px; --sp-18: 18px; --sp-20: 20px;
+  --sp-24: 24px; --sp-28: 28px; --sp-32: 32px; --sp-40: 40px; --sp-48: 48px;
+  --sp-64: 64px;
+
+  /* Radius — ONE family. Cards 14, controls 9, pills 999. Nothing else. */
+  --r-6: 6px; --r-8: 8px; --r-9: 9px; --r-10: 10px; --r-12: 12px; --r-14: 14px;
+  --r-pill: 999px;
+
+  /* Type */
+  --font-display: 'Lexend Deca', system-ui, sans-serif;
+  --font-body:    'Lato', system-ui, -apple-system, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* Motion — 120–300ms, eased. Nothing bounces. */
+  --ease:        cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast:    120ms;
+  --dur:         200ms;
+  --dur-slow:    300ms;
+
+  /* Layout */
+  --app-sidebar-w:           248px;
+  --app-sidebar-collapsed-w: 64px;
+  --app-header-h:            64px;
+  --app-footer-h:            32px;
+
+  /* Geometry is 60° — the logo's construction. Practical angles only. */
+  --angle-surface: 135deg;
+  --angle-card:    168deg;
+  --angle-sheen:   115deg;
+
+  /* z-index scale, named so nobody invents 9999 */
+  --z-map:     1;
+  --z-overlay: 100;
+  --z-panel:   200;
+  --z-header:  300;
+  --z-drawer:  400;
+  --z-modal:   500;
+  --z-toast:   600;
+  --z-tooltip: 700;
+}
+
+/* Video-wall mode: a display density, not a separate app. Type ramp ×1.6,
+   readable at 4 m, no hover-dependent affordance. */
+:root[data-density='wall'] {
+  --app-header-h: 88px;
+  --app-sidebar-w: 300px;
+}

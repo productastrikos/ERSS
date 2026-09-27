@@ -1,0 +1,1710 @@
+// ══════════════════════════════════════════════════════════════════════════════
+//  TRAFFIC COMMAND CENTER
+//  Left: signal roster  |  Centre: intersection view  |  Right: CCTV feeds
+// ══════════════════════════════════════════════════════════════════════════════
+
+$bg-dark:        #0a0e1a;
+$bg-modal:       #0f1420;
+$bg-panel:       rgba(20, 25, 38, 0.85);
+$bg-card:        rgba(30, 35, 50, 0.9);
+$bg-header:      rgba(15, 20, 30, 0.95);
+
+$neon-red:       #ef4444;
+$neon-orange:    #f97316;
+$neon-yellow:    #fbbf24;
+$neon-green:     #4ade80;
+$neon-blue:      #60a5fa;
+
+$text-primary:   #e5e7eb;
+$text-secondary: #9ca3af;
+$text-dim:       #6b7280;
+
+$border-color:   rgba(100, 120, 160, 0.2);
+$border-glow:    rgba(96, 165, 250, 0.4);
+
+// ── Overlay wrapper ───────────────────────────────────────────────────────────
+.traffic-command-center {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.command-center-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+}
+
+// ── Modal box ────────────────────────────────────────────────────────────────
+.command-center-modal {
+  position: relative;
+  width: 96vw;
+  height: 90vh;
+  max-width: 1600px;
+  max-height: 940px;
+  background: $bg-modal;
+  border: 1px solid $border-glow;
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.85), 0 0 40px rgba(96,165,250,0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+.command-center-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 22px;
+  background: $bg-header;
+  border-bottom: 1px solid $border-color;
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.header-icon {
+  font-size: 28px;
+  filter: drop-shadow(0 0 10px $neon-blue);
+}
+
+.header-title {
+  h1 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: $text-primary;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .header-subtitle {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    color: $text-secondary;
+  }
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.header-meta {
+  display: flex;
+  gap: 14px;
+}
+
+.header-meta-item {
+  font-size: 12px;
+  color: $text-secondary;
+  font-family: 'Courier New', monospace;
+}
+
+.header-time {
+  font-size: 18px;
+  font-weight: 600;
+  color: $neon-blue;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 2px;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  background: rgba(74,222,128,0.1);
+  border: 1px solid rgba(74,222,128,0.3);
+  border-radius: 6px;
+  color: $neon-green;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: $neon-green;
+    box-shadow: 0 0 8px $neon-green;
+    animation: pulse 2s infinite;
+  }
+}
+
+.close-btn {
+  width: 34px;
+  height: 34px;
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 6px;
+  color: $neon-red;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s;
+
+  &:hover {
+    background: rgba(239,68,68,0.22);
+    border-color: $neon-red;
+    box-shadow: 0 0 14px rgba(239,68,68,0.35);
+  }
+}
+
+// ── 3-column content layout ───────────────────────────────────────────────────
+.command-center-content {
+  display: grid;
+  grid-template-columns: 196px 1fr 260px;
+  gap: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  LEFT PANEL — signal roster
+// ══════════════════════════════════════════════════════════════════════════════
+.left-panel {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid $border-color;
+  overflow: hidden;
+}
+
+.left-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(0,0,0,0.35);
+  border-bottom: 1px solid $border-color;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: $neon-blue;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.left-panel-count {
+  padding: 2px 8px;
+  background: rgba(96,165,250,0.15);
+  border: 1px solid rgba(96,165,250,0.3);
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  color: $neon-blue;
+}
+
+.signal-list {
+  flex: 1;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: rgba(96,165,250,0.2); border-radius: 2px; }
+}
+
+.signal-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid rgba(100,120,160,0.08);
+  transition: all 0.18s;
+
+  &:hover {
+    background: rgba(96,165,250,0.06);
+    border-left-color: rgba(96,165,250,0.3);
+  }
+
+  &--active {
+    background: rgba(96,165,250,0.1);
+    border-left-color: $neon-blue;
+  }
+}
+
+// mini 3-light signal head
+.signal-row-head {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+  background: #111;
+  border: 1px solid #374151;
+  border-radius: 4px;
+  padding: 5px 4px;
+  flex-shrink: 0;
+}
+
+.srh-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+.signal-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.signal-row-id {
+  font-size: 10px;
+  font-weight: 700;
+  color: $neon-blue;
+  letter-spacing: 0.5px;
+  margin-bottom: 1px;
+}
+
+.signal-row-name {
+  font-size: 10.5px;
+  color: $text-primary;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 3px;
+}
+
+.signal-row-road {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.signal-row-cong {
+  font-size: 8.5px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.3px;
+
+  &--low      { background: rgba(74,222,128,0.15); color: $neon-green;  border: 1px solid rgba(74,222,128,0.3); }
+  &--medium   { background: rgba(251,191,36,0.15);  color: $neon-yellow; border: 1px solid rgba(251,191,36,0.3); }
+  &--high     { background: rgba(249,115,22,0.15);  color: $neon-orange; border: 1px solid rgba(249,115,22,0.3); }
+  &--critical { background: rgba(239,68,68,0.15);   color: $neon-red;    border: 1px solid rgba(239,68,68,0.3);  }
+}
+
+.signal-row-speed {
+  font-size: 9px;
+  color: $text-dim;
+}
+
+.signal-row-metrics {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.signal-row-state {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.signal-row-density {
+  font-size: 12px;
+  font-weight: 700;
+  color: $text-primary;
+  line-height: 1;
+}
+
+.signal-row-density-label {
+  font-size: 8px;
+  color: $text-dim;
+}
+
+.signal-row-cam-btn {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  background: rgba(96, 165, 250, 0.07);
+  border: 1px solid rgba(96, 165, 250, 0.18);
+  border-radius: 5px;
+  color: $text-dim;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.18s;
+  line-height: 1;
+  padding: 0;
+
+  &:hover {
+    background: rgba(96, 165, 250, 0.18);
+    border-color: $neon-blue;
+    color: $neon-blue;
+    box-shadow: 0 0 8px rgba(96, 165, 250, 0.3);
+    transform: scale(1.1);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  CENTRE PANEL — intersection view
+// ══════════════════════════════════════════════════════════════════════════════
+.center-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid $border-color;
+  background: rgba(10,14,26,0.6);
+}
+
+// ── Intersection View ─────────────────────────────────────────────────────────
+.intersection-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.iv-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: rgba(0,0,0,0.4);
+  border-bottom: 1px solid $border-color;
+  flex-shrink: 0;
+}
+
+.iv-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.iv-sig-id {
+  font-size: 12px;
+  font-weight: 700;
+  color: $neon-blue;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.5px;
+}
+
+.iv-sig-name {
+  font-size: 12px;
+  color: $text-primary;
+  font-weight: 600;
+}
+
+.iv-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.iv-coords {
+  font-size: 10px;
+  color: $text-dim;
+  font-family: 'Courier New', monospace;
+}
+
+.iv-status-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+
+  &--active  { background: rgba(74,222,128,0.15); color: $neon-green;  border: 1px solid rgba(74,222,128,0.3); }
+  &--fault   { background: rgba(239,68,68,0.15);  color: $neon-red;    border: 1px solid rgba(239,68,68,0.3);  }
+  &--offline { background: rgba(107,114,128,0.15);color: $text-dim;    border: 1px solid rgba(107,114,128,0.3);}
+}
+
+.iv-body {
+  display: flex;
+  flex-direction: column;   // SVG on top, telemetry row on bottom
+  flex: 1;
+  overflow: hidden;
+  gap: 0;
+}
+
+// SVG intersection canvas — takes all remaining vertical space
+.iv-svg-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 24px 12px;
+  background: rgba(5, 8, 18, 0.5);
+}
+
+.iv-svg {
+  width: auto;
+  height: 100%;
+  max-height: 460px;
+  aspect-ratio: 1;
+  border-radius: 14px;
+  box-shadow: 0 0 60px rgba(0,0,0,0.8), 0 0 100px rgba(96,165,250,0.06);
+}
+
+// telemetry cards — horizontal strip at bottom
+.iv-telemetry {
+  display: flex;
+  flex-direction: row;
+  flex-shrink: 0;
+  height: 190px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-top: 1px solid $border-color;
+  padding: 10px 12px;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.35);
+
+  &::-webkit-scrollbar { height: 3px; }
+  &::-webkit-scrollbar-thumb { background: rgba(96,165,250,0.2); border-radius: 2px; }
+}
+
+.iv-tele-card {
+  flex: 1;
+  min-width: 160px;
+  max-width: 320px;
+  background: rgba(20,25,38,0.8);
+  border: 1px solid $border-color;
+  border-radius: 8px;
+  padding: 10px 12px;
+  transition: border-color 0.2s;
+  overflow: hidden;
+
+  &:hover { border-color: rgba(96,165,250,0.25); }
+
+  &--control {
+    min-width: 175px;
+    border-color: rgba(96,165,250,0.25);
+  }
+}
+
+.iv-tele-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: $neon-blue;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(96,165,250,0.15);
+}
+
+.iv-tele-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.iv-tele-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10.5px;
+  color: $text-secondary;
+}
+
+.iv-tele-val {
+  font-weight: 700;
+  color: $text-primary;
+  font-family: 'Courier New', monospace;
+}
+
+// phase control buttons
+.iv-phase-btns {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.iv-phase-btn {
+  flex: 1;
+  padding: 6px 4px;
+  border-radius: 5px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all 0.2s;
+
+  &--red {
+    background: rgba(239,68,68,0.12);
+    border-color: rgba(239,68,68,0.3);
+    color: $neon-red;
+    &:hover, &.iv-phase-btn--active {
+      background: rgba(239,68,68,0.28);
+      box-shadow: 0 0 10px rgba(239,68,68,0.4);
+    }
+  }
+  &--yellow {
+    background: rgba(251,191,36,0.12);
+    border-color: rgba(251,191,36,0.3);
+    color: $neon-yellow;
+    &:hover, &.iv-phase-btn--active {
+      background: rgba(251,191,36,0.28);
+      box-shadow: 0 0 10px rgba(251,191,36,0.4);
+    }
+  }
+  &--green {
+    background: rgba(74,222,128,0.12);
+    border-color: rgba(74,222,128,0.3);
+    color: $neon-green;
+    &:hover, &.iv-phase-btn--active {
+      background: rgba(74,222,128,0.28);
+      box-shadow: 0 0 10px rgba(74,222,128,0.4);
+    }
+  }
+}
+
+.iv-override-clear {
+  width: 100%;
+  padding: 5px;
+  background: rgba(96,165,250,0.1);
+  border: 1px solid rgba(96,165,250,0.25);
+  border-radius: 4px;
+  color: $neon-blue;
+  font-size: 9.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover { background: rgba(96,165,250,0.2); }
+}
+
+// connected road list
+.iv-road-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 110px;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar { width: 3px; }
+  &::-webkit-scrollbar-thumb { background: rgba(96,165,250,0.2); border-radius: 2px; }
+}
+
+.iv-road-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: $text-secondary;
+}
+
+.iv-road-dir {
+  width: 14px;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: $neon-blue;
+  flex-shrink: 0;
+}
+
+.iv-road-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 9.5px;
+  color: $text-secondary;
+}
+
+.iv-cong-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &--low      { background: $neon-green;  box-shadow: 0 0 5px $neon-green; }
+  &--medium   { background: $neon-yellow; box-shadow: 0 0 5px $neon-yellow; }
+  &--high     { background: $neon-orange; box-shadow: 0 0 5px $neon-orange; }
+  &--critical { background: $neon-red;    box-shadow: 0 0 5px $neon-red;    }
+}
+
+.iv-road-speed {
+  font-size: 9px;
+  color: $text-dim;
+  flex-shrink: 0;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  CCTV Full View  (centre panel — camera mode)
+// ══════════════════════════════════════════════════════════════════════════════
+.cctv-fullview {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.cctv-fv-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid $border-color;
+  flex-shrink: 0;
+}
+
+.cctv-fv-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cctv-fv-id {
+  font-size: 12px;
+  font-weight: 700;
+  color: $neon-blue;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.5px;
+}
+
+.cctv-fv-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.cctv-fv-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.cctv-fv-back-btn {
+  padding: 5px 13px;
+  background: rgba(96, 165, 250, 0.1);
+  border: 1px solid rgba(96, 165, 250, 0.28);
+  border-radius: 6px;
+  color: $neon-blue;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(96, 165, 250, 0.22);
+    box-shadow: 0 0 10px rgba(96, 165, 250, 0.3);
+  }
+}
+
+.cctv-fv-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cctv-fv-video-wrap {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+  background: #000;
+  overflow: hidden;
+}
+
+.cctv-fv-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cctv-fv-overlay-tl,
+.cctv-fv-overlay-tr,
+.cctv-fv-overlay-bl,
+.cctv-fv-overlay-br {
+  position: absolute;
+  padding: 4px 9px;
+  background: rgba(0, 0, 0, 0.68);
+  border-radius: 4px;
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: $text-primary;
+  pointer-events: none;
+}
+
+.cctv-fv-overlay-tl { top: 10px;    left: 10px;  color: $neon-red; }
+.cctv-fv-overlay-tr { top: 10px;    right: 10px; color: $text-secondary; }
+.cctv-fv-overlay-bl { bottom: 10px; left: 10px;  color: $text-secondary; }
+.cctv-fv-overlay-br { bottom: 10px; right: 10px; font-weight: 700; }
+
+.cctv-live-dot {
+  font-size: 7px;
+  color: $neon-red;
+  animation: pulse 1.2s infinite;
+}
+
+.cctv-fv-stats {
+  display: flex;
+  flex-direction: row;
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.5);
+  border-top: 1px solid $border-color;
+}
+
+.cctv-fv-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 6px;
+  border-right: 1px solid $border-color;
+  gap: 3px;
+
+  &:last-child { border-right: none; }
+}
+
+.cctv-fv-stat-label {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: $text-dim;
+  text-transform: uppercase;
+}
+
+.cctv-fv-stat-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: $text-primary;
+  font-family: 'Courier New', monospace;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  RIGHT PANEL — CCTV feeds (unchanged from original)
+// ══════════════════════════════════════════════════════════════════════════════
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.camera-grid-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(0,0,0,0.4);
+  border-bottom: 1px solid $border-color;
+  flex-shrink: 0;
+
+  h3 {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 700;
+    color: $neon-blue;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .feed-count {
+    padding: 3px 8px;
+    background: rgba(96,165,250,0.15);
+    border: 1px solid rgba(96,165,250,0.3);
+    border-radius: 4px;
+    color: $neon-blue;
+    font-size: 9px;
+    font-weight: 700;
+  }
+}
+
+.camera-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  padding: 10px;
+  overflow-y: auto;
+  flex: 1;
+
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-track { background: rgba(20,25,38,0.4); }
+  &::-webkit-scrollbar-thumb { background: rgba(96,165,250,0.25); border-radius: 2px; }
+}
+
+.camera-card {
+  background: $bg-card;
+  border: 1px solid $border-color;
+  border-radius: 7px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.25s;
+
+  &:hover {
+    border-color: $border-glow;
+    box-shadow: 0 4px 16px rgba(96,165,250,0.12);
+    transform: translateY(-1px);
+  }
+
+  &.selected {
+    border-color: $neon-blue;
+    box-shadow: 0 0 16px rgba(96,165,250,0.35);
+  }
+}
+
+.camera-feed {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/9;
+  overflow: hidden;
+  background: #000;
+}
+
+.camera-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 45%, rgba(0,0,0,0.45) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 6px;
+  pointer-events: none;
+}
+
+.camera-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: rgba(0,0,0,0.7);
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  color: $text-primary;
+  width: fit-content;
+
+  .camera-icon { font-size: 10px; }
+}
+
+.camera-status {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  width: fit-content;
+  align-self: flex-end;
+}
+
+.camera-info {
+  padding: 7px 8px;
+}
+
+.camera-name {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: $text-primary;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.camera-stats {
+  display: flex;
+  gap: 8px;
+  font-size: 9px;
+  color: $text-secondary;
+}
+
+// ── Animations ────────────────────────────────────────────────────────────────
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(32px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+
+$bg-panel:      rgba(20, 25, 38, 0.85);
+$bg-card:       rgba(30, 35, 50, 0.9);
+$bg-header:     rgba(15, 20, 30, 0.95);
+
+$neon-red:      #ef4444;
+$neon-orange:   #f97316;
+$neon-yellow:   #fbbf24;
+$neon-green:    #4ade80;
+$neon-blue:     #60a5fa;
+
+$text-primary:  #e5e7eb;
+$text-secondary: #9ca3af;
+$text-dim:      #6b7280;
+
+$border-color:  rgba(100, 120, 160, 0.2);
+$border-glow:   rgba(96, 165, 250, 0.4);
+
+// ── Modal Container ───────────────────────────────────────────────────────────
+.traffic-command-center {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.command-center-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+}
+
+.command-center-modal {
+  position: relative;
+  width: 96vw;
+  height: 90vh;
+  max-width: 1600px;
+  max-height: 940px;
+  background: $bg-modal;
+  border: 1px solid $border-glow;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(96, 165, 250, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+.command-center-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: $bg-header;
+  border-bottom: 1px solid $border-color;
+  backdrop-filter: blur(20px);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-icon {
+  font-size: 32px;
+  filter: drop-shadow(0 0 12px $neon-blue);
+  animation: pulse 3s infinite;
+}
+
+.header-title {
+  h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: $text-primary;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .header-subtitle {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: $text-secondary;
+    font-weight: 400;
+  }
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.header-time {
+  font-size: 20px;
+  font-weight: 600;
+  color: $neon-blue;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 1px;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 6px;
+  color: $neon-green;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: $neon-green;
+    box-shadow: 0 0 10px $neon-green;
+    animation: pulse 2s infinite;
+  }
+}
+
+.close-btn {
+  width: 36px;
+  height: 36px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  color: $neon-red;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: $neon-red;
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.4);
+  }
+}
+
+// ── Tab Navigation ────────────────────────────────────────────────────────────
+.command-center-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 12px 24px;
+  background: rgba(15, 20, 30, 0.8);
+  border-bottom: 1px solid $border-color;
+}
+
+.tab-btn {
+  padding: 10px 24px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: $text-secondary;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.3s;
+
+  &:hover {
+    background: rgba(96, 165, 250, 0.1);
+    color: $neon-blue;
+  }
+
+  &.active {
+    background: rgba(96, 165, 250, 0.15);
+    border-color: $neon-blue;
+    color: $neon-blue;
+    box-shadow: 0 0 12px rgba(96, 165, 250, 0.3);
+  }
+}
+
+// ── Main Content (3-Column Layout) ────────────────────────────────────────────
+.command-center-content {
+  display: grid;
+  grid-template-columns: 196px 1fr 260px;
+  gap: 16px;
+  padding: 16px;
+  flex: 1;
+  overflow: hidden;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  LEFT PANEL - Statistics & Metrics
+// ═══════════════════════════════════════════════════════════════════════════════
+
+.left-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  padding-right: 8px;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(20, 25, 38, 0.4);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(96, 165, 250, 0.3);
+    border-radius: 2px;
+  }
+}
+
+.stat-card {
+  background: $bg-panel;
+  backdrop-filter: blur(12px);
+  border: 1px solid $border-color;
+  border-radius: 10px;
+  padding: 16px;
+  transition: all 0.3s;
+
+  &:hover {
+    border-color: $border-glow;
+    box-shadow: 0 4px 20px rgba(96, 165, 250, 0.1);
+  }
+}
+
+.stat-header {
+  font-size: 11px;
+  font-weight: 700;
+  color: $neon-blue;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(96, 165, 250, 0.2);
+  padding-bottom: 8px;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(100, 120, 160, 0.15);
+  border-radius: 6px;
+
+  &.full {
+    grid-column: 1 / -1;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    color: $text-dim;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: $text-primary;
+
+    &.large {
+      font-size: 28px;
+      color: $neon-blue;
+    }
+
+    &.success {
+      color: $neon-green;
+    }
+
+    &.danger {
+      color: $neon-red;
+    }
+  }
+}
+
+.congestion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.congestion-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(100, 120, 160, 0.15);
+  border-radius: 6px;
+  transition: all 0.3s;
+
+  &:hover {
+    border-color: $border-glow;
+    transform: translateX(4px);
+  }
+
+  .congestion-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: $text-primary;
+  }
+
+  .congestion-badge {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+
+    &.low {
+      background: rgba(74, 222, 128, 0.2);
+      color: $neon-green;
+      border: 1px solid rgba(74, 222, 128, 0.4);
+    }
+
+    &.medium {
+      background: rgba(251, 191, 36, 0.2);
+      color: $neon-yellow;
+      border: 1px solid rgba(251, 191, 36, 0.4);
+    }
+
+    &.high {
+      background: rgba(249, 115, 22, 0.2);
+      color: $neon-orange;
+      border: 1px solid rgba(249, 115, 22, 0.4);
+    }
+
+    &.critical {
+      background: rgba(239, 68, 68, 0.2);
+      color: $neon-red;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  CENTER PANEL - Road Network Map
+// ═══════════════════════════════════════════════════════════════════════════════
+
+.center-panel {
+  background: $bg-panel;
+  backdrop-filter: blur(12px);
+  border: 1px solid $border-color;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.map-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid $border-color;
+
+  h3 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: $neon-blue;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+}
+
+.map-legend {
+  display: flex;
+  gap: 16px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: $text-secondary;
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    box-shadow: 0 0 8px currentColor;
+
+    &.green  { background: $neon-green; }
+    &.yellow { background: $neon-yellow; }
+    &.orange { background: $neon-orange; }
+    &.red    { background: $neon-red; }
+  }
+}
+
+.road-network-canvas {
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.signal-detail-overlay {
+  position: absolute;
+  top: 60px;
+  right: 16px;
+  background: rgba(15, 20, 30, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid $border-glow;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  animation: slideInRight 0.3s ease-out;
+}
+
+.signal-detail-card {
+  width: 280px;
+}
+
+.signal-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(96, 165, 250, 0.1);
+  border-bottom: 1px solid rgba(96, 165, 250, 0.3);
+
+  h4 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: $text-primary;
+  }
+
+  button {
+    width: 24px;
+    height: 24px;
+    background: transparent;
+    border: none;
+    color: $text-secondary;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+
+    &:hover {
+      color: $neon-red;
+      transform: scale(1.2);
+    }
+  }
+}
+
+.signal-detail-info {
+  padding: 12px 16px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(100, 120, 160, 0.1);
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  span:first-child {
+    color: $text-dim;
+    font-weight: 500;
+  }
+
+  span:last-child {
+    color: $text-primary;
+    font-weight: 600;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  RIGHT PANEL - Camera Feeds & Controls
+// ═══════════════════════════════════════════════════════════════════════════════
+
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  background: $bg-panel;
+  backdrop-filter: blur(12px);
+  border: 1px solid $border-color;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.camera-grid-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid $border-color;
+
+  h3 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: $neon-blue;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .feed-count {
+    padding: 4px 10px;
+    background: rgba(96, 165, 250, 0.15);
+    border: 1px solid rgba(96, 165, 250, 0.3);
+    border-radius: 4px;
+    color: $neon-blue;
+    font-size: 10px;
+    font-weight: 700;
+  }
+}
+
+.camera-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  padding: 12px;
+  overflow-y: auto;
+  flex: 1;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(20, 25, 38, 0.4);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(96, 165, 250, 0.3);
+    border-radius: 3px;
+  }
+}
+
+.camera-card {
+  background: $bg-card;
+  border: 1px solid $border-color;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s;
+
+  &:hover {
+    border-color: $border-glow;
+    box-shadow: 0 4px 20px rgba(96, 165, 250, 0.15);
+    transform: translateY(-2px);
+  }
+
+  &.selected {
+    border-color: $neon-blue;
+    box-shadow: 0 0 20px rgba(96, 165, 250, 0.4);
+  }
+}
+
+.camera-feed {
+  position: relative;
+  width: 100%;
+  height: 120px;
+  overflow: hidden;
+  background: #000;
+}
+
+.camera-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.4) 0%, transparent 50%, rgba(0, 0, 0, 0.4) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 8px;
+  pointer-events: none;
+}
+
+.camera-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: $text-primary;
+  width: fit-content;
+
+  .camera-icon {
+    font-size: 12px;
+  }
+}
+
+.camera-status {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 0.5px;
+  width: fit-content;
+  align-self: flex-end;
+}
+
+.camera-info {
+  padding: 10px;
+}
+
+.camera-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: $text-primary;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.camera-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 10px;
+  color: $text-secondary;
+
+  span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+}
+
+.signal-controls {
+  display: flex;
+  gap: 6px;
+  padding: 0 10px 10px 10px;
+}
+
+.control-btn {
+  flex: 1;
+  padding: 6px;
+  border: 1px solid;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+
+  &.red {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: $neon-red;
+
+    &:hover {
+      background: rgba(239, 68, 68, 0.25);
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+    }
+  }
+
+  &.yellow {
+    background: rgba(251, 191, 36, 0.15);
+    border-color: rgba(251, 191, 36, 0.4);
+    color: $neon-yellow;
+
+    &:hover {
+      background: rgba(251, 191, 36, 0.25);
+      box-shadow: 0 0 12px rgba(251, 191, 36, 0.4);
+    }
+  }
+
+  &.green {
+    background: rgba(74, 222, 128, 0.15);
+    border-color: rgba(74, 222, 128, 0.4);
+    color: $neon-green;
+
+    &:hover {
+      background: rgba(74, 222, 128, 0.25);
+      box-shadow: 0 0 12px rgba(74, 222, 128, 0.4);
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  ANIMATIONS
+// ══════════════════════════════════════════════════════════════════════════════
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}

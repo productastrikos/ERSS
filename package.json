@@ -1,0 +1,44 @@
+{
+  "name": "erss-dubai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ERSS Dubai — Emergency Response Support System for the Dubai Corporation for Ambulance Services",
+  "type": "module",
+  "workspaces": [
+    "web",
+    "server"
+  ],
+  "engines": {
+    "node": ">=22.9"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c yellow,cyan \"npm run dev -w server\" \"npm run dev -w web\"",
+    "dev:lan": "concurrently -n api,web -c yellow,cyan \"npm run dev -w server\" \"npm run dev:lan -w web\"",
+    "build": "npm run build -w web",
+    "start": "npm run start -w server",
+
+    "seed": "npm run seed -w server",
+    "seed:reference": "npm run seed:reference -w server",
+    "seed:history": "npm run seed:history -w server",
+    "seed:derived": "npm run seed:derived -w server",
+    "seed:reset": "npm run seed:reset -w server",
+    "seed:verify": "npm run seed:verify -w server",
+    "seed:resting": "npm run seed:resting -w server",
+    "seed:catchup": "npm run seed:catchup -w server",
+
+    "db:schema": "npm run db:schema -w server",
+    "db:views": "npm run db:views -w server",
+
+    "test": "npm run test -w server",
+    "test:flow": "npm run test:flow -w server",
+    "lint": "npm run lint -w web",
+    "typecheck": "npm run typecheck -w web",
+
+    "audit": "npm run audit:theme && npm run audit:env",
+    "audit:theme": "node ops/scripts/audit-theme.mjs",
+    "audit:env": "node ops/scripts/audit-env.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

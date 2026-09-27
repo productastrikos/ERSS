@@ -1,0 +1,30 @@
+{
+  "incident_id": "DSO-EVC-010",
+  "type": "ev_charging_fault",
+  "severity": "medium",
+  "location": {
+    "name": "Silicon Central Mall EV Parking Level 2",
+    "zone": "Commercial — Silicon Central Mall Parking",
+    "coordinates": [55.3821, 25.1263]
+  },
+  "sensor": {
+    "sensor_id": "EVSE_SCM_P2_05",
+    "name": "EVSE Fault Register (OCPP)",
+    "value": 20,
+    "unit": "fault code (0x14)",
+    "threshold": 0,
+    "status": "GFI_FAULT"
+  },
+  "work_order_id": "WO-DSO-2026-0051",
+  "assigned_team": "EV Operations & Mobility Team",
+  "contact": "ev-ops@dso.ae | +971-4-501-5509",
+  "status": "detected",
+  "timestamp": "2026-03-16T16:08:00Z",
+  "affected_stations": ["EVSE_SCM_P2_05", "EVSE_SCM_P2_06"],
+  "charger_type": "DC Fast Charger 50kW",
+  "map_effect": {
+    "type": "ev_fault",
+    "epicenter": [55.3821, 25.1263],
+    "radius_m": 160
+  }
+}

@@ -1,0 +1,346 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Mobile surface.
+
+   Constraints come from where the device is actually used, not from preference:
+     · one hand, in a moving vehicle → primary actions in the bottom third
+     · gloves                        → 48px minimum, 64px for primary
+     · Dubai sunlight                → no subtle tints carrying meaning
+     · glanceable                    → the most important fact on any screen is ≥24px
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.surface-mobile {
+  font-size: 15px;          /* the enlarged mobile ramp */
+  overscroll-behavior-y: contain;
+}
+
+/* ── Boot / login ───────────────────────────────────────────────────────────── */
+
+.m-boot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-16);
+  min-height: 100dvh;
+  padding: var(--sp-24);
+  text-align: center;
+
+  &__logo { height: 44px; width: auto; }
+  &__title { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+  &__msg { font-size: 14px; color: var(--app-text-muted); max-width: 34ch; }
+
+  svg { width: 30px; height: 30px; }
+}
+
+.m-login {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 100dvh;
+  padding: var(--sp-24) var(--sp-20) calc(var(--sp-20) + env(safe-area-inset-bottom));
+  gap: var(--sp-24);
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-16);
+    /* Form sits in the lower half: one-handed reach. */
+    margin-top: auto;
+  }
+
+  &__logo { height: 44px; width: auto; align-self: center; }
+  &__title {
+    font-family: var(--font-display);
+    font-size: 22px; font-weight: 700;
+    text-align: center;
+  }
+  &__client {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--app-accent);
+    text-align: center;
+    line-height: 1.5;
+    margin: calc(-1 * var(--sp-10)) 0 0;
+    svg {
+      width: 13px; height: 13px;
+      display: inline-block;
+      vertical-align: -2px;
+      margin-inline-end: var(--sp-4);
+    }
+  }
+
+  .u-field input { height: 48px; font-size: 16px; }   /* 16px stops iOS zoom-on-focus */
+}
+
+/* ── Demo credentials (MobileApp.tsx DemoCredentials) ────────────────────────
+   The seeded trial accounts, tappable — typing `RSP-AMB14` off a slide on a phone is the
+   single most reliable way to lose a minute of a demonstration. Full-width rows, 44px+
+   tall, because this is a touch target like any other on this surface. */
+.m-demo {
+  display: flex; flex-direction: column; gap: var(--sp-6);
+  padding-top: var(--sp-12);
+  border-top: 1px solid var(--app-border-soft);
+
+  &__title {
+    font-size: 10.5px; font-weight: 800;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--app-text-faint);
+  }
+  &__btn {
+    display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-10);
+    min-height: 46px;
+    padding: var(--sp-8) var(--sp-12);
+    border: 0; border-radius: var(--r-10);
+    background: var(--app-surface-raised);
+    text-align: start; cursor: pointer;
+    b { font-size: 13px; font-weight: 700; color: var(--app-text); }
+    small { font-family: var(--font-mono); font-size: 11px; color: var(--app-text-muted); white-space: nowrap; }
+    &:active { background: var(--app-bg-elevated); }
+    &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 1px; }
+  }
+  &__foot { font-size: 10.5px; line-height: 1.45; color: var(--app-text-faint); }
+}
+
+/* ── Emergency numbers — always present, never hidden behind the app ────────── */
+
+.m-numbers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-8);
+  margin-top: auto;
+
+  &__btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 64px;
+    padding: var(--sp-10);
+    border-radius: var(--r-12);
+    background: var(--app-surface-raised);
+    color: var(--app-text);
+    text-decoration: none;
+    box-shadow: var(--app-edge-light);
+
+    &:active { background: var(--app-bg-elevated); }
+    &:hover { text-decoration: none; }
+
+    svg { width: 16px; height: 16px; color: var(--app-text-faint); }
+  }
+
+  &__no {
+    font-family: var(--font-display);
+    font-size: 20px; font-weight: 700;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__label { font-size: 11px; color: var(--app-text-muted); }
+}
+
+/* ── Shared mobile chrome ───────────────────────────────────────────────────── */
+
+.m-shell {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100dvh;
+  background: var(--app-bg);
+}
+
+.m-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-10);
+  padding: calc(var(--sp-12) + env(safe-area-inset-top)) var(--sp-16) var(--sp-12);
+  background: var(--app-chrome-bg);
+  border-bottom: 1px solid var(--app-border);
+
+  &__id { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
+  &__status { font-size: 12px; color: var(--app-text-muted); }
+  &__spacer { flex: 1; }
+}
+
+.m-content {
+  padding: var(--sp-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.m-tabs {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  background: var(--app-chrome-bg);
+  border-top: 1px solid var(--app-border);
+  padding-bottom: env(safe-area-inset-bottom);
+
+  button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 56px;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--app-text-faint);
+    transition: color var(--dur-fast) var(--ease);
+
+    svg { width: 20px; height: 20px; }
+
+    &[aria-current='page'] { color: var(--app-accent); }
+  }
+}
+
+/* ── Citizen: the SOS control ───────────────────────────────────────────────── */
+
+.m-sos {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-12);
+  padding-block: var(--sp-24);
+
+  &__btn {
+    position: relative;
+    width: 240px;
+    height: 240px;
+    max-width: 62vw;
+    max-height: 62vw;
+    border-radius: var(--r-pill);
+    background: var(--app-btn);
+    color: var(--app-btn-text);
+    font-family: var(--font-display);
+    font-size: 40px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    box-shadow: 0 8px 28px var(--app-btn-shadow), var(--app-edge-light);
+    transition: transform var(--dur-fast) var(--ease), filter var(--dur-fast) var(--ease);
+
+    &:active { transform: scale(0.97); filter: brightness(0.94); }
+    &[data-holding='true'] { filter: brightness(1.08); }
+  }
+
+  /* The hold ring fills over two seconds — press-and-hold prevents pocket dialling. */
+  &__ring {
+    position: absolute;
+    inset: -6px;
+    border-radius: var(--r-pill);
+    pointer-events: none;
+  }
+
+  &__hint { font-size: 13px; color: var(--app-text-muted); }
+
+  &__where {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    font-size: 12px; color: var(--app-text-muted);
+    .mono { font-family: var(--font-mono); font-size: 13px; color: var(--app-text); }
+  }
+}
+
+/* ── Responder: the assignment offer ────────────────────────────────────────── */
+
+.m-offer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  background: var(--app-bg);
+  padding: calc(var(--sp-20) + env(safe-area-inset-top)) var(--sp-20)
+           calc(var(--sp-20) + env(safe-area-inset-bottom));
+
+  &__prio {
+    align-self: center;
+    font-family: var(--font-display);
+    font-size: 15px; font-weight: 700; letter-spacing: 0.1em;
+    color: var(--app-danger);
+  }
+
+  &__kind {
+    font-family: var(--font-display);
+    font-size: 26px; font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+    margin-block: var(--sp-8) var(--sp-20);
+  }
+
+  &__where { display: grid; gap: var(--sp-6); text-align: center; }
+  &__place { font-size: 18px; font-weight: 700; }
+  &__floor { font-size: 16px; color: var(--app-accent); font-weight: 700; }
+  &__makani { font-family: var(--font-mono); font-size: 15px; color: var(--app-text-muted); }
+
+  &__eta {
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: 28px; font-weight: 700;
+    margin-block: var(--sp-20);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__note {
+    display: flex; gap: var(--sp-8);
+    padding: var(--sp-12);
+    border-radius: var(--r-10);
+    background: var(--app-modal-warning-bg);
+    border: 1px solid var(--app-modal-warning-border);
+    color: var(--app-warning);
+    font-size: 14px;
+  }
+
+  &__actions {
+    margin-top: auto;
+    display: grid;
+    gap: var(--sp-10);
+    .u-btn--primary { height: 64px; font-size: 17px; }
+    .u-btn--ghost   { height: 48px; font-size: 15px; }
+  }
+
+  /* The countdown is real: at timeout the offer expires, dispatch re-runs, and the
+     timeout is MEASURED — the pressure the crew feels is the same number leadership
+     sees in the acknowledge-drift advisory. */
+  &__countdown {
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--app-text-faint);
+    margin-top: var(--sp-10);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ── Key/value list — unit facts, shift facts ────────────────────────────────── */
+
+.m-kv {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  margin: 0;
+
+  > div {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--sp-12);
+    font-size: 13px;
+  }
+  dt { color: var(--app-text-muted); }
+  dd { margin: 0; font-weight: 700; color: var(--app-text); text-align: end; }
+}
+
+/* ── Offline / degraded banners ─────────────────────────────────────────────── */
+
+.m-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-8) var(--sp-16);
+  font-size: 12.5px;
+  font-weight: 700;
+
+  &--offline { background: var(--app-danger-bg); color: var(--app-danger); }
+  &--degraded { background: var(--app-warning-bg); color: var(--app-warning); }
+  &--queued { background: var(--app-info-bg); color: var(--app-info); }
+}

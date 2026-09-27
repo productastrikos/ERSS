@@ -1,0 +1,265 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Mobile — the live job map (responder) and ambulance tracking (citizen).
+   NO COLOUR LITERALS: tokens only.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Tabs: job badge ────────────────────────────────────────────────────────── */
+
+.m-tabs__btn { position: relative; }
+.m-tabs__badge {
+  position: absolute; top: 8px; inset-inline-end: calc(50% - 16px);
+  width: 9px; height: 9px;
+  border-radius: var(--r-pill);
+  background: var(--app-danger);
+  box-shadow: 0 0 0 2px var(--app-chrome-bg);
+}
+
+/* ── Full-bleed content (the job map) ───────────────────────────────────────── */
+
+.m-content--flush { padding: 0; gap: 0; overflow: hidden; }
+
+.m-shell:has(.m-content--flush) { height: 100dvh; min-height: 0; }
+
+/* ── Responder: priority badge ──────────────────────────────────────────────── */
+
+.r-prio {
+  display: inline-grid; place-items: center;
+  min-width: 30px; height: 24px; padding: 0 var(--sp-6);
+  border-radius: var(--r-6);
+  font-family: var(--font-display); font-size: 12px; font-weight: 800;
+  flex-shrink: 0;
+  &--P1 { background: var(--app-danger); color: var(--app-on-color); }
+  &--P2 { background: var(--app-danger-bg); color: var(--app-danger); box-shadow: inset 0 0 0 1px var(--app-danger-border); }
+  &--P3 { background: var(--app-info-bg); color: var(--app-info); }
+  &--P4 { background: var(--app-surface-raised); color: var(--app-text-muted); }
+}
+
+.r-jobcard {
+  display: flex; align-items: center; gap: var(--sp-12);
+  width: 100%;
+  padding: var(--sp-14) var(--sp-16);
+  border-radius: var(--r-14);
+  background: var(--app-danger-bg);
+  box-shadow: inset 0 0 0 1px var(--app-danger-border);
+  text-align: start;
+  color: var(--app-text);
+  > svg { width: 22px; height: 22px; color: var(--app-danger); flex-shrink: 0; }
+
+  &__text {
+    flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+    strong { font-family: var(--font-display); font-size: 16px; }
+    span { font-size: 12.5px; color: var(--app-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  }
+}
+
+/* ── Responder: the job screen ──────────────────────────────────────────────── */
+
+.r-job {
+  display: grid;
+  grid-template-rows: minmax(220px, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+
+  &__map { position: relative; min-height: 0; }
+
+  &__chips {
+    position: absolute; z-index: var(--z-overlay);
+    top: var(--sp-10); inset-inline: var(--sp-10);
+    display: flex; justify-content: space-between; gap: var(--sp-8);
+    pointer-events: none;
+  }
+}
+
+/* The map's zoom control would sit under the chips on a phone. */
+.r-job__map .maplibregl-ctrl-top-left { display: none; }
+
+.r-chip {
+  display: inline-flex; align-items: baseline; gap: var(--sp-6);
+  padding: var(--sp-6) var(--sp-12);
+  border-radius: var(--r-pill);
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow-md), var(--app-edge-light);
+  color: var(--app-text);
+  svg { width: 15px; height: 15px; align-self: center; color: var(--app-accent); }
+}
+
+.r-clock {
+  &__value { font-family: var(--font-display); font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  &__target { font-size: 11px; color: var(--app-text-muted); }
+  &[data-tone='warn'] .r-clock__value { color: var(--app-warning); }
+  &[data-tone='bad'] .r-clock__value { color: var(--app-danger); }
+  &[data-tone='good'] .r-clock__value { color: var(--app-success); }
+}
+
+.r-sheet {
+  position: relative; z-index: var(--z-panel);
+  display: flex; flex-direction: column; gap: var(--sp-8);
+  padding: var(--sp-14) var(--sp-16) var(--sp-12);
+  margin-top: calc(-1 * var(--sp-14));
+  max-height: 62dvh;
+  overflow-y: auto;
+  background: var(--app-panel);
+  border-start-start-radius: var(--r-14);
+  border-start-end-radius: var(--r-14);
+  box-shadow: var(--app-shadow-lg);
+
+  &__head { display: flex; align-items: center; gap: var(--sp-8); }
+  &__kind { flex: 1; min-width: 0; font-family: var(--font-display); font-size: 19px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  &__place {
+    display: flex; align-items: center; gap: var(--sp-6);
+    font-size: 14px; font-weight: 700;
+    svg { width: 15px; height: 15px; color: var(--app-accent); flex-shrink: 0; }
+  }
+  &__facts {
+    display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-12);
+    font-size: 13px; color: var(--app-text-muted);
+    .mono { font-family: var(--font-mono); }
+  }
+  &__floor { font-family: var(--font-display); font-size: 16px; font-weight: 800; color: var(--app-accent); }
+  &__complaint { font-size: 13px; color: var(--app-text-muted); }
+  &__error { font-size: 12.5px; color: var(--app-danger); }
+
+  &__demo {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
+    padding: var(--sp-8) var(--sp-10);
+    border-radius: var(--r-10);
+    background: var(--app-surface-raised);
+  }
+
+  &__actions {
+    display: flex; flex-direction: column; gap: var(--sp-8);
+    .u-btn--lg { height: 56px; font-size: 16px; }
+  }
+
+  &__secondary { display: flex; justify-content: center; gap: var(--sp-8);
+                 a { text-decoration: none; } }
+}
+
+.r-switch {
+  display: inline-flex; align-items: center; gap: var(--sp-8);
+  font-size: 13px; font-weight: 700; color: var(--app-text);
+
+  input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  span {
+    position: relative; width: 36px; height: 20px;
+    border-radius: var(--r-pill);
+    background: var(--app-border-strong);
+    transition: background var(--dur-fast) var(--ease);
+    &::after {
+      content: ''; position: absolute; top: 2px; inset-inline-start: 2px;
+      width: 16px; height: 16px; border-radius: var(--r-pill);
+      background: var(--app-text);
+      transition: transform var(--dur-fast) var(--ease);
+    }
+  }
+  input:checked + span { background: var(--app-success); &::after { transform: translateX(16px); } }
+  input:focus-visible + span { box-shadow: 0 0 0 2px var(--app-accent-border); }
+}
+
+.r-hospitals {
+  display: flex; flex-direction: column; gap: var(--sp-8);
+  &__label { font-size: 12px; color: var(--app-text-muted); }
+  &__name { flex: 1; min-width: 0; text-align: start; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  &__eta { font-size: 12px; font-weight: 600; opacity: 0.85; }
+}
+
+/* ── Responder: the offer takeover gets a map ───────────────────────────────── */
+
+.m-offer {
+  overflow-y: auto;
+
+  &__map {
+    position: relative;
+    height: 34dvh; min-height: 180px;
+    margin-bottom: var(--sp-16);
+    border-radius: var(--r-14);
+    overflow: hidden;
+    box-shadow: var(--app-shadow-md);
+    flex-shrink: 0;
+    .maplibregl-ctrl-top-left { display: none; }
+  }
+
+  &__eta { margin-block: var(--sp-14) 0; }
+  &__countdown[data-urgent='true'] { color: var(--app-danger); font-weight: 700; animation: m-urgent 1s steps(2) infinite; }
+}
+
+@keyframes m-urgent { 50% { opacity: 0.45; } }
+
+/* ── Citizen: what is happening, and where ──────────────────────────────────── */
+
+.c-kinds {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-8);
+
+  button {
+    min-height: 48px;
+    border-radius: var(--r-12);
+    background: var(--app-surface-raised);
+    font-size: 14px; font-weight: 700; color: var(--app-text-muted);
+    box-shadow: var(--app-edge-light);
+    &[aria-pressed='true'] { background: var(--app-danger-bg); color: var(--app-danger); box-shadow: inset 0 0 0 2px var(--app-danger); }
+  }
+}
+
+.c-place {
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-4);
+  margin-top: var(--sp-8);
+  font-size: 11.5px; color: var(--app-text-faint);
+  select { height: 40px; font-size: 14px; min-width: 240px; }
+}
+
+/* ── Citizen: tracking the ambulance ────────────────────────────────────────── */
+
+.c-track {
+  display: flex; flex-direction: column;
+  margin: calc(-1 * var(--sp-16)) calc(-1 * var(--sp-16)) 0;
+
+  &__map {
+    position: relative; height: 46dvh; min-height: 240px;
+    .maplibregl-ctrl-top-left { display: none; }
+  }
+
+  &__card {
+    position: relative; z-index: var(--z-panel);
+    display: flex; flex-direction: column; gap: var(--sp-10);
+    margin: calc(-1 * var(--sp-20)) var(--sp-12) 0;
+    padding: var(--sp-16);
+    border-radius: var(--r-14);
+    background: var(--app-panel);
+    box-shadow: var(--app-shadow-lg), var(--app-edge-light);
+  }
+
+  &__headline { font-family: var(--font-display); font-size: 20px; font-weight: 800; }
+
+  &__eta { display: flex; align-items: baseline; gap: var(--sp-6); }
+  &__eta-value { font-family: var(--font-display); font-size: 44px; font-weight: 800; line-height: 1; color: var(--app-success); font-variant-numeric: tabular-nums; }
+  &__eta-unit { font-size: 16px; font-weight: 700; color: var(--app-success); }
+  &__eta-dist { margin-inline-start: auto; font-size: 13px; color: var(--app-text-muted); }
+
+  &__unit {
+    display: flex; align-items: center; gap: var(--sp-6);
+    font-size: 13.5px;
+    svg { width: 18px; height: 18px; color: var(--app-danger); }
+    span { color: var(--app-text-muted); }
+  }
+
+  &__ref { font-family: var(--font-mono); font-size: 11px; color: var(--app-text-faint); }
+  &__tip { margin: 0; font-size: 14px; line-height: 1.45; color: var(--app-text); }
+}
+
+.c-steps {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-4);
+  margin: 0; padding: 0; list-style: none;
+
+  li {
+    display: flex; flex-direction: column; gap: var(--sp-6);
+    font-size: 10.5px; font-weight: 700; color: var(--app-text-faint);
+    &[data-state='done'] { color: var(--app-text-muted); .c-steps__dot { background: var(--app-success); } }
+    &[data-state='current'] { color: var(--app-text); .c-steps__dot { background: var(--app-accent); animation: m-urgent 1.4s steps(2) infinite; } }
+  }
+  &__dot { height: 4px; border-radius: var(--r-pill); background: var(--app-border-strong); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .c-steps li[data-state='current'] .c-steps__dot,
+  .m-offer__countdown[data-urgent='true'] { animation: none; }
+}

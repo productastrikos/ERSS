@@ -1,0 +1,229 @@
+/* The live operations page: the map is the page. NO COLOUR LITERALS — tokens only. */
+
+.liveops-page {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+
+  > .liveops { flex: 1; min-width: 0; }
+
+  /* ── The corpus toggle, bottom right ──────────────────────────────────────
+     Deliberately a running count rather than an icon: the number climbing during a
+     demo is the claim "we record every response" being made in front of the person
+     who asked for it. */
+  &__corpus-toggle {
+    position: absolute;
+    z-index: var(--z-overlay);
+    inset-block-end: var(--sp-12);
+    inset-inline-end: var(--sp-12);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-6) var(--sp-12);
+    font: inherit;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--app-text);
+    background: var(--app-panel);
+    border: 1px solid var(--app-border-soft);
+    border-radius: var(--r-pill, 999px);
+    box-shadow: var(--app-shadow-sm), var(--app-edge-light);
+    cursor: pointer;
+
+    svg { width: 14px; height: 14px; color: var(--app-accent); }
+    span { font-family: var(--font-body); font-weight: 600; color: var(--app-text-muted); }
+    &:hover, &.is-on { border-color: var(--app-accent); }
+    &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
+  }
+
+  /* ── The corpus panel ─────────────────────────────────────────────────────── */
+
+  &__corpus {
+    position: absolute;
+    z-index: var(--z-overlay);
+    inset-block-end: 56px;
+    inset-inline-end: var(--sp-12);
+    width: min(380px, calc(100% - var(--sp-24, 24px)));
+    max-height: calc(100% - 100px);
+    overflow-y: auto;
+    padding: var(--sp-12);
+    background: var(--app-panel);
+    border: 1px solid var(--app-border-soft);
+    border-radius: var(--r-12);
+    box-shadow: var(--app-shadow-md, var(--app-shadow-sm)), var(--app-edge-light);
+
+    /* Same livery cap as every dash-card. */
+    &::before {
+      content: '';
+      position: absolute;
+      inset-inline: 0;
+      inset-block-start: 0;
+      height: 3px;
+      border-radius: var(--r-12) var(--r-12) 0 0;
+      background: var(--app-brand-gradient);
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-6);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--app-text-muted);
+      margin-bottom: var(--sp-10);
+
+      svg { width: 14px; height: 14px; color: var(--app-accent); }
+      button {
+        margin-inline-start: auto;
+        display: grid; place-items: center;
+        background: none; border: 0; padding: 2px;
+        color: var(--app-text-faint); cursor: pointer;
+        &:hover { color: var(--app-text); }
+      }
+    }
+  }
+
+  &__corpus-lede {
+    margin: 0 0 var(--sp-10);
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--app-text-muted);
+  }
+
+  &__signals {
+    list-style: none;
+    margin: 0 0 var(--sp-10);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-6);
+
+    li {
+      display: grid;
+      grid-template-columns: minmax(96px, 38%) 1fr auto;
+      align-items: center;
+      gap: var(--sp-8);
+      font-size: 11.5px;
+      color: var(--app-text-muted);
+    }
+  }
+
+  &__signal-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  &__signal-bar {
+    height: 6px;
+    border-radius: var(--r-6);
+    background: var(--app-surface-soft);
+    overflow: hidden;
+
+    span {
+      display: block;
+      height: 100%;
+      background: var(--app-success);
+      border-radius: var(--r-6);
+      /* A signal under half coverage is drawn as a warning, not as progress. */
+      &[data-thin] { background: var(--app-warning); }
+    }
+  }
+
+  &__signal-n {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--app-text);
+  }
+
+  &__gaps {
+    margin: 0 0 var(--sp-10);
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--app-warning);
+    strong { color: var(--app-warning); }
+  }
+
+  &__corpus-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-8);
+    margin: 0 0 var(--sp-10);
+
+    div {
+      padding: var(--sp-8);
+      background: var(--app-surface-soft);
+      border-radius: var(--r-8, 8px);
+    }
+    dt { font-size: 10.5px; color: var(--app-text-muted); }
+    dd {
+      margin: 2px 0 0;
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--app-text);
+    }
+  }
+
+  &__recent {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+
+    > span {
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--app-text-faint);
+      margin-bottom: var(--sp-2);
+    }
+
+    button {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: var(--sp-8);
+      padding: var(--sp-4) var(--sp-6);
+      font: inherit;
+      font-size: 11.5px;
+      text-align: start;
+      color: var(--app-text);
+      background: none;
+      border: 0;
+      border-radius: var(--r-6);
+      cursor: pointer;
+
+      em {
+        font-style: normal;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--app-text-muted);
+      }
+      > span { font-size: 10.5px; color: var(--app-text-faint); }
+      &:hover { background: var(--app-surface-soft); }
+      &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: -2px; }
+    }
+  }
+}
+
+/* The detail panel, docked over the right edge of the wall map (console/detail). */
+.liveops-page__detail {
+  position: absolute;
+  z-index: var(--z-panel);
+  inset-block: 64px var(--sp-12);
+  inset-inline-end: var(--sp-12);
+  width: min(400px, calc(100% - var(--sp-24)));
+  /* `height: auto` on an absolutely-positioned box with both insets set is inconsistent
+     across engines, and with no `display:flex`/`overflow` here the inner .dtl's own
+     `height:100%` had nothing solid to resolve against — the AI log got clipped instead
+     of scrolling. Establishing flex + a hard cap makes .dtl__body's overflow-y:auto the
+     one thing that scrolls. */
+  display: flex;
+  overflow: hidden;
+  max-height: calc(100dvh - 64px - var(--sp-12));
+  box-shadow: var(--app-shadow-md, var(--app-shadow-sm)), var(--app-edge-light);
+
+  > .dtl { flex: 1; width: 100%; min-width: 0; }
+}

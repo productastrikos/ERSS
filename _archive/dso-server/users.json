@@ -1,0 +1,110 @@
+{
+  "TP-001": {
+    "userId": "TP-001",
+    "name": "Officer Ahmed",
+    "role": "Traffic Police",
+    "passwordHash": "0d4632e6664be0b1e380812394607f7a0db30a1ebfabf517e2f3955e6eb4a88b",
+    "registeredAt": 1774608000000,
+    "lastLat": 25.117134,
+    "lastLng": 55.369655
+  },
+  "TP-002": {
+    "userId": "TP-002",
+    "name": "Officer Priya",
+    "role": "Traffic Police",
+    "passwordHash": "7167adb4739d5dbf3f57173949151cf088193bd983b500f9e350429d432eb845",
+    "registeredAt": 1774608000000,
+    "lastLat": 25.130382,
+    "lastLng": 55.363751
+  },
+  "AM-001": {
+    "userId": "AM-001",
+    "name": "Paramedic Raj",
+    "role": "Ambulance",
+    "passwordHash": "61c2104849bfd4cfb810091c5ef6a785275475090481f691153a54e7f5b6f166",
+    "registeredAt": 1774608000000,
+    "lastLat": 25.13502,
+    "lastLng": 55.395249
+  },
+  "FR-001": {
+    "userId": "FR-001",
+    "name": "Firefighter Zaid",
+    "role": "Fire",
+    "passwordHash": "148dc1ce984976d304145f722e3d4b5e1b09ca154b66bab1abd5768165ac0ee8",
+    "registeredAt": 1774608000000,
+    "lastLat": 25.106772,
+    "lastLng": 55.375854
+  },
+  "MC-001": {
+    "userId": "MC-001",
+    "name": "Tech Kumar",
+    "role": "Maintenance",
+    "passwordHash": "7914d27ae9e9e0e12d17247f5267dee476c45ea1398c7233a8a7c5cce160e5cf",
+    "registeredAt": 1774608000000,
+    "lastLat": 25.112468,
+    "lastLng": 55.364543
+  },
+  "WE-001": {
+    "userId": "WE-001",
+    "name": "Eng. Sara",
+    "role": "Water Engineer",
+    "passwordHash": "576caa6b937b0fd0d0850c8eab77eecd063cbb48149f96f4426bdc0d412afa20",
+    "registeredAt": 1774608000000,
+    "lastLat": 25.108287,
+    "lastLng": 55.377096
+  },
+  "HV-001": {
+    "userId": "HV-001",
+    "name": "Tech Arjun",
+    "role": "HVAC Technician",
+    "passwordHash": "fce5beeb462f135e53b61b469cfa20de70acdcf8c0a0265a7e4e6939dd61eee1",
+    "registeredAt": 1774608000000,
+    "lastLat": 25.141534,
+    "lastLng": 55.366821
+  },
+  "EE-001": {
+    "userId": "EE-001",
+    "name": "Eng. Sana",
+    "role": "Electrical Engineer",
+    "passwordHash": "fec17561f441c2a19ec7acf9df954c4b40f248144b47f8b674d20f9a673b53a3",
+    "registeredAt": 1774608000000,
+    "lastLat": 25.12676,
+    "lastLng": 55.363399
+  },
+  "FS-001": {
+    "userId": "FS-001",
+    "name": "Officer Jaya",
+    "role": "Fire Safety Officer",
+    "passwordHash": "6d1b74b408cfa92d2de782d26523ca2c820e1f1b681bda7089aa19b352533fd4",
+    "registeredAt": 1774608000000,
+    "lastLat": 25.123,
+    "lastLng": 55.395
+  },
+  "FM-001": {
+    "userId": "FM-001",
+    "name": "Manager Ravi",
+    "role": "Facility Manager",
+    "passwordHash": "6380fd0a83349efaaa601ad6b0b197231b515547ec0a7542dfcc5ad0eef9f063",
+    "registeredAt": 1774608000000,
+    "lastLat": 25.140044,
+    "lastLng": 55.371528
+  },
+  "WC-001": {
+    "userId": "WC-001",
+    "name": "Collector Raju",
+    "role": "Waste Collector",
+    "passwordHash": "8258dedb5ed4154644aa3fe03e3ac689d971d6cce6c66f81c87d6f0c25ff671b",
+    "registeredAt": 1774608000000,
+    "lastLat": 25.104134,
+    "lastLng": 55.387704
+  },
+  "SE-001": {
+    "userId": "SE-001",
+    "name": "Eng. Nadia",
+    "role": "Sanitation Engineer",
+    "passwordHash": "30427109c357ef0cca308ae5625c0a73b8e4b75377784449ec9673aca97ac592",
+    "registeredAt": 1774608000000,
+    "lastLat": 25.146905,
+    "lastLng": 55.384704
+  }
+}

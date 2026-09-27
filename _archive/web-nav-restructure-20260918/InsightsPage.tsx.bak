@@ -1,0 +1,66 @@
+/**
+ * Insights — the Concept Note's demonstration screens (docs §05–§08), rebuilt on Dubai
+ * data: the almanac and forecast rail, the call mix, radial search around any point,
+ * period-over-period comparison, the call-centre and performance tiles, and after-action
+ * replay with route-vs-proposed and predicted-vs-actual arrival.
+ *
+ * A tab strip under one page, same as the Concept Note's Incidents/Analytics/Advisory
+ * view — except here each tab is deep enough to stand alone, so it is six tabs rather
+ * than three.
+ */
+
+import { useState } from 'react';
+import { Crosshair, LayoutGrid, Gauge, GitCompare, Headset, History } from 'lucide-react';
+import { t } from '../../../lib/i18n';
+import { OverviewTab } from './OverviewTab';
+import { RadialSearchTab } from './RadialSearchTab';
+import { ComparisonTab } from './ComparisonTab';
+import { CallCentreTab } from './CallCentreTab';
+import { PerformanceTab } from './PerformanceTab';
+import { ReplayTab } from './ReplayTab';
+import '../pillar.scss';
+import './insights.scss';
+
+type Tab = 'overview' | 'radial' | 'compare' | 'callcentre' | 'performance' | 'replay';
+
+const TABS: Array<{ key: Tab; label: string; icon: typeof LayoutGrid }> = [
+  { key: 'overview', label: 'insights.tab.overview', icon: LayoutGrid },
+  { key: 'radial', label: 'insights.tab.radial', icon: Crosshair },
+  { key: 'compare', label: 'insights.tab.compare', icon: GitCompare },
+  { key: 'callcentre', label: 'insights.tab.callcentre', icon: Headset },
+  { key: 'performance', label: 'insights.tab.performance', icon: Gauge },
+  { key: 'replay', label: 'insights.tab.replay', icon: History },
+];
+
+export function InsightsPage() {
+  const [tab, setTab] = useState<Tab>('overview');
+
+  return (
+    <div className="pillar insights">
+      <div className="pillar__head">
+        <h1 className="pillar__title"><Crosshair aria-hidden /> {t('insights.title')}</h1>
+      </div>
+      <p className="pillar__sub">{t('insights.sub')}</p>
+
+      <nav className="insights__tabs" aria-label={t('insights.title')}>
+        {TABS.map((tb) => {
+          const Icon = tb.icon;
+          return (
+            <button key={tb.key} type="button" aria-current={tab === tb.key ? 'page' : undefined}
+                    onClick={() => setTab(tb.key)}>
+              <Icon aria-hidden />
+              {t(tb.label)}
+            </button>
+          );
+        })}
+      </nav>
+
+      {tab === 'overview' && <OverviewTab />}
+      {tab === 'radial' && <RadialSearchTab />}
+      {tab === 'compare' && <ComparisonTab />}
+      {tab === 'callcentre' && <CallCentreTab />}
+      {tab === 'performance' && <PerformanceTab />}
+      {tab === 'replay' && <ReplayTab />}
+    </div>
+  );
+}

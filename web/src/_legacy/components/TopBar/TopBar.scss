@@ -1,0 +1,277 @@
+// ── TopBar ─────────────────────────────────────────────────────────────────
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+  padding: 0 24px;
+  background: linear-gradient(90deg, rgba(6, 10, 20, 0.98) 0%, rgba(8, 12, 24, 0.98) 50%, rgba(6, 10, 20, 0.98) 100%);
+  border-bottom: 1px solid rgba(0, 229, 255, 0.22);
+  box-shadow: 0 2px 18px rgba(0, 0, 0, 0.7), 0 1px 32px rgba(0, 229, 255, 0.08);
+  z-index: 100;
+  flex-shrink: 0;
+  backdrop-filter: blur(16px);
+
+  // ── Left ────────────────────────────────────────────────────────────────
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex: 1;
+  }
+
+  &__logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__logo-hex {
+    svg polygon {
+      filter: drop-shadow(0 0 6px rgba(0, 229, 255, 0.5));
+    }
+  }
+
+  &__logo-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  &__logo-main {
+    font-size: 13px;
+    font-weight: 800;
+    color: #00E5FF;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    line-height: 1;
+    text-shadow: 0 0 12px rgba(0, 229, 255, 0.4);
+  }
+
+  &__logo-sub {
+    font-size: 9.5px;
+    color: rgba(180, 220, 255, 0.55);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  // Intel logo
+  &__logo--intel {
+    gap: 8px;
+  }
+
+  &__intel-badge {
+    display: flex;
+    align-items: baseline;
+    gap: 1px;
+    background: linear-gradient(135deg, #0068B5 0%, #0099DA 100%);
+    padding: 3px 9px 4px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 104, 181, 0.45);
+  }
+
+  &__intel-text {
+    font-size: 14px;
+    font-weight: 800;
+    color: #fff;
+    font-style: italic;
+    letter-spacing: -0.02em;
+    font-family: 'Arial', sans-serif;
+  }
+
+  &__intel-dot {
+    font-size: 7px;
+    color: rgba(255, 255, 255, 0.8);
+    font-style: normal;
+    margin-top: -4px;
+  }
+
+  &__intel-label {
+    font-size: 9px;
+    color: rgba(120, 170, 220, 0.7);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  &__divider {
+    width: 1px;
+    height: 28px;
+    background: rgba(0, 229, 255, 0.15);
+    flex-shrink: 0;
+  }
+
+  // ── Center ──────────────────────────────────────────────────────────────
+
+  &__center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    flex: 0 0 auto;
+  }
+
+  &__title {
+    font-size: 16px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    text-shadow: 0 0 20px rgba(0, 229, 255, 0.35);
+    white-space: nowrap;
+  }
+
+  &__title-sub {
+    font-size: 10.5px;
+    color: rgba(140, 190, 230, 0.62);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  // ── Right ───────────────────────────────────────────────────────────────
+
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 1;
+    justify-content: flex-end;
+  }
+
+  // Alerts badge
+  &__alerts {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(100, 120, 160, 0.3);
+    background: rgba(20, 30, 60, 0.6);
+    cursor: pointer;
+    transition: border-color 0.2s;
+
+    &--active {
+      border-color: rgba(255, 80, 80, 0.6);
+      background: rgba(255, 30, 30, 0.1);
+      animation: topbar-alert-pulse 2s ease-in-out infinite;
+    }
+  }
+
+  &__alerts-icon {
+    font-size: 11px;
+    color: rgba(255, 200, 60, 0.8);
+  }
+
+  &__alerts-count {
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+    min-width: 14px;
+    text-align: center;
+  }
+
+  &__alerts-label {
+    font-size: 9.5px;
+    color: rgba(180, 200, 230, 0.6);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  // Status indicators
+  &__status {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: 1px solid rgba(100, 140, 180, 0.25);
+    background: rgba(10, 20, 40, 0.6);
+
+    &--active {
+      border-color: rgba(255, 190, 0, 0.5);
+      background: rgba(255, 190, 0, 0.08);
+    }
+
+    &--online {
+      border-color: rgba(0, 255, 136, 0.45);
+      background: rgba(0, 255, 136, 0.06);
+    }
+  }
+
+  &__status-icon {
+    font-size: 9px;
+    color: rgba(255, 190, 0, 0.9);
+    font-weight: 700;
+  }
+
+  &__status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #00FF88;
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.8);
+    animation: topbar-online-blink 3s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+
+  &__status-text {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    
+    .topbar__status--active & {
+      color: rgba(255, 210, 60, 0.95);
+    }
+    
+    .topbar__status--online & {
+      color: rgba(0, 255, 136, 0.95);
+    }
+  }
+
+  // Clock
+  &__clock {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+    padding-left: 12px;
+    border-left: 1px solid rgba(0, 229, 255, 0.12);
+  }
+
+  &__clock-time {
+    font-size: 17px;
+    font-weight: 700;
+    color: rgba(230, 245, 255, 0.95);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.08em;
+    font-family: 'Courier New', monospace;
+    text-shadow: 0 0 12px rgba(0, 229, 255, 0.35);
+  }
+
+  &__clock-date {
+    font-size: 9px;
+    color: rgba(140, 180, 220, 0.5);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+}
+
+// ── Animations ───────────────────────────────────────────────────────────────
+
+@keyframes topbar-alert-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 60, 60, 0.3); }
+  50%       { box-shadow: 0 0 0 6px rgba(255, 60, 60, 0); }
+}
+
+@keyframes topbar-online-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}

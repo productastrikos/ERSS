@@ -1,0 +1,278 @@
+// ── Infra Panel — bottom-sheet slide-up  ───────────────────────────────────
+.infra-panel {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  width: 560px;
+  max-width: calc(100vw - 32px);
+  max-height: 72vh;
+  z-index: 60;
+  background: #ffffff;
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.16), 0 -2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+
+  &--open {
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+// ── Accent bar ──────────────────────────────────────────────────────────────
+.ip-accent {
+  height: 4px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+// ── Header ──────────────────────────────────────────────────────────────────
+.ip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px 10px;
+  flex-shrink: 0;
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  &__icon-wrap {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    border: 1px solid;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 22px;
+  }
+
+  &__title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111;
+    margin: 0 0 2px;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 300px;
+  }
+
+  &__category {
+    font-size: 11px;
+    color: #9ca3af;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+}
+
+.ip-close {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #dc2626;
+  }
+}
+
+// ── Status bar ──────────────────────────────────────────────────────────────
+.ip-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px 10px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.ip-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  &__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+
+    &--pulse {
+      animation: ip-pulse 2s infinite;
+    }
+  }
+
+  &__text {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+}
+
+@keyframes ip-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+.ip-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1px solid;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ip-timestamp {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: #9ca3af;
+  margin-left: auto;
+
+  &__icon { font-size: 11px; }
+}
+
+// ── Description ──────────────────────────────────────────────────────────────
+.ip-desc {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.6;
+  padding: 0 18px 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+// ── Scrollable body ───────────────────────────────────────────────────────────
+.ip-body {
+  overflow-y: auto;
+  flex: 1;
+  padding-bottom: 24px;
+
+  // Custom scrollbar
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+}
+
+.ip-divider {
+  height: 1px;
+  background: #f3f4f6;
+  margin: 4px 18px;
+}
+
+// ── Section ──────────────────────────────────────────────────────────────────
+.ip-section {
+  padding: 12px 18px 4px;
+
+  &__title {
+    font-size: 10px;
+    font-weight: 700;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+// ── Row ──────────────────────────────────────────────────────────────────────
+.ip-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 5px 0;
+
+  &__icon {
+    font-size: 14px;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__label {
+    font-size: 10px;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+
+  &__value {
+    font-size: 13px;
+    font-weight: 600;
+    color: #111;
+    word-break: break-word;
+  }
+
+  &__link {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0288d1;
+    text-decoration: none;
+
+    &:hover { text-decoration: underline; }
+  }
+}
+
+// ── Info card ─────────────────────────────────────────────────────────────────
+.ip-info-card {
+  background: #f9fafb;
+  border-left: 3px solid;
+  border-radius: 0 8px 8px 0;
+  padding: 10px 12px;
+
+  &__type {
+    font-size: 12px;
+    font-weight: 700;
+    color: #111;
+    margin-bottom: 4px;
+  }
+
+  &__osm {
+    font-size: 11px;
+    color: #9ca3af;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+}

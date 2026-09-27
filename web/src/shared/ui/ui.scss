@@ -1,0 +1,589 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Shared UI primitives.
+   NO COLOUR LITERALS. Every value is a token from theme.css.
+   Depth is LIGHT, never outline: a 1px inner top highlight plus a cast shadow.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Button ─────────────────────────────────────────────────────────────────── */
+
+.u-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-8);
+  padding: 0 var(--sp-14);
+  height: 34px;
+  border-radius: var(--r-9);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease),
+              transform var(--dur-fast) var(--ease);
+
+  &:active:not(:disabled) { transform: translateY(1px); }
+  &:disabled { opacity: 0.45; }
+
+  svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+  /* Primary — amber fill, dark ink. 8.3:1. */
+  &--primary {
+    background: var(--app-btn);
+    color: var(--app-btn-text);
+    box-shadow: 0 1px 2px var(--app-btn-shadow), var(--app-edge-light);
+    &:hover:not(:disabled) { background: var(--app-btn-hover); }
+    &:active:not(:disabled) { background: var(--app-btn-active); }
+  }
+
+  &--secondary {
+    background: var(--app-surface-raised);
+    color: var(--app-text);
+    box-shadow: var(--app-edge-light);
+    &:hover:not(:disabled) { background: var(--app-bg-elevated); }
+  }
+
+  &--ghost {
+    background: transparent;
+    color: var(--app-text-muted);
+    &:hover:not(:disabled) { background: var(--app-surface-raised); color: var(--app-text); }
+  }
+
+  &--danger {
+    background: var(--app-danger);
+    color: var(--app-on-color);
+    &:hover:not(:disabled) { background: var(--app-danger-soft); }
+  }
+
+  /* The AI / advisory action — the ONE control wearing the §1.0 metallic chrome.
+     It is the only button in the product that creates an obligation, and it is
+     visually unique for exactly that reason (Law 8). */
+  &--advisory {
+    background: linear-gradient(var(--angle-sheen),
+      var(--astk-metal-3) 0%, var(--astk-metal-2) 22%, var(--astk-metal-6) 48%,
+      var(--astk-metal-5) 70%, var(--astk-metal-8) 100%);
+    color: var(--app-on-color);
+    border-top: 1px solid var(--astk-metal-bevel);
+    box-shadow: var(--app-shadow-sm);
+    text-shadow: 0 1px 1px var(--astk-metal-text-shadow);
+    &:hover:not(:disabled) { filter: brightness(1.12); }
+  }
+
+  &--sm { height: 28px; padding: 0 var(--sp-10); font-size: 11.5px; }
+  &--lg { height: 44px; padding: 0 var(--sp-20); font-size: 14px; }
+  &--block { width: 100%; }
+  &--icon { width: 34px; padding: 0; }
+}
+
+/* ── Card / panel — the signature component ─────────────────────────────────── */
+
+.u-card {
+  position: relative;
+  background: linear-gradient(var(--angle-card), var(--app-surface), var(--app-surface-soft));
+  border-radius: var(--r-14);
+  box-shadow: var(--app-shadow-sm), var(--app-edge-light);
+  overflow: hidden;
+
+  /* The same livery cap as the dashboard's own cards (console/pages/dashboard) — this is
+     the shared Card every other page builds on, so one line here carries the brand
+     thread onto Insights, Advisories, Command Centre and the rest for free. */
+  &::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    inset-block-start: 0;
+    height: 3px;
+    background: var(--app-brand-gradient);
+    z-index: 1;
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-12);
+    padding: var(--sp-12) var(--sp-16);
+    border-bottom: 1px solid var(--app-border-soft);
+  }
+
+  &__title {
+    font-family: var(--font-display);
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--app-text);
+    margin: 0;
+  }
+
+  &__sub { font-size: 10px; color: var(--app-text-faint); }
+  &__body { padding: var(--sp-16); }
+  &__body--flush { padding: 0; }
+  &__foot {
+    padding: var(--sp-10) var(--sp-16);
+    border-top: 1px solid var(--app-border-soft);
+    background: var(--app-surface-soft);
+  }
+
+  &--flat { background: var(--app-panel); box-shadow: none; border: 1px solid var(--app-border-soft); }
+  &--inset { background: var(--app-surface-soft); box-shadow: none; border-radius: var(--r-10); }
+}
+
+/* ── Chip / badge ───────────────────────────────────────────────────────────── */
+
+.u-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 2px var(--sp-8);
+  border-radius: var(--r-pill);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+
+  svg { width: 11px; height: 11px; }
+
+  &--neutral { background: var(--app-surface-raised); color: var(--app-text-muted); }
+  &--accent  { background: var(--app-accent-bg);  color: var(--app-accent); }
+  &--success { background: var(--app-success-bg); color: var(--app-success); }
+  &--warning { background: var(--app-warning-bg); color: var(--app-warning); }
+  &--danger  { background: var(--app-danger-bg);  color: var(--app-danger); }
+  &--info    { background: var(--app-info-bg);    color: var(--app-info); }
+
+  /* Permanent marker on any panel fed by synthesised data. Not buried in a tooltip:
+     being visibly honest about which sources are simulated is worth more in a tender
+     demo than appearing to have them all live. */
+  &--simulated {
+    background: transparent;
+    color: var(--app-text-faint);
+    border: 1px dashed var(--app-border-strong);
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+  }
+}
+
+/* ── Status dot ─────────────────────────────────────────────────────────────── */
+
+.u-dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: var(--r-pill);
+  flex-shrink: 0;
+
+  &--success { background: var(--app-success); }
+  &--warning { background: var(--app-warning); }
+  &--danger  { background: var(--app-danger); }
+  &--info    { background: var(--app-info); }
+  &--neutral { background: var(--app-text-faint); }
+  &--accent  { background: var(--app-accent); }
+}
+
+/* ── Table ──────────────────────────────────────────────────────────────────── */
+
+.u-table {
+  width: 100%;
+  font-size: 12px;
+
+  thead th {
+    position: sticky; top: 0; z-index: 1;
+    background: var(--app-surface-raised);
+    padding: var(--sp-8) var(--sp-12);
+    text-align: start;
+    font-family: var(--font-body);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--app-text-muted);
+    white-space: nowrap;
+    border-bottom: 1px solid var(--app-border);
+  }
+
+  tbody td {
+    padding: var(--sp-8) var(--sp-12);
+    border-bottom: 1px solid var(--app-border-soft);
+    color: var(--app-text);
+  }
+
+  tbody tr {
+    transition: background var(--dur-fast) var(--ease);
+    &:hover { background: var(--app-surface-raised); }
+    &[aria-selected='true'] { background: var(--app-accent-bg); }
+  }
+
+  .numeric { text-align: end; }
+}
+
+/* ── Segmented control ──────────────────────────────────────────────────────── */
+
+.u-seg {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  background: var(--app-surface-soft);
+  border-radius: var(--r-9);
+
+  button {
+    padding: var(--sp-4) var(--sp-12);
+    border-radius: var(--r-6);
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--app-text-muted);
+    transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+
+    &:hover { color: var(--app-text); }
+    &[aria-pressed='true'] {
+      background: var(--app-surface-raised);
+      color: var(--app-text);
+      box-shadow: var(--app-edge-light);
+    }
+  }
+}
+
+/* ── Field ──────────────────────────────────────────────────────────────────── */
+
+.u-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+
+  &__label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--app-text-faint);
+  }
+
+  &__help { font-size: 10px; color: var(--app-text-faint); }
+  &__error { font-size: 10px; color: var(--app-danger); }
+
+  input, select, textarea {
+    background: var(--app-surface-soft);
+    border: 1px solid var(--app-border);
+    border-radius: var(--r-9);
+    padding: var(--sp-8) var(--sp-12);
+    font-size: 12.5px;
+    color: var(--app-text);
+    transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+
+    &::placeholder { color: var(--app-text-faint); }
+    &:hover:not(:disabled) { border-color: var(--app-border-strong); }
+    &:focus { border-color: var(--app-accent); background: var(--app-surface); }
+    &:disabled { opacity: 0.5; }
+  }
+}
+
+/* ── States: loading, empty, error ──────────────────────────────────────────── */
+
+.u-skeleton {
+  border-radius: var(--r-8);
+  background: linear-gradient(90deg,
+    var(--app-surface-soft) 25%, var(--app-surface-raised) 50%, var(--app-surface-soft) 75%);
+  background-size: 200% 100%;
+  animation: erss-shimmer 1.4s linear infinite;
+}
+
+.u-empty, .u-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-10);
+  padding: var(--sp-32) var(--sp-20);
+  text-align: center;
+
+  svg { width: 28px; height: 28px; opacity: 0.5; }
+  &__title { font-family: var(--font-display); font-size: 13px; font-weight: 700; }
+  &__body  { font-size: 12px; color: var(--app-text-muted); max-width: 44ch; }
+}
+
+.u-empty { color: var(--app-text-faint); }
+.u-error { color: var(--app-danger); .u-error__body { color: var(--app-text-muted); } }
+
+/* ── Tooltip ────────────────────────────────────────────────────────────────── */
+
+.u-tip {
+  position: absolute;
+  z-index: var(--z-tooltip);
+  max-width: 280px;
+  padding: var(--sp-8) var(--sp-10);
+  background: var(--app-bg-elevated);
+  border: 1px solid var(--app-border-strong);
+  border-radius: var(--r-8);
+  box-shadow: var(--app-shadow-md);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--app-text);
+  pointer-events: none;
+}
+
+/* ── Modal ──────────────────────────────────────────────────────────────────── */
+
+.u-modal {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: var(--sp-20);
+  /* A dim, not a wash: the operating picture stays legible behind the dialog. */
+  background: color-mix(in srgb, var(--app-bg) 55%, transparent);
+  backdrop-filter: blur(2px);
+  animation: erss-fade-up var(--dur) var(--ease) both;
+
+  &__panel {
+    width: 100%;
+    max-height: calc(100dvh - 40px);
+    display: flex;
+    flex-direction: column;
+    background: var(--app-bg-elevated);
+    border: 1px solid var(--app-border-strong);
+    border-radius: var(--r-14);
+    box-shadow: var(--app-shadow-lg);
+  }
+
+  &__head {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-12);
+    padding: var(--sp-16) var(--sp-20) var(--sp-12);
+    border-bottom: 1px solid var(--app-border-soft);
+  }
+  &__title { margin: 0; font-family: var(--font-display); font-size: 15px; font-weight: 700; }
+  &__sub { font-size: 11px; color: var(--app-text-muted); margin-top: var(--sp-2); }
+  &__close {
+    display: grid; place-items: center; width: 28px; height: 28px; border-radius: var(--r-8);
+    color: var(--app-text-muted);
+    &:hover { background: var(--app-surface-raised); color: var(--app-text); }
+    svg { width: 16px; height: 16px; }
+  }
+  &__body { padding: var(--sp-16) var(--sp-20); overflow: auto; display: grid; gap: var(--sp-12); }
+  &__foot {
+    display: flex; justify-content: flex-end; gap: var(--sp-8);
+    padding: var(--sp-12) var(--sp-20);
+    border-top: 1px solid var(--app-border-soft);
+  }
+}
+
+/* ── Toasts ─────────────────────────────────────────────────────────────────── */
+
+.u-toasts {
+  position: fixed;
+  inset-block-end: calc(var(--app-footer-h) + var(--sp-12));
+  inset-inline-end: var(--sp-16);
+  z-index: var(--z-toast);
+  display: flex; flex-direction: column; gap: var(--sp-8);
+  width: min(380px, calc(100vw - 32px));
+}
+
+.u-toast {
+  display: flex; align-items: flex-start; gap: var(--sp-10);
+  padding: var(--sp-10) var(--sp-12);
+  background: var(--app-bg-elevated);
+  border: 1px solid var(--app-border-strong);
+  border-inline-start: 3px solid var(--app-info);
+  border-radius: var(--r-10);
+  box-shadow: var(--app-shadow-md);
+  animation: erss-fade-up var(--dur) var(--ease) both;
+
+  &--success { border-inline-start-color: var(--app-success); }
+  &--warning { border-inline-start-color: var(--app-warning); }
+  &--danger  { border-inline-start-color: var(--app-danger); }
+
+  &__text { flex: 1; min-width: 0; }
+  &__title { font-size: 12.5px; font-weight: 700; color: var(--app-text); }
+  &__body { font-size: 11.5px; color: var(--app-text-muted); margin-top: var(--sp-2); }
+  &__close {
+    color: var(--app-text-faint);
+    &:hover { color: var(--app-text); }
+    svg { width: 14px; height: 14px; }
+  }
+}
+
+/* ── Agency glyph, meter, screen-reader text ────────────────────────────────── */
+
+.u-agency { display: inline-flex; align-items: center; }
+
+.u-sr {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+
+.u-meter {
+  display: inline-block;
+  width: 100%;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--app-surface-soft);
+  overflow: hidden;
+
+  &__fill { display: block; height: 100%; border-radius: var(--r-pill); background: var(--app-accent); }
+  &--success .u-meter__fill { background: var(--app-success); }
+  &--warning .u-meter__fill { background: var(--app-warning); }
+  &--danger  .u-meter__fill { background: var(--app-danger); }
+  &--info    .u-meter__fill { background: var(--app-info); }
+  &--neutral .u-meter__fill { background: var(--app-text-faint); }
+}
+
+
+/* ── Stale results ───────────────────────────────────────────────────────────
+   A page whose data is being refetched keeps its previous render, dimmed, instead of
+   collapsing to skeletons. With a twenty-dimension filter the operator changes the slice
+   constantly, and a full skeleton flash on every change makes the console feel broken —
+   it also throws away the numbers they were mid-way through reading.
+
+   The filter bar is excluded: it is the control that caused the refetch and has to stay
+   fully live and legible while the charts catch up. */
+.is-stale > *:not(.fbar) {
+  opacity: 0.45;
+  transition: opacity var(--dur-fast, 120ms) var(--ease, ease);
+}
+
+/* ── CCTV feed ───────────────────────────────────────────────────────────────
+   A feed that is not there has to say so: a black rectangle reads as a working
+   camera pointed at a dark room, which is the one thing it must never look like. */
+
+.cctv-feed {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--r-8);
+  background: var(--app-bg);
+  object-fit: cover;
+
+  &--down {
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: var(--sp-2);
+    border: 1px dashed var(--app-border-strong);
+    color: var(--app-text-faint);
+    text-align: center;
+
+    svg { width: 16px; height: 16px; }
+
+    span {
+      font-family: var(--font-display);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    small { font-family: var(--font-mono); font-size: 9px; }
+  }
+}
+
+/* ── AI advisory strip ───────────────────────────────────────────────────────
+   Sits under the KPI row on every Insights page. A finding is a flat card with a 3px
+   status edge — no tinted fills, so a row of them stays calm. */
+
+.advisory-strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+
+  &__head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-8);
+
+    svg {
+      width: 13px; height: 13px;
+      color: var(--app-advisory);
+      transform: translateY(2px);
+    }
+
+    h2 {
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--app-text-muted);
+      margin: 0;
+    }
+  }
+
+  &__note { font-size: 10px; color: var(--app-text-faint); }
+
+  &__grid {
+    display: grid;
+    gap: var(--sp-10);
+    grid-template-columns: 1fr;
+
+    @media (min-width: 1100px) {
+      &[data-columns='2'] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      &[data-columns='3'] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+  }
+}
+
+.finding {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-10);
+  padding: var(--sp-10) var(--sp-12);
+  border-radius: var(--r-14);
+  background: linear-gradient(var(--angle-card), var(--app-surface), var(--app-surface-soft));
+  box-shadow: var(--app-shadow-sm), var(--app-edge-light);
+  border-inline-start: 3px solid var(--app-text-faint);
+  min-width: 0;
+
+  &.is-info     { border-inline-start-color: var(--app-info); }
+  &.is-success  { border-inline-start-color: var(--app-success); }
+  &.is-warning  { border-inline-start-color: var(--app-warning); }
+  &.is-critical { border-inline-start-color: var(--app-danger); }
+
+  &__icon {
+    display: grid; place-items: center;
+    width: 26px; height: 26px; flex-shrink: 0;
+    border-radius: var(--r-9);
+    background: var(--app-surface-soft);
+    color: var(--app-text-muted);
+    svg { width: 14px; height: 14px; }
+  }
+
+  /* Two lines, hard: one for the finding, one for the why. Anything longer belongs in
+     the advisory drawer, not in a strip meant to be read at a glance. */
+  &__text { min-width: 0; flex: 1; }
+
+  &__headline {
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--app-text);
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  &__detail {
+    margin: 1px 0 0;
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--app-text-faint);
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* The action collapses to an arrow — the headline already says what it is about. */
+  &__action {
+    flex-shrink: 0;
+    display: grid; place-items: center;
+    width: 26px; height: 26px;
+    border-radius: var(--r-9);
+    background: transparent;
+    border: 1px solid var(--app-border-soft);
+    cursor: pointer;
+    color: var(--app-accent);
+
+    svg { width: 13px; height: 13px; transition: transform var(--dur-fast) var(--ease); }
+    &:hover { background: var(--app-surface-raised); svg { transform: translateX(2px); } }
+  }
+}

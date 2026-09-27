@@ -1,0 +1,394 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   The live operations map and its rail.
+
+   Everything here overlays the canvas rather than sitting beside it: the map is the
+   subject, and chrome that steals layout from it is the reason the old dashboard map
+   felt both too big and too empty. NO COLOUR LITERALS — tokens only, both themes.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.liveops {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+
+  &--full { border-radius: 0; }
+
+  /* The same livery cap as the dashboard's embedded map and every dash-card — this is
+     the one page where that map fills the whole window, so the brand thread still needs
+     to show up somewhere on it. Sits above the canvas, below the floating tool clusters. */
+  &::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    inset-block-start: 0;
+    height: 3px;
+    background: var(--app-brand-gradient);
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  /* ── The tool cluster, top right ────────────────────────────────────────── */
+
+  &__tools {
+    /* `.map-control` stacks its children in a column for every other map. These are a
+       row: stacked, they ran straight down behind the response rail and three of the
+       four buttons were invisible. */
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--sp-6);
+  }
+
+  &__tool {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    height: 30px;
+    padding-inline: var(--sp-8);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--app-text-muted);
+    background: var(--app-panel);
+    border: 1px solid var(--app-border-soft);
+    border-radius: var(--r-8, 8px);
+    box-shadow: var(--app-shadow-sm), var(--app-edge-light);
+    cursor: pointer;
+    transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+
+    svg { width: 14px; height: 14px; }
+    &:hover { color: var(--app-text); }
+    &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 1px; }
+    &[aria-pressed='true'], &.is-on { color: var(--app-accent); border-color: var(--app-accent); }
+  }
+
+  &__badge {
+    position: absolute;
+    top: -5px;
+    inset-inline-end: -5px;
+    min-width: 15px;
+    height: 15px;
+    padding-inline: 3px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--app-danger);
+    color: var(--app-danger-ink, #fff);
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+  }
+
+  /* ── The ticker, top left: four numbers that never move ─────────────────── */
+
+  &__ticker {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
+    padding: var(--sp-6) var(--sp-12);
+    font: inherit;
+    background: var(--app-panel);
+    border: 1px solid var(--app-border-soft);
+    border-radius: var(--r-pill, 999px);
+    box-shadow: var(--app-shadow-sm), var(--app-edge-light);
+    cursor: pointer;
+
+    &:hover { border-color: var(--app-accent); }
+    &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
+  }
+
+  &__stat {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--sp-4);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--app-text-muted);
+    white-space: nowrap;
+
+    strong {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--app-text);
+      line-height: 1;
+    }
+    /* A call with nobody going to it is the one number allowed to shout. */
+    &.is-bad strong { color: var(--app-danger); }
+  }
+
+  /* ── Top left: the ticker, and under it what the AI is doing now ─────────── */
+
+  &__top-left { flex-direction: column; align-items: flex-start; gap: var(--sp-6); }
+
+  &__director {
+    display: inline-flex; align-items: center; gap: var(--sp-8);
+    max-width: 420px;
+    padding: var(--sp-6) var(--sp-8) var(--sp-6) var(--sp-12);
+    border-radius: var(--r-pill, 999px);
+    background: var(--app-panel);
+    border: 1px solid var(--app-advisory-border);
+    box-shadow: var(--app-shadow-sm), var(--app-edge-light);
+    font-size: 12px; font-weight: 700; color: var(--app-text);
+    svg { width: 15px; height: 15px; color: var(--app-advisory); flex-shrink: 0; }
+
+    /* The AI is still working: the glyph breathes. */
+    &.is-deciding svg { animation: liveops-think 1.4s ease-in-out infinite; }
+    &.is-following { border-color: var(--app-accent-border); svg { color: var(--app-accent); } }
+    &.is-arrived { border-color: var(--app-success-border); svg { color: var(--app-success); } }
+    &.is-paused { opacity: 0.92; }
+  }
+  &__director-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  &__director-resume {
+    display: inline-flex; align-items: center; gap: var(--sp-4);
+    padding: var(--sp-2) var(--sp-8);
+    border-radius: var(--r-pill, 999px);
+    background: var(--app-accent-bg);
+    color: var(--app-accent);
+    font: inherit; font-size: 11px; font-weight: 700;
+    border: 1px solid var(--app-accent-border);
+    cursor: pointer;
+    svg { width: 11px; height: 11px; color: currentColor; animation: none; }
+    &:hover { background: var(--app-accent); color: var(--app-on-accent); }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   The response rail
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.resprail {
+  position: absolute;
+  z-index: var(--z-overlay);
+  inset-block-start: 52px;
+  inset-inline-end: var(--sp-12);
+  display: flex;
+  flex-direction: column;
+  min-width: 268px;
+  max-width: 320px;
+  max-height: calc(100% - 110px);
+  background: var(--app-panel);
+  border: 1px solid var(--app-border-soft);
+  border-radius: var(--r-12);
+  box-shadow: var(--app-shadow-md, var(--app-shadow-sm)), var(--app-edge-light);
+  overflow: hidden;
+
+  &--full {
+    min-width: 330px;
+    max-width: 380px;
+    max-height: calc(100% - 120px);
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-8) var(--sp-10);
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--app-text-muted);
+    border-bottom: 1px solid var(--app-border-soft);
+    svg { width: 14px; height: 14px; color: var(--app-accent); }
+  }
+
+  &__count {
+    margin-inline-start: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--app-text-faint);
+  }
+
+  &__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  /* ── One row ────────────────────────────────────────────────────────────── */
+
+  &__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: stretch;
+    border-bottom: 1px solid var(--app-border-soft);
+    /* The left edge carries priority as a bar, so urgency survives a greyscale print
+       and a colour-blind reader — the digit in the chip says it too. */
+    border-inline-start: 3px solid transparent;
+
+    &[data-priority='P1'] { border-inline-start-color: var(--app-danger); }
+    &[data-priority='P2'] { border-inline-start-color: var(--app-accent); }
+    &[data-priority='P3'] { border-inline-start-color: var(--app-info); }
+    &[data-priority='P4'] { border-inline-start-color: var(--app-text-faint); }
+
+    &:last-child { border-bottom: 0; }
+    &.is-chasing { background: var(--app-surface-soft); }
+
+    /* A call nobody is going to: the loudest thing on the screen, on purpose. */
+    &--alert {
+      background: color-mix(in srgb, var(--app-danger) 9%, transparent);
+    }
+  }
+
+  &__main {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-8) var(--sp-10);
+    font: inherit;
+    text-align: start;
+    background: none;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    min-width: 0;
+
+    &:hover { background: var(--app-surface-soft); }
+    &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: -2px; }
+  }
+
+  &__prio {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--app-text-muted);
+  }
+
+  &__body { display: flex; flex-direction: column; min-width: 0; }
+
+  &__title {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--app-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__sub {
+    font-size: 11px;
+    color: var(--app-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__eta {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--app-text-muted);
+    white-space: nowrap;
+
+    svg { width: 12px; height: 12px; }
+    &.is-bad { color: var(--app-danger); }
+    &.is-good { color: var(--app-success); }
+  }
+
+  &__chase {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    background: none;
+    border: 0;
+    border-inline-start: 1px solid var(--app-border-soft);
+    color: var(--app-text-faint);
+    cursor: pointer;
+
+    svg { width: 14px; height: 14px; }
+    &:hover { color: var(--app-accent); background: var(--app-surface-soft); }
+    &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: -2px; }
+    &.is-on { color: var(--app-accent); background: var(--app-surface-soft); }
+    &--dispatch:hover { color: var(--app-danger); }
+  }
+}
+
+/* ── Narrow screens: the rail becomes a strip along the bottom ─────────────── */
+
+@media (max-width: 900px) {
+  .resprail {
+    inset-block-start: auto;
+    inset-block-end: var(--sp-12);
+    inset-inline: var(--sp-12);
+    max-width: none;
+    max-height: 42%;
+  }
+  .liveops__ticker { gap: var(--sp-8); padding-inline: var(--sp-8); }
+  .liveops__stat strong { font-size: 14px; }
+}
+
+@keyframes liveops-think {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.88); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .liveops__director.is-deciding svg { animation: none; }
+}
+
+/* ── Riding with a crew: who is aboard, how fast, how far, what is ahead ───── */
+
+.ridealong {
+  position: absolute;
+  z-index: var(--z-overlay);
+  inset-block-end: 56px;
+  inset-inline-start: var(--sp-12);
+  width: min(460px, calc(100% - var(--sp-24)));
+  display: flex; flex-direction: column; gap: var(--sp-8);
+  padding: var(--sp-10) var(--sp-12);
+  border-radius: var(--r-12);
+  background: var(--app-panel);
+  border: 1px solid var(--app-accent-border);
+  box-shadow: var(--app-shadow-md, var(--app-shadow-sm)), var(--app-edge-light);
+
+  &__head {
+    display: flex; align-items: center; gap: var(--sp-8);
+    > svg { width: 16px; height: 16px; color: var(--app-accent); flex-shrink: 0; }
+  }
+  &__who {
+    display: flex; flex-direction: column; min-width: 0; flex: 1;
+    strong { font-family: var(--font-display); font-size: 14px; color: var(--app-text); line-height: 1.1; }
+    span { font-family: var(--font-mono); font-size: 10.5px; color: var(--app-text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  }
+  &__link {
+    font: inherit; font-size: 11px; font-weight: 700; color: var(--app-accent);
+    background: none; border: 0; cursor: pointer; padding: 0 var(--sp-4);
+    &:hover { text-decoration: underline; }
+  }
+  &__crew {
+    display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-12);
+    font-size: 11.5px; color: var(--app-text);
+    em { font-style: normal; color: var(--app-text-faint); margin-inline-end: var(--sp-4); }
+  }
+  &__stats {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 0.8fr)) minmax(0, 1.5fr); gap: var(--sp-6);
+    > div {
+      display: flex; flex-direction: column; gap: var(--sp-2);
+      padding: var(--sp-6) var(--sp-8);
+      border-radius: var(--r-8);
+      background: var(--app-surface-raised);
+      min-width: 0;
+    }
+    span {
+      display: inline-flex; align-items: center; gap: var(--sp-4);
+      font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--app-text-faint);
+      svg { width: 11px; height: 11px; }
+    }
+    strong {
+      font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--app-text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      small { font-size: 10.5px; color: var(--app-text-muted); font-weight: 600; }
+      &.is-bad { color: var(--app-danger); }
+    }
+    .is-jam { box-shadow: inset 0 0 0 1px var(--app-danger-border); strong { font-size: 12px; line-height: 1.25; color: var(--app-danger); white-space: normal; } span { color: var(--app-danger); } }
+    .is-clear strong { font-size: 12px; color: var(--app-success); }
+  }
+  &__foot { font-size: 10px; color: var(--app-text-faint); }
+}

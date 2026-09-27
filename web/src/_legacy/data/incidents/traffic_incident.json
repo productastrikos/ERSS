@@ -1,0 +1,31 @@
+{
+  "incident_id": "DSO-TRF-007",
+  "type": "traffic_congestion",
+  "severity": "medium",
+  "location": {
+    "name": "DSO Central Roundabout",
+    "zone": "Central — DSO Main Roundabout Area",
+    "coordinates": [55.3823, 25.1264]
+  },
+  "sensor": {
+    "sensor_id": "CAM_SCM_INT_01",
+    "name": "Traffic Camera + Vehicle Count",
+    "value": 87,
+    "unit": "%",
+    "threshold": 80,
+    "status": "CONGESTED"
+  },
+  "work_order_id": "WO-DSO-2026-0048",
+  "assigned_team": "Traffic Management + RTA Police",
+  "contact": "traffic@dso.ae | +971-4-501-5506",
+  "status": "detected",
+  "timestamp": "2026-03-16T17:45:00Z",
+  "delay_minutes": 12,
+  "affected_road": "Dubai Silicon Oasis Boulevard",
+  "map_effect": {
+    "type": "traffic",
+    "epicenter": [55.3823, 25.1264],
+    "radius_m": 280,
+    "road_name": "DSO Boulevard"
+  }
+}

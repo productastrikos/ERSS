@@ -1,0 +1,254 @@
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, rgba(6, 10, 20, 0.98) 0%, rgba(8, 12, 24, 0.95) 100%);
+  border-right: 1px solid rgba(0, 229, 255, 0.16);
+  box-shadow: 2px 0 18px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 50;
+
+  // ── Header ──────────────────────────────────────────────────────────────
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 18px 14px;
+    border-bottom: 1px solid rgba(0, 229, 255, 0.15);
+    background: rgba(0, 229, 255, 0.03);
+    flex-shrink: 0;
+  }
+
+  &__header-icon {
+    font-size: 15px;
+    color: #00E5FF;
+    text-shadow: 0 0 10px rgba(0, 229, 255, 0.6);
+  }
+
+  &__header-label {
+    font-size: 11px;
+    font-weight: 800;
+    color: rgba(180, 210, 240, 0.75);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  // ── Modules ─────────────────────────────────────────────────────────────
+
+  &__modules {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 0;
+
+    &::-webkit-scrollbar { width: 3px; }
+    &::-webkit-scrollbar-track { background: transparent; }
+    &::-webkit-scrollbar-thumb { background: rgba(0, 229, 255, 0.15); border-radius: 2px; }
+  }
+
+  &__module {
+    position: relative;
+
+    &--active > .sidebar__module-btn {
+      background: linear-gradient(90deg, rgba(0, 229, 255, 0.12) 0%, rgba(0, 229, 255, 0.08) 100%);
+      border-left: 3px solid #00E5FF;
+      box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.1);
+
+      .sidebar__module-label { 
+        color: #00E5FF; 
+        font-weight: 700;
+      }
+      .sidebar__module-icon { 
+        filter: drop-shadow(0 0 6px rgba(0,229,255,0.7)); 
+        color: #00E5FF;
+      }
+    }
+  }
+
+  &__module-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 18px 11px 15px;
+    background: transparent;
+    border: none;
+    border-left: 3px solid transparent;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(0, 229, 255, 0.06);
+      border-left-color: rgba(0, 229, 255, 0.3);
+    }
+  }
+
+  &__module-icon {
+    font-size: 14px;
+    width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  &__module-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(200, 225, 250, 0.8);
+    flex: 1;
+    letter-spacing: 0.02em;
+    transition: all 0.2s;
+  }
+
+  &__module-badge {
+    font-size: 9.5px;
+    font-weight: 700;
+    color: rgba(0, 229, 255, 0.8);
+    background: rgba(0, 229, 255, 0.1);
+    border: 1px solid rgba(0, 229, 255, 0.2);
+    border-radius: 10px;
+    padding: 1px 6px;
+    line-height: 1.4;
+  }
+
+  &__module-arrow {
+    font-size: 14px;
+    color: rgba(140, 180, 220, 0.4);
+    line-height: 1;
+    display: inline-block;
+    transform: rotate(0deg);
+    transition: transform 0.2s;
+
+    &--open {
+      transform: rotate(90deg);
+    }
+  }
+
+  // ── Incident sub-list ───────────────────────────────────────────────────
+
+  &__incidents {
+    list-style: none;
+    margin: 0;
+    padding: 2px 0 6px 0;
+    background: rgba(0, 229, 255, 0.025);
+    border-left: 2px solid rgba(0, 229, 255, 0.08);
+    margin-left: 14px;
+  }
+
+  &__incident {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px 7px 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-radius: 0 4px 4px 0;
+
+    &:hover {
+      background: rgba(0, 229, 255, 0.06);
+    }
+
+    &--active {
+      background: rgba(0, 229, 255, 0.1);
+
+      .sidebar__incident-dot { background: #FF5252; box-shadow: 0 0 6px rgba(255,82,82,0.7); }
+      .sidebar__incident-label { color: rgba(220, 240, 255, 0.95); }
+    }
+
+    // Traffic-view sub-items style (not incidents — no red dot)
+    &--view {
+      .sidebar__incident-icon { font-size: 11px; flex-shrink: 0; }
+      &:hover { background: rgba(0, 229, 255, 0.08); }
+      .sidebar__incident-label { color: rgba(180, 215, 255, 0.75); }
+    }
+
+    // Environment layer toggle sub-items style
+    &--layer {
+      .sidebar__incident-icon { font-size: 12px; flex-shrink: 0; }
+      &:hover { background: rgba(0, 229, 255, 0.08); }
+      .sidebar__incident-label { color: rgba(180, 215, 255, 0.75); }
+      
+      &.sidebar__incident--active {
+        background: rgba(0, 229, 255, 0.08);
+        .sidebar__incident-label { color: rgba(0, 229, 255, 0.95); }
+      }
+    }
+  }
+
+  &__incident-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(0, 229, 255, 0.5);
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+
+  &__incident-icon {
+    font-size: 11px;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  &__incident-label {
+    font-size: 10.5px;
+    color: rgba(160, 200, 240, 0.6);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    line-height: 1.3;
+    transition: color 0.15s;
+    flex: 1;
+  }
+
+  &__incident-toggle {
+    font-size: 13px;
+    font-weight: bold;
+    margin-left: auto;
+    color: rgba(120, 160, 200, 0.4);
+    transition: color 0.15s;
+    flex-shrink: 0;
+
+    .sidebar__incident--active & {
+      color: #00E5FF;
+      text-shadow: 0 0 6px rgba(0, 229, 255, 0.6);
+    }
+  }
+
+  // ── Section labels ───────────────────────────────────────────────────────
+
+  &__section-label {
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(0, 229, 255, 0.35);
+    padding: 10px 16px 4px;
+    border-top: 1px solid rgba(0, 229, 255, 0.06);
+    margin-top: 4px;
+
+    &:first-child { border-top: none; margin-top: 0; }
+  }
+
+  // ── Footer ──────────────────────────────────────────────────────────────
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 12px 16px;
+    border-top: 1px solid rgba(0, 229, 255, 0.08);
+    font-size: 9.5px;
+    color: rgba(120, 160, 200, 0.45);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    flex-shrink: 0;
+  }
+
+  &__footer-icon {
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+}
