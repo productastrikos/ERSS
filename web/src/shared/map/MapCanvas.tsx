@@ -18,8 +18,8 @@ import {
 import maplibregl, { type Map as MapLibreMap } from 'maplibre-gl';
 import { MapPinOff } from 'lucide-react';
 
-import { useTheme, type Theme } from '../../lib/stores/theme';
-import { config } from '../../lib/config';
+import { useTheme } from '../../lib/stores/theme';
+import { useBasemap } from '../../lib/stores/basemap';
 import { t } from '../../lib/i18n';
 import { EmptyState } from '../ui';
 import { DeckOverlay } from './DeckOverlay';
@@ -30,6 +30,7 @@ import {
 } from './layerRegistry';
 import { css } from './tokens';
 import { DUBAI_CAMERA, type MapCamera } from './camera';
+import { basemapStyle, type BasemapStyle } from './basemaps';
 import { MapPopup } from './MapPopup';
 import { CHASE_PITCH, CHASE_ZOOM, FollowCamera } from './followCamera';
 import './map.scss';
@@ -62,13 +63,18 @@ interface MapCanvasProps {
   ref?: Ref<MapCanvasHandle>;
 }
 
-const styleFor = (theme: Theme) => (theme === 'light' ? config.map.styleLight : config.map.styleDark);
+/** Every style reaches the map through here — first load and every switch alike. */
+function applyStyle(map: MapLibreMap, style: BasemapStyle): void {
+  map.setStyle(style.url, { diff: false, transformStyle: style.transform });
+}
 
 export function MapCanvas({ view, camera = DUBAI_CAMERA, onSelect, onHover, onContextMenu, children, className = '', popups = true, ref }: MapCanvasProps) {
   const theme = useTheme();
+  const basemap = useBasemap();
   const state = useMapView(view);
   const reducedMotion = useReducedMotion();
-  const styleUrl = styleFor(theme);
+  const style = basemapStyle(basemap, theme);
+  const styleKey = style?.key ?? null;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -85,20 +91,21 @@ export function MapCanvas({ view, camera = DUBAI_CAMERA, onSelect, onHover, onCo
   const [zoom, setZoom] = useState(camera.zoom);
 
   // Latest callbacks and render inputs, readable from long-lived map listeners.
-  const live = useRef({ onSelect, onHover, onContextMenu, theme, zoom, reducedMotion });
-  useEffect(() => { live.current = { onSelect, onHover, onContextMenu, theme, zoom, reducedMotion }; });
+  const live = useRef({ onSelect, onHover, onContextMenu, theme, zoom, reducedMotion, style });
+  useEffect(() => { live.current = { onSelect, onHover, onContextMenu, theme, zoom, reducedMotion, style }; });
 
   useImperativeHandle(ref, () => ({ map: () => mapRef.current, view }), [view]);
 
   // ── Mount ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     const container = containerRef.current;
-    const initialStyle = styleFor(live.current.theme);
+    const initialStyle = live.current.style;
     if (!container || !initialStyle) return;
 
+    // No style in the constructor: it arrives through applyStyle like every later switch,
+    // so a basemap that rewrites its style on arrival (satellite) has one path, not two.
     const instance = new maplibregl.Map({
       container,
-      style: initialStyle,
       center: camera.center,
       zoom: camera.zoom,
       pitch: camera.pitch ?? 0,
@@ -106,7 +113,8 @@ export function MapCanvas({ view, camera = DUBAI_CAMERA, onSelect, onHover, onCo
       maxPitch: 70,
       attributionControl: { compact: true },
     });
-    appliedStyleRef.current = initialStyle;
+    applyStyle(instance, initialStyle);
+    appliedStyleRef.current = initialStyle.key;
     mapRef.current = instance;
 
     instance.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-left');
@@ -201,13 +209,14 @@ export function MapCanvas({ view, camera = DUBAI_CAMERA, onSelect, onHover, onCo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
-  // ── Theme → basemap ────────────────────────────────────────────────────────
+  // ── Theme / basemap choice → style ─────────────────────────────────────────
   useEffect(() => {
-    if (!map || !styleUrl || appliedStyleRef.current === styleUrl) return;
-    appliedStyleRef.current = styleUrl;
+    const next = live.current.style;
+    if (!map || !next || appliedStyleRef.current === next.key) return;
+    appliedStyleRef.current = next.key;
     styleReadyRef.current = false;
-    map.setStyle(styleUrl, { diff: false });
-  }, [map, styleUrl]);
+    applyStyle(map, next);
+  }, [map, styleKey]);
 
   // ── Reconcile ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -351,7 +360,7 @@ export function MapCanvas({ view, camera = DUBAI_CAMERA, onSelect, onHover, onCo
   }, [view, state.visible, state.status]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  if (!styleUrl) {
+  if (!style) {
     return (
       <div className={`map-canvas map-canvas--empty ${className}`}>
         <EmptyState icon={<MapPinOff aria-hidden />} title={t('map.error.noStyle')} body={t('map.error.noStyleBody')} />

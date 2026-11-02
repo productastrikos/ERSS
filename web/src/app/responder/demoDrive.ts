@@ -94,8 +94,13 @@ export function useDemoDrive() {
       travelled = Math.min(total, travelled + speed * dt);
       const { at, heading } = pointAlong(path, cum, travelled);
       const arrived = travelled >= total;
-      // Speed travels in km/h, as every position source reports it.
-      reportPosition({ lng: at[0], lat: at[1], speed: arrived ? 0 : Math.round(speed * 3.6), heading });
+      // Speed travels in km/h, as every position source reports it — the ROAD speed, not
+      // the time-lapse one: at 8× the drive is shorter, not 400 km/h. The road still ahead
+      // goes with it, so the console's "to go" matches this screen's.
+      reportPosition({
+        lng: at[0], lat: at[1], speed: arrived ? 0 : Math.round((speed / speedFactor) * 3.6), heading,
+        remainingM: Math.max(0, total - travelled),
+      });
 
       let i = 1;
       while (i < cum.length && cum[i] <= travelled) i++;
@@ -110,7 +115,7 @@ export function useDemoDrive() {
       }
     };
     setState({ ...IDLE, running: true, leg, at: path[0], heading: bearing(path[0], path[1]), remainingM: total, totalM: total, ahead: path });
-    reportPosition({ lng: path[0][0], lat: path[0][1], speed: 0, heading: bearing(path[0], path[1]) });
+    reportPosition({ lng: path[0][0], lat: path[0][1], speed: 0, heading: bearing(path[0], path[1]), remainingM: total });
     timer.current = setInterval(step, 1000);
   }, []);
 

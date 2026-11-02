@@ -31,13 +31,13 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Ambulance, BrainCircuit, Building2, Camera, CheckCircle2, ChevronDown, ChevronUp, Clock, Cpu, Gauge,
-  HeartPulse, Hospital, MapPin, Navigation, PauseCircle, Route, Send, ShieldAlert, Siren, Timer, TrafficCone, Users,
+  FileText, HeartPulse, History, Hospital, MapPin, Navigation, PauseCircle, Route, Send, ShieldAlert, Siren, Smartphone, Timer, TrafficCone, Users,
 } from 'lucide-react';
 import type { DecisionPhase, DecisionStep, DecisionTrace, StepTone } from '../../lib/types';
 import { api } from '../../lib/api';
 import { t } from '../../lib/i18n';
 import { duration, durationUnit } from '../../lib/format';
-import { openIncident } from '../../lib/router';
+import { navigate, openIncident } from '../../lib/router';
 import { useCan } from '../../lib/stores/session';
 import { useNow } from '../../lib/stores/now';
 import { useDecisionTrace } from '../../lib/stores/decisions';
@@ -46,6 +46,8 @@ import { openDetection, useDetectionFor } from '../../lib/stores/live';
 import { Button, CctvFeed, Chip, Dot, ErrorState, SimulatedChip, Skeleton } from '../../shared/ui';
 import { toast } from '../../lib/stores/toast';
 import { AssignedCrewCard } from './AssignedCrewCard';
+import { VitalsCard } from '../../shared/vitals/VitalsCard';
+import { openReport } from '../../shared/report/store';
 
 const withUnit = (sec: number | null | undefined) => (sec == null ? '—' : `${duration(sec)} ${durationUnit(sec)}`);
 const gst = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Dubai' });
@@ -79,6 +81,7 @@ function Loaded({ trace }: { trace: DecisionTrace }) {
         <div className="dtl-inc__chips">
           {inc.source === 'sensor' && <Chip tone="accent"><Camera aria-hidden /> {inc.detectedBy ?? t('detail.inc.camera')}</Chip>}
           {inc.source === 'sensor' && <Chip tone="neutral">{t('detail.inc.noCall')}</Chip>}
+          {inc.source === 'app_sos' && <Chip tone="accent"><Smartphone aria-hidden /> Citizen app SOS</Chip>}
           <Chip tone="neutral"><Users aria-hidden /> {inc.patients} {inc.patients === 1 ? t('detail.inc.patient') : t('detail.inc.patients')}</Chip>
           <SimulatedChip />
         </div>
@@ -97,6 +100,9 @@ function Loaded({ trace }: { trace: DecisionTrace }) {
 
       <AiLog steps={trace.steps} closed={!!inc.closedAt} />
 
+      {/* The patient's own wearable, when the SOS came from the citizen app. */}
+      {inc.source === 'app_sos' && <VitalsCard incidentRef={inc.ref} exportable />}
+
       <PhaseStepper phase={trace.phase} />
 
       {inc.source === 'sensor' && <LiveCctv incidentRef={inc.ref} />}
@@ -105,9 +111,17 @@ function Loaded({ trace }: { trace: DecisionTrace }) {
       {trace.assignment && <AssignedCrewCard trace={trace} now={now} />}
 
       <footer className="dtl-actions">
+        <Button size="sm" variant="primary" onClick={() => openReport({ kind: 'incident', ref: inc.ref })}>
+          <FileText aria-hidden /> Report
+        </Button>
         {inc.detectionId && (
           <Button size="sm" variant="secondary" onClick={() => openDetection(inc.detectionId)}>
             <Camera aria-hidden /> {t('detail.inc.evidence')}
+          </Button>
+        )}
+        {inc.closedAt && (
+          <Button size="sm" variant="secondary" onClick={() => navigate(`/insights/replay?incident=${encodeURIComponent(inc.ref)}`)}>
+            <History aria-hidden /> {t('detail.inc.replay')}
           </Button>
         )}
         <Button size="sm" variant="ghost" onClick={() => openIncident(inc.ref)}>
@@ -154,10 +168,21 @@ function LiveCctv({ incidentRef }: { incidentRef: string }) {
 // arrive over real time (ack, en route, on scene…) are shown the moment they land — the
 // pacing only ever holds a step BACK, never rushes one that hasn't happened yet.
 
-const REVEAL_FIRST_MS = 350;
-const REVEAL_STEP_MS = 1100;
+const REVEAL_FIRST_MS = 600;
+/**
+ * Each step is held on screen long enough to READ before the next one lands — a short step
+ * ("Job sent to Medic 22") about two seconds, a long one (the routes it compared) up to five.
+ * The room is watching the AI think; at one step a second it only saw it finish.
+ */
+const readMs = (s: DecisionStep | undefined) => {
+  const chars = (s?.title.length ?? 0) + (s?.detail?.length ?? 0) + (s?.items?.length ?? 0) * 40;
+  return Math.min(5200, 2000 + chars * 14);
+};
+/** More than this many steps waiting, and the log is behind the story: it catches up quickly. */
+const CATCH_UP_AFTER = 5;
+const CATCH_UP_MS = 900;
 /** How long a just-revealed step stays visibly highlighted. */
-const REVEAL_HIGHLIGHT_MS = 1300;
+const REVEAL_HIGHLIGHT_MS = 2400;
 
 function useRevealedSteps(steps: DecisionStep[]): { shown: DecisionStep[]; freshKey: string | null } {
   const [count, setCount] = useState(0);
@@ -167,10 +192,14 @@ function useRevealedSteps(steps: DecisionStep[]): { shown: DecisionStep[]; fresh
   useEffect(() => {
     if (reduced || count >= steps.length) return undefined;
     const nextStep = steps[count];
+    // The wait before this step is the reading time of the one already on screen.
+    const wait = count === 0 ? REVEAL_FIRST_MS
+      : steps.length - count > CATCH_UP_AFTER ? CATCH_UP_MS
+        : readMs(steps[count - 1]);
     const timer = setTimeout(() => {
       setCount((c) => c + 1);
       setFreshKey(nextStep?.key ?? null);
-    }, count === 0 ? REVEAL_FIRST_MS : REVEAL_STEP_MS);
+    }, wait);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [count, steps.length, reduced]);
@@ -306,6 +335,7 @@ const STEP_ICON: Record<string, typeof Clock> = {
   detected: Camera, assessed: ShieldAlert, scanned: Ambulance, routed: Route, scored: Gauge, decided: BrainCircuit,
   thinking: Cpu, countdown: Timer, dispatched: Send, ack: CheckCircle2, enroute: Siren, driving: Navigation,
   onscene: MapPin, patient: HeartPulse, transport: Hospital, hospital: Building2, note: TrafficCone,
+  route: Route, transportdrive: Navigation, cleared: CheckCircle2, closed: CheckCircle2, declined: PauseCircle, timeout: Clock,
 };
 
 const COLLAPSE_AT = 4;
@@ -355,6 +385,7 @@ function Candidates({ trace }: { trace: DecisionTrace }) {
         <thead>
           <tr>
             <th>#</th><th>{t('detail.inc.col.ambulance')}</th><th>{t('detail.inc.col.arrives')}</th>
+            <th title={t('detail.inc.col.turnsHelp')}>{t('detail.inc.col.turns')}</th>
             <th>{t('detail.inc.col.traffic')}</th><th>{t('detail.inc.col.score')}</th>
           </tr>
         </thead>
@@ -365,6 +396,7 @@ function Candidates({ trace }: { trace: DecisionTrace }) {
               <td className="mono">{c.rank}</td>
               <td><strong>{c.callsign}</strong> <span className="muted">{c.kind}</span>{c.unitRef === trace.chosenRef && <span className="dtl-cands__pick">{t('detail.inc.aiPick')}</span>}</td>
               <td className="mono">{withUnit(c.arrivalSec)}</td>
+              <td className="mono" title={c.route?.stats?.text}>{c.route?.stats ? c.route.stats.counts.manoeuvres : '—'}</td>
               <td className={`mono${c.trafficDelaySec >= 45 ? ' is-bad' : c.trafficDelaySec > 0 ? ' is-warn' : ''}`}>{c.trafficDelaySec > 0 ? `+${duration(c.trafficDelaySec)}` : '—'}</td>
               <td><span className="dtl-cands__score"><span style={{ width: `${(c.score / best) * 100}%` }} /></span><span className="mono">{c.score.toFixed(2)}</span></td>
             </tr>

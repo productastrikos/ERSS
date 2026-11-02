@@ -16,9 +16,10 @@
  *   incident:<ref>   anyone watching that incident, access-checked on join
  *   unit:<ref>       the responder device bound to the unit
  *   agency:<code>    users of that agency
+ *   sos:<ref>        the citizen who raised that SOS — "something changed" pings only
  */
 
-import { emitTo, room } from './index.js';
+import { emitAll, emitTo, room } from './index.js';
 import { bus } from '../lib/bus.js';
 
 /** The last summary seen per incident, so a timeline row can be announced to the live feed
@@ -52,7 +53,17 @@ export function incidentNew(summary) {
 export function incidentUpdate(summary) {
   remember(summary);
   emitTo([...incidentRooms(summary), room.incident(summary.ref)], 'incident:update', { ref: summary.ref, patch: summary });
+  sosPing(summary.ref);
   bus.publish('incident:update', summary);
+}
+
+/**
+ * The citizen watching this incident (if one raised it) refetches their own status. A ping,
+ * never the summary: the summary is the console's view, and the caller is entitled only to
+ * the narrow projection /api/sos/:ref/status returns.
+ */
+function sosPing(ref) {
+  if (ref) emitTo(room.sos(ref), 'sos:update', { ref, at: new Date().toISOString() });
 }
 
 export function incidentTimeline(ref, rows) {
@@ -63,6 +74,7 @@ export function incidentTimeline(ref, rows) {
     if (!FEED_SKIP.has(row.stage)) emitTo(incidentRooms(summary), 'feed:item', feedItem(ref, row, summary));
     bus.publish('incident:timeline', { ref, row, summary });
   }
+  sosPing(ref);
 }
 
 /** Housekeeping stages that would drown the ambulance story on a video wall. */
@@ -82,6 +94,7 @@ export function feedItem(ref, row, summary) {
 export function incidentClosed(summary) {
   remember(summary);
   emitTo([...incidentRooms(summary), room.incident(summary.ref)], 'incident:closed', { ref: summary.ref, outcome: summary.outcome });
+  sosPing(summary.ref);
   bus.publish('incident:closed', summary);
 }
 
@@ -95,6 +108,7 @@ export function assignmentUpdate({ incidentRef, unitRef, ref, state, at }) {
   const payload = { ref, incidentRef, unitRef, state, at };
   // Consoles hear every assignment move too: the dashboard map redraws routes from it.
   emitTo([room.incident(incidentRef), room.unit(unitRef), room.consoleFleet], 'assignment:update', payload);
+  sosPing(incidentRef);
   bus.publish('assignment:update', payload);
 }
 
@@ -139,4 +153,14 @@ export function simState(state) {
  *  the whole room watches a detection, the same way it watches an alert. */
 export function detection(payload) {
   emitTo(room.consoleFleet, 'detection:stage', payload);
+}
+
+/**
+ * The PoC was restarted. To EVERY socket — consoles, crew phones and citizen phones — because
+ * every one of them is holding state the reset just deleted: an open incident, an offer, a job
+ * mid-drive, an SOS being tracked. Each surface drops it and starts clean (sim/live.js reset).
+ */
+export function simReset(payload) {
+  emitAll('sim:reset', payload);
+  bus.publish('sim:reset', payload);
 }

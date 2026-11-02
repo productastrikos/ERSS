@@ -50,14 +50,21 @@ function callCentreFindings(r: CallCentreResult): Finding[] {
   }
 
   // Work that consumed a call-taker and a queue slot but produced no patient.
+  // Under 1% the share rounds to "0%", which then contradicts the count beneath it — say
+  // the count instead.
   const dead = r.classes.find((c) => c.bucket === 'non_actionable')?.calls ?? 0;
+  const deadPct = (dead / total) * 100;
   if (dead > 0) {
     out.push({
       id: 'non-actionable',
-      tone: (dead / total) * 100 >= 10 ? 'warning' : 'info',
+      tone: deadPct >= 10 ? 'warning' : deadPct < 1 ? 'success' : 'info',
       icon: PhoneOff,
-      headline: `${pct((dead / total) * 100)} of calls ended with no patient to treat.`,
-      detail: `${count(dead)} false alarms, duplicates and cancellations still occupied a call-taker.`,
+      headline: deadPct < 1
+        ? `Only ${count(dead)} of ${count(total)} calls ended with no patient to treat.`
+        : `${pct(deadPct)} of calls ended with no patient to treat.`,
+      detail: deadPct < 1
+        ? 'False alarms, duplicates and cancellations are under 1% of the call-taker load.'
+        : `${count(dead)} false alarms, duplicates and cancellations still occupied a call-taker.`,
     });
   }
 

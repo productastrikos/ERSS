@@ -12,7 +12,7 @@ import { pocFleet } from '../config/poc.js';
 const iso = (v) => (v ? new Date(v).toISOString() : null);
 
 const UNIT_SELECT = `
-  SELECT u.id, u.ref, u.callsign, u.kind, ag.code AS agency_code, s.ref AS home_station_ref,
+  SELECT u.id, u.ref, u.callsign, u.kind, ag.code AS agency_code, s.ref AS home_station_ref, s.name AS home_station_name,
          u.capabilities, u.crew_size, u.status, u.shift_start, u.shift_end,
          ST_X(u.current_geom) AS lng, ST_Y(u.current_geom) AS lat,
          u.current_heading, u.current_speed, u.last_seen_at,
@@ -36,6 +36,7 @@ export function shapeUnit(r) {
     kind: r.kind,
     agencyCode: r.agency_code,
     homeStationRef: r.home_station_ref,
+    homeStationName: r.home_station_name ?? null,
     capabilities: r.capabilities ?? [],
     crewSize: r.crew_size,
     status: r.status,

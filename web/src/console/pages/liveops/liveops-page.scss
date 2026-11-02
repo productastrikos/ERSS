@@ -62,7 +62,7 @@
       inset-block-start: 0;
       height: 3px;
       border-radius: var(--r-12) var(--r-12) 0 0;
-      background: var(--app-brand-gradient);
+      background: var(--app-brand-blue);
     }
 
     header {
@@ -206,24 +206,4 @@
       &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: -2px; }
     }
   }
-}
-
-/* The detail panel, docked over the right edge of the wall map (console/detail). */
-.liveops-page__detail {
-  position: absolute;
-  z-index: var(--z-panel);
-  inset-block: 64px var(--sp-12);
-  inset-inline-end: var(--sp-12);
-  width: min(400px, calc(100% - var(--sp-24)));
-  /* `height: auto` on an absolutely-positioned box with both insets set is inconsistent
-     across engines, and with no `display:flex`/`overflow` here the inner .dtl's own
-     `height:100%` had nothing solid to resolve against — the AI log got clipped instead
-     of scrolling. Establishing flex + a hard cap makes .dtl__body's overflow-y:auto the
-     one thing that scrolls. */
-  display: flex;
-  overflow: hidden;
-  max-height: calc(100dvh - 64px - var(--sp-12));
-  box-shadow: var(--app-shadow-md, var(--app-shadow-sm)), var(--app-edge-light);
-
-  > .dtl { flex: 1; width: 100%; min-width: 0; }
 }

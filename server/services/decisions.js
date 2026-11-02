@@ -35,14 +35,18 @@ import { pocFleet } from '../config/poc.js';
 import { profileFor } from '../data/reference/crews.js';
 import * as osrm from '../integrations/osrm.js';
 import * as traffic from '../sim/traffic.js';
+import * as drive from '../engines/drive.js';
 import * as detection from '../engines/detection.js';
 import * as dispatch from './dispatch.js';
 
 /** incidentRef → preview. Bounded: the trial runs one story at a time. */
 const previews = new Map();
 const PREVIEW_MAX = 40;
-/** How many of the field get a road route and a traffic check. */
-const ROUTED = 3;
+/** How many of the field get road routes (with alternatives) and a drive-model check. */
+const ROUTED = 4;
+/** `${incidentRef}|${unitRef}` → the raw road chosen for that unit (coords, steps, speeds) —
+ *  kept off the socket; the crew drives exactly this (sim/live.js). */
+const chosenRoads = new Map();
 
 /** Hooks the live simulation fills in, so this module never imports it (it imports us). */
 const providers = {
@@ -79,6 +83,105 @@ export const delaysFor = (ref) => {
   const p = previews.get(ref);
   return p && Object.keys(p.delays).length ? p.delays : null;
 };
+/** The drive-model time on the road chosen for each routed candidate — handed to the commit. */
+export const routeTimesFor = (ref) => {
+  const p = previews.get(ref);
+  return p?.routeTimes && Object.keys(p.routeTimes).length ? p.routeTimes : null;
+};
+/** The exact road the AI chose for one unit on one incident: { coords, steps, speeds }. */
+export const chosenRoad = (ref, unitRef) => chosenRoads.get(`${ref}|${unitRef}`) ?? null;
+
+/**
+ * The best road for one journey, and why — the main route and the router's alternatives,
+ * each driven through the drive model (engines/drive.js) with the simulated traffic on it.
+ * Null when routing does not answer at all.
+ */
+export async function bestRoad(from, to, { at = Date.now(), queues = null, mode = 'emergency' } = {}) {
+  const q = queues ?? await traffic.activeQueues();
+  let raw = await osrm.routeOptions(from, to).catch(() => null);
+  if (!raw?.length) {
+    const road = await osrm.route(from, to, { timeoutMs: osrm.BACKGROUND_TIMEOUT_MS, attempts: 2, background: true }).catch(() => null);
+    if (!road?.coordinates?.length) return null;
+    raw = [{ distanceM: Math.round(road.distanceM), durationSec: Math.round(road.durationSec), coords: road.coordinates, steps: [], speeds: [] }];
+  }
+  const analysed = raw.map((o) => {
+    const a = drive.analyse(o, { mode });
+    if (!a) return null;
+    const jam = mode === 'emergency' ? traffic.analyseRoute(o.coords, { at, queues: q }) : { segments: [], congestedM: 0 };
+    return { a: drive.withTraffic(a, jam.segments), jam, raw: o };
+  }).filter(Boolean)
+    .sort((x, y) => x.a.timeWithTrafficSec - y.a.timeWithTrafficSec);
+  if (!analysed.length) return null;
+  const [best, ...others] = analysed;
+  return {
+    best, others,
+    why: others.length ? drive.whyRoute(best.a, others[0].a) : [],
+  };
+}
+
+/** A road chosen by `bestRoad`, as the preview and the AI log carry it. */
+function roadView(road, { withOptionPaths = false } = {}) {
+  const { best, others, why } = road;
+  return {
+    path: best.raw.coords,
+    distanceM: best.a.totalM,
+    driveSec: best.a.timeSec,
+    timeSec: best.a.timeWithTrafficSec,
+    delaySec: best.a.trafficDelaySec,
+    congestedM: best.jam.congestedM ?? 0,
+    traffic: (best.jam.segments ?? []).map((s) => ({ level: s.level, cause: s.cause, lengthM: s.lengthM, delaySec: s.delaySec, fromM: s.fromM, path: s.path })),
+    stats: drive.summary(best.a),
+    why,
+    options: [best, ...others].map((x, i) => ({
+      label: String.fromCharCode(65 + i),
+      chosen: i === 0,
+      osrmSec: x.raw.durationSec,
+      ...drive.summary(x.a, { withPath: withOptionPaths }),
+    })),
+  };
+}
+
+/**
+ * The whole decision as it stood — every ambulance weighed, every road compared, the
+ * choice and the field it was chosen from — for the kept AI log (services/aiLog.js), so a
+ * replay months later can show the alternatives, not only the winner.
+ */
+export function snapshot(ref) {
+  const p = previews.get(ref);
+  if (!p || p.stub || p.status === 'thinking') return null;
+  return {
+    status: p.status, startedAt: p.startedAt, readyAt: p.readyAt, thinkMs: p.thinkMs,
+    requirement: p.requirement, confidence: p.confidence, chosen: p.chosen, firstChoice: p.firstChoice,
+    baseline: p.baseline, nearest: p.nearest,
+    policy: p.policy ? { mode: p.policy.mode, trafficApplied: p.policy.trafficApplied, weights: p.policy.rules?.weights ?? null, windowSec: p.policy.rules?.windowSec ?? null } : null,
+    fleet: p.fleet.map((u) => ({ ref: u.ref, callsign: u.callsign, kind: u.kind, status: u.status, position: u.position, onIncident: u.onIncident })),
+    excluded: p.excluded,
+    candidates: p.candidates,
+    legs: p.legs ?? {},
+    notes: p.notes ?? [],
+  };
+}
+
+/**
+ * A road chosen after dispatch — the transport leg to hospital (sim/live.js) — written onto
+ * the incident's story so the AI log explains that choice too.
+ */
+export function noteLeg(ref, leg, info) {
+  let p = previews.get(ref);
+  if (!p) {
+    // The decision itself was made before a restart and is gone from memory; the leg is
+    // still worth telling. A bare record holds it — every reader falls back to the stored
+    // rationale for the rest.
+    p = {
+      stub: true, incidentRef: ref, status: 'ready', startedAt: null, readyAt: null, thinkMs: null,
+      fleet: [], candidates: [], excluded: [], delays: {}, routeTimes: {}, requirement: null, policy: null,
+      confidence: null, firstChoice: null, chosen: null, baseline: null, nearest: null, notes: [], legs: {}, error: null,
+    };
+    remember(p);
+  }
+  p.legs = { ...(p.legs ?? {}), [leg]: { ...info, at: info.at ?? nowIso() } };
+  publish(p);
+}
 
 /** Something the automatic dispatcher decided NOT to do yet, and why (reserve, rule, no unit). */
 export function note(ref, key, text, tone = 'warn') {
@@ -124,8 +227,9 @@ export async function think(ref) {
   const prior = previews.get(ref);
   const p = {
     incidentRef: ref, status: 'thinking', startedAt: nowIso(), readyAt: null, thinkMs: null,
-    fleet: [], candidates: [], excluded: [], delays: {}, requirement: null, policy: null,
-    confidence: null, firstChoice: null, chosen: null, baseline: null, notes: prior?.notes ?? [], error: null,
+    fleet: [], candidates: [], excluded: [], delays: {}, routeTimes: {}, requirement: null, policy: null,
+    confidence: null, firstChoice: null, chosen: null, baseline: null, nearest: null,
+    notes: prior?.notes ?? [], legs: prior?.legs ?? {}, error: null,
   };
   remember(p);
   publish(p);
@@ -139,35 +243,45 @@ export async function think(ref) {
     // makes (sim/live.js planRoute) meets the same queues the AI weighed.
     const at = Date.parse(inc.reported_at) || Date.now();
 
-    const routes = {};
-    await Promise.all(recs.slice(0, ROUTED).map(async (r) => {
-      const from = byRef.get(r.unitRef)?.position;
+    // Every leading candidate's ROAD, not its straight line: the router's main route and
+    // its alternatives, each driven through the drive model — cruise by road class, braking
+    // for every turn, roundabout and U-turn — with the traffic on it. The best road per
+    // ambulance is what the field is then ranked on.
+    const roads = {};
+    const routeOne = async (unitRef) => {
+      if (roads[unitRef] !== undefined) return;
+      roads[unitRef] = null;
+      const from = byRef.get(unitRef)?.position;
       if (!from) return;
-      const road = await osrm.route(from, [inc.lng, inc.lat], { timeoutMs: osrm.BACKGROUND_TIMEOUT_MS, attempts: 2 }).catch(() => null);
-      if (!road?.coordinates?.length) return;
-      const a = traffic.analyseRoute(road.coordinates, { at, queues });
-      routes[r.unitRef] = {
-        path: road.coordinates,
-        distanceM: Math.round(road.distanceM),
-        delaySec: a.delaySec,
-        congestedM: a.congestedM,
-        traffic: a.segments.map((s) => ({ level: s.level, cause: s.cause, lengthM: s.lengthM, delaySec: s.delaySec, fromM: s.fromM, path: s.path })),
-      };
-      p.delays[r.unitRef] = a.delaySec;
-    }));
+      const road = await bestRoad(from, [inc.lng, inc.lat], { at, queues });
+      if (!road) return;
+      roads[unitRef] = road;
+      chosenRoads.set(`${ref}|${unitRef}`, road.best.raw);
+      while (chosenRoads.size > 240) chosenRoads.delete(chosenRoads.keys().next().value);
+      p.delays[unitRef] = road.best.a.trafficDelaySec;
+      p.routeTimes[unitRef] = { sec: road.best.a.timeSec, m: road.best.a.totalM };
+    };
+    await Promise.all(recs.slice(0, ROUTED).map((r) => routeOne(r.unitRef)));
 
-    const final = first.policy?.rules?.avoidTraffic && Object.keys(p.delays).length
-      ? await dispatch.recommendFor(inc, { trafficDelays: p.delays })
+    let final = Object.keys(p.routeTimes).length
+      ? await dispatch.recommendFor(inc, { trafficDelays: p.delays, routeTimes: p.routeTimes })
       : first;
+    // Re-ranking on real roads can lift an ambulance that was not routed to the top: route
+    // it too, and rank once more, so the choice is never made on a straight-line guess.
+    const top = final.value?.recommendations?.[0];
+    if (top && roads[top.unitRef] === undefined) {
+      await routeOne(top.unitRef);
+      final = await dispatch.recommendFor(inc, { trafficDelays: p.delays, routeTimes: p.routeTimes });
+    }
     const ranked = final.value?.recommendations ?? [];
     const base = nearestByDistance(ranked);
 
-    p.candidates = ranked.slice(0, 5).map((r) => ({
+    p.candidates = ranked.slice(0, 5).map((r, i) => ({
       unitRef: r.unitRef, callsign: r.callsign, kind: r.kind, rank: r.rank,
       score: r.rationale.score, arrivalSec: r.arrivalSec, travelSec: r.travelSec,
       distanceM: r.distanceM, straightM: r.straightM, trafficDelaySec: r.trafficDelaySec ?? 0,
       canTransport: r.canTransport, position: byRef.get(r.unitRef)?.position ?? null,
-      route: routes[r.unitRef] ?? null,
+      route: roads[r.unitRef] ? roadView(roads[r.unitRef], { withOptionPaths: i === 0 }) : null,
       factors: r.rationale.factors.map((f) => ({ key: f.key, name: f.name, weight: f.weight, score: f.score, contribution: f.contribution, detail: f.detail })),
     }));
     p.excluded = final.value?.excluded ?? [];
@@ -177,6 +291,25 @@ export async function think(ref) {
     p.firstChoice = recs[0]?.unitRef ?? null;
     p.chosen = ranked[0]?.unitRef ?? null;
     p.baseline = base ? { unitRef: base.unitRef, callsign: base.callsign, straightM: base.straightM, arrivalSec: base.arrivalSec } : null;
+    // The nearest FREE ambulance as the crow flies, qualifying or not — "why not the one
+    // that is closest?" is the first question anyone in the room asks.
+    const near = fleet
+      .filter((u) => (u.status === 'available' || u.status === 'standby') && u.position)
+      .map((u) => ({ ...u, straightM: Math.round(traffic.haversine(u.position, [inc.lng, inc.lat])) }))
+      .sort((a, b) => a.straightM - b.straightM)[0] ?? null;
+    if (near) {
+      if (roads[near.ref] === undefined) await routeOne(near.ref);
+      const ex = p.excluded.find((e) => e.unitRef === near.ref);
+      const nearRoad = roads[near.ref] ?? null;
+      p.nearest = {
+        unitRef: near.ref, callsign: near.callsign, kind: near.kind, straightM: near.straightM,
+        excluded: ex?.reason ?? null,
+        road: nearRoad ? drive.summary(nearRoad.best.a) : null,
+      };
+    }
+    if (ranked[0]?.paired) {
+      p.notes = [...p.notes.filter((n) => n.key !== 'paired'), { key: 'paired', tone: 'good', at: nowIso(), text: ranked[0].pairedWhy }];
+    }
     p.status = ranked.length ? 'ready' : 'no_unit';
   } catch (err) {
     p.status = 'failed';
@@ -186,6 +319,7 @@ export async function think(ref) {
   p.readyAt = nowIso();
   p.thinkMs = Date.now() - started;
   publish(p);
+  bus.publish('decision:ready', { incidentRef: ref, status: p.status });
   return p;
 }
 
@@ -197,6 +331,11 @@ export function wireDecisions() {
   bus.on('incident:new', (s) => {
     if (s?.isResting || !s?.ref) return;
     void think(s.ref);
+  });
+  // The incidents these were about are gone after a PoC restart.
+  bus.on('sim:reset', () => {
+    previews.clear();
+    chosenRoads.clear();
   });
 }
 
@@ -278,7 +417,7 @@ export async function trace(ref, actor) {
   // 2 · Assessed
   const req = preview?.requirement ?? rat?.requirement ?? null;
   add({
-    key: 'assessed', at: new Date(inc.triaged_at ?? inc.reported_at).toISOString(), tone: inc.priority === 'P1' ? 'bad' : 'warn',
+    key: 'assessed', at: new Date(inc.triaged_at ?? inc.reported_at).toISOString(), tone: inc.priority === 'P1' ? 'bad' : 'info',
     title: `Assessed ${inc.priority} · ${kindLabel(inc.kind)}`,
     detail: inc.chief_complaint ?? null,
     items: [
@@ -307,7 +446,7 @@ export async function trace(ref, actor) {
         return {
           label: `${u.callsign} · ${u.kind}`,
           value: free1
-            ? (ex ? `free — ruled out: ${ex.reason}` : `free · ${km(c?.straightM ?? away)} away${c ? '' : ' — not among the closest'}`)
+            ? (ex ? `free — ruled out: ${ex.reason}` : `free · ${km(c?.straightM ?? away)} away${c || preview.status === 'thinking' ? '' : ' — not among the closest'}`)
             : `${STATUS_WORD[u.status] ?? u.status}${u.onIncident && u.onIncident !== ref ? ` (${u.onIncident})` : ''}`,
           tone: free1 && !ex ? 'good' : 'muted',
         };
@@ -320,23 +459,47 @@ export async function trace(ref, actor) {
       unitRefs: alts.map((c) => c.unitRef) });
   }
 
-  // 4 · Routed — roads and traffic for the leading candidates
+  // 4 · Routed — every leading candidate's real road, driven through the drive model
   const routed = alts.filter((c) => c.route);
   if (routed.length) {
     add({
       key: 'routed', at: preview.readyAt ?? preview.startedAt, tone: 'ai',
-      title: `Road routes and traffic checked for the ${routed.length} closest`,
-      detail: preview.policy?.trafficApplied ? 'Traffic delay is added to each predicted arrival · traffic is simulated in this build' : 'Traffic shown for information · the policy does not weigh it',
+      title: `Drove the roads for the ${routed.length} closest — ${routed.reduce((s, c) => s + (c.route.options?.length ?? 1), 0)} routes compared`,
+      detail: 'Each road timed with the ambulance braking for every turn, roundabout and U-turn, cruising by road class, and the traffic on it'
+        + `${preview.policy?.trafficApplied ? '' : ' (traffic shown, not weighed)'} · traffic is simulated in this build`,
       unitRefs: routed.map((c) => c.unitRef),
       items: routed.map((c) => {
         const r = c.route;
+        const s = r.stats;
         const slow = r.traffic.length;
         return {
           label: c.callsign,
-          value: `${km(r.distanceM)} by road · ${slow ? `${slow} slow ${slow === 1 ? 'stretch' : 'stretches'} (${Math.round(r.congestedM)} m), +${mmss(r.delaySec)} min` : 'clear road'}`,
-          tone: r.delaySec >= 45 ? 'bad' : r.delaySec > 0 ? 'warn' : 'good',
+          value: s
+            ? `${km(s.distanceM)} · ${drive.manoeuvreText(s.counts)} · ${pct(s.majorShare)} main roads · ${min(r.timeSec)}${slow ? ` incl. +${mmss(r.delaySec)} traffic` : ''}`
+            : `${km(r.distanceM)} by road${slow ? ` · +${mmss(r.delaySec)} traffic` : ''}`,
+          tone: r.delaySec >= 45 ? 'warn' : 'info',
         };
       }),
+    });
+  }
+
+  // 4b · The road for the ambulance it is about to send — which way, and why that way
+  const chosenAlt = alts.find((c) => c.unitRef === (primary?.unit_ref ?? preview?.chosen));
+  const road = chosenAlt?.route;
+  if (road?.stats) {
+    const others = (road.options ?? []).filter((o) => !o.chosen);
+    add({
+      key: 'route', at: preview.readyAt ?? preview.startedAt, tone: 'ai',
+      title: `Best road for ${chosenAlt.callsign}${road.stats.via ? `: ${road.stats.via}` : ''}`,
+      detail: others.length && road.why?.length
+        ? `Over the alternative via ${others[0].via ?? 'other streets'}: ${road.why.join('; ')}.`
+        : `${road.stats.text}. ${others.length ? 'Alternatives were slower.' : 'The router found no reasonable alternative.'}`,
+      unitRefs: [chosenAlt.unitRef],
+      items: (road.options ?? []).map((o) => ({
+        label: `${o.chosen ? '✓ ' : ''}Road ${o.label}${o.via ? ` · ${o.via}` : ''}`,
+        value: `${km(o.distanceM)} · ${drive.manoeuvreText(o.counts)} · avg ${o.avgKmh} km/h · ${min(o.timeSec)}`,
+        tone: o.chosen ? 'ai' : 'muted',
+      })),
     });
   }
 
@@ -369,15 +532,36 @@ export async function trace(ref, actor) {
     const next = alts.find((c) => c.rank === (chosen.rank ?? 1) + 1) ?? null;
     const tie = next && Math.abs(next.arrivalSec - chosen.arrivalSec) <= 5;
     const capOf = (c) => c?.factors?.find((f) => f.key === 'capability')?.score ?? null;
-    if (!base || base.unitRef === chosen.unitRef) why.push(`${chosen.callsign} is the nearest free ambulance and also the fastest`);
-    else if (saved > 0) why.push(`${chosen.callsign} arrives ${min(saved)} sooner than sending the nearest one (${baseCall})`);
+    const near = preview?.nearest ?? null;
+    const isNearest = (!near || near.unitRef === chosen.unitRef) && (!base || base.unitRef === chosen.unitRef);
+
+    if (isNearest) why.push(`${chosen.callsign} is the nearest free ambulance and also the fastest by road`);
+    else if (near && near.unitRef !== chosen.unitRef && near.excluded) {
+      // The closest one could not take it — say so first, in the room's terms.
+      why.push(`${near.callsign} is closest (${km(near.straightM)} as the crow flies) but was ruled out — ${near.excluded}${inc.kind === 'cardiac_arrest' ? '; a collapsed patient needs an advanced-life-support crew (defibrillation, airway, drugs)' : ''}`);
+      if (near.road) why.push(`its road is ${km(near.road.distanceM)} with ${drive.manoeuvreText(near.road.counts)} anyway`);
+    } else if (near && near.unitRef !== chosen.unitRef && near.road && chosen.route?.stats) {
+      why.push(`${near.callsign} is closer as the crow flies (${km(near.straightM)}) but its road is ${km(near.road.distanceM)} with ${drive.manoeuvreText(near.road.counts)} — ${chosen.callsign} arrives ${min(Math.max(0, near.road.timeSec - chosen.route.timeSec))} sooner`);
+    } else if (saved > 0) why.push(`${chosen.callsign} arrives ${min(saved)} sooner than sending the nearest one (${baseCall})`);
     else why.push(`${chosen.callsign} scores highest overall`);
+
+    // Speed against capability, stated when it was the trade-off actually made.
+    const prefs = (preview?.requirement ?? rat?.requirement)?.preferred ?? [];
+    const better = alts.find((c) => c.rank > chosen.rank && prefs.indexOf(c.kind) !== -1 && (prefs.indexOf(chosen.kind) === -1 || prefs.indexOf(c.kind) < prefs.indexOf(chosen.kind)));
+    const tradeOff = better && better.arrivalSec - chosen.arrivalSec >= 30 ? better : null;
+    const roadOf = (c) => (c.route?.stats ? ` (${km(c.route.stats.distanceM)}, ${drive.manoeuvreText(c.route.stats.counts)})` : '');
+    if (next && !tie && next !== tradeOff && next.arrivalSec - chosen.arrivalSec >= 20) {
+      why.push(`next best ${next.callsign} (${next.kind}) is ${min(next.arrivalSec - chosen.arrivalSec)} behind${roadOf(next)}`);
+    }
+    if (tradeOff) {
+      why.push(`the nearest ${tradeOff.kind} crew, ${tradeOff.callsign}, is ${min(tradeOff.arrivalSec - chosen.arrivalSec)} further away${roadOf(tradeOff)} — on a ${inc.priority} the first crew on scene matters most; the ${chosen.kind} crew starts care and can call ${tradeOff.kind} support`);
+    }
     if (tie && capOf(chosen) != null && capOf(chosen) > (capOf(next) ?? 0)) {
       why.push(`it is level with ${next.callsign} on arrival, and its ${chosen.kind} crew is the better match for ${inc.priority === 'P1' ? 'a P1' : 'this call'}`);
     }
     const firstCall = alts.find((c) => c.unitRef === preview?.firstChoice)?.callsign;
-    if (preview?.firstChoice && preview.firstChoice !== chosen.unitRef && preview.policy?.trafficApplied) {
-      why.push(`traffic on ${firstCall ?? preview.firstChoice}'s route changed the choice`);
+    if (preview?.firstChoice && preview.firstChoice !== chosen.unitRef) {
+      why.push(`${firstCall ?? preview.firstChoice} looked best on distance alone; driving the real roads${preview.policy?.trafficApplied ? ' and their traffic' : ''} changed the choice`);
     }
     const conf = preview?.confidence ?? rat?.confidence ?? null;
     add({
@@ -446,22 +630,31 @@ export async function trace(ref, actor) {
         title: `${a.callsign} could not take it`, detail: a.decline_reason ?? 'The AI offers the next best ambulance', unitRefs: [a.unit_ref] });
     }
     if (a.enroute_at) {
+      const theRoad = a.unit_ref === chosenAlt?.unitRef ? road?.stats : null;
       add({ key: `enroute:${a.ref}`, at: new Date(a.enroute_at).toISOString(), tone: 'info',
         title: `${a.callsign} rolling — lights and siren`,
-        detail: a.route_proposed_m ? `${km(a.route_proposed_m)} by road to the scene` : null, unitRefs: [a.unit_ref] });
+        detail: theRoad
+          ? `${km(theRoad.distanceM)} to the scene${theRoad.via ? ` via ${theRoad.via}` : ''} · ${drive.manoeuvreText(theRoad.counts)} · top ${theRoad.topKmh} km/h on the straights`
+          : a.route_proposed_m ? `${km(a.route_proposed_m)} by road to the scene` : null,
+        items: a.acknowledged_at ? [{ label: 'Turnout', value: `${secsBetween(a.acknowledged_at, a.enroute_at)} s from acknowledging to wheels rolling` }] : [],
+        unitRefs: [a.unit_ref] });
     }
     // Live: the drive in progress
     if (a.enroute_at && !a.onscene_at && ['enroute', 'acknowledged'].includes(a.state)) {
       const live = providers.live(a.ref);
       const etaLeft = a.eta_predicted_at ? Math.round((Date.parse(a.eta_predicted_at) - Date.now()) / 1000) : null;
       const nextJam = live?.trafficAhead?.[0] ?? null;
+      const turn = live?.next ?? null;
       add({
         key: `driving:${a.ref}`, at: nowIso(), tone: etaLeft != null && etaLeft < 0 ? 'bad' : 'info', state: 'active',
         title: live ? `Driving · ${km(live.remainingM)} to go${etaLeft != null ? ` · ETA ${etaLeft >= 0 ? min(etaLeft) : `${min(-etaLeft)} late`}` : ''}` : 'Driving to the scene',
         detail: nextJam
           ? `${nextJam.level === 'heavy' ? 'Heavy' : 'Slow'} traffic ${nextJam.inM > 30 ? `in ${Math.round(nextJam.inM)} m` : 'now'} for ${Math.round(nextJam.lengthM)} m${nextJam.cause === 'collision' ? ' — the queue behind the collision' : ''} · +${mmss(nextJam.delaySec)} min (simulated)`
           : live ? 'Clear road ahead (simulated traffic)' : null,
-        items: live?.speedKmh != null ? [{ label: 'Speed', value: `${Math.round(live.speedKmh)} km/h` }] : [],
+        items: [
+          ...(live?.speedKmh != null ? [{ label: 'Speed', value: `${Math.round(live.speedKmh)} km/h` }] : []),
+          ...(turn ? [{ label: 'Next', value: `${turn.label} in ${Math.round(turn.inM)} m — slowing to ${turn.kmh} km/h` }] : []),
+        ],
         unitRefs: [a.unit_ref],
       });
     }
@@ -482,9 +675,30 @@ export async function trace(ref, actor) {
     }
     if (a.transporting_at) {
       const occ = a.ed_beds ? Math.round((a.ed_occupied / a.ed_beds) * 100) : null;
+      const leg = preview?.legs?.hospital?.asgRef === a.ref ? preview.legs.hospital : null;
       add({ key: `transport:${a.ref}`, at: new Date(a.transporting_at).toISOString(), tone: 'info',
         title: `Transporting to ${a.hospital_name ?? 'hospital'}`,
-        detail: `Chosen by the hospital engine${occ != null ? ` · emergency department ${occ}% full` : ''}${a.on_diversion ? ' · on diversion' : ''}`, unitRefs: [a.unit_ref] });
+        detail: `Chosen by the hospital engine${occ != null ? ` · emergency department ${occ}% full` : ''}${a.on_diversion ? ' · on diversion' : ''}`
+          + (leg?.hospitalWhy ? ` · ${leg.hospitalWhy}` : ''),
+        items: leg?.stats ? [
+          { label: 'Road', value: `${km(leg.stats.distanceM)}${leg.stats.via ? ` via ${leg.stats.via}` : ''} · ${drive.manoeuvreText(leg.stats.counts)} · ${min(leg.stats.timeSec)}`, tone: 'ai' },
+          ...(leg.why?.length ? [{ label: 'Why this road', value: leg.why.join('; '), tone: 'ai' }] : []),
+          { label: 'Driving', value: 'smoother on the way in — patient aboard, braking eased for every manoeuvre' },
+        ] : [],
+        unitRefs: [a.unit_ref] });
+    }
+    // Live: the transport in progress
+    if (a.transporting_at && !a.at_hospital_at && a.state === 'transporting') {
+      const live = providers.live(a.ref);
+      if (live?.leg === 'hospital') {
+        add({
+          key: `transportdrive:${a.ref}`, at: nowIso(), tone: 'info', state: 'active',
+          title: `To ${a.hospital_name ?? 'hospital'} · ${km(live.remainingM)} to go${live.etaSec != null ? ` · about ${min(live.etaSec)}` : ''}`,
+          detail: live.next ? `Next: ${live.next.label} in ${Math.round(live.next.inM)} m — easing to ${live.next.kmh} km/h` : 'Straight run in to the ambulance bay',
+          items: live.speedKmh != null ? [{ label: 'Speed', value: `${Math.round(live.speedKmh)} km/h` }] : [],
+          unitRefs: [a.unit_ref],
+        });
+      }
     }
     if (a.at_hospital_at) {
       add({ key: `hospital:${a.ref}`, at: new Date(a.at_hospital_at).toISOString(), tone: 'good', title: `Handed over at ${a.hospital_name ?? 'hospital'}`, unitRefs: [a.unit_ref] });
@@ -495,6 +709,22 @@ export async function trace(ref, actor) {
   }
   for (const r of tl.filter((x) => x.stage === 'offer_timed_out')) {
     add({ key: `timeout:${r.ts}`, at: new Date(r.ts).toISOString(), tone: 'warn', title: r.label });
+  }
+  // The receiving hospital, told what is coming (services/prealert.js) — and its answer.
+  for (const r of tl.filter((x) => x.stage === 'prealert' || x.stage === 'prealert_ack')) {
+    const d = r.detail ?? {};
+    add({
+      key: `${r.stage}:${d.assignmentRef ?? r.ts}`, at: new Date(r.ts).toISOString(),
+      tone: r.stage === 'prealert_ack' ? 'good' : 'info',
+      title: r.stage === 'prealert' ? `Hospital pre-alert sent · ${d.to ?? 'emergency department'}` : r.label,
+      detail: r.stage === 'prealert' ? r.label : null,
+      items: r.stage === 'prealert' ? [
+        ...(d.patient ? [{ label: 'Patient', value: d.patient }] : []),
+        ...(d.vitals ? [{ label: 'Wearable trend', value: d.vitals, tone: 'ai' }] : []),
+        ...(d.ready?.length ? [{ label: 'Have ready', value: d.ready.join(' · ') }] : []),
+        { label: 'Channel', value: d.channel ?? 'Simulated hospital link' },
+      ] : [],
+    });
   }
   if (inc.closed_at) {
     add({ key: 'closed', at: new Date(inc.closed_at).toISOString(), tone: 'good',

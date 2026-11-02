@@ -3,7 +3,7 @@
  * risk). SQL lives here; the engines stay pure. docs/08.
  */
 
-import { pocFleet } from '../config/poc.js';
+import { pocFleet, pocCommunities } from '../config/poc.js';
 
 /** Hourly call-volume series per community zone, oldest → newest, for anomaly detection. */
 export async function zoneHourlySeries(db, { hours = 168, zones = null, zoneClasses = null } = {}) {
@@ -89,7 +89,9 @@ export async function coverageUnits(db) {
   }));
 }
 
-/** The most recent (nearest-past) demand forecast bucket per zone, as coverage demand weights. */
+/** The most recent (nearest-past) demand forecast bucket per zone, as coverage demand weights.
+ *  In the trial build, only the trial's own communities (config/poc.js): eight ambulances
+ *  are not meant to cover Jebel Ali, and measuring them against it said 8%. */
 export async function coverageDemandPoints(db) {
   const { rows } = await db.query(
     `SELECT DISTINCT ON (f.zone_id) f.zone_id AS "zoneId", z.ref AS "zoneRef",
@@ -97,7 +99,9 @@ export async function coverageDemandPoints(db) {
        FROM demand_forecast f
        JOIN zones z ON z.id = f.zone_id
       WHERE f.bucket_start <= now() AND z.level = 'community'
+        AND ($1::text[] IS NULL OR z.ref = ANY($1::text[]))
       ORDER BY f.zone_id, f.bucket_start DESC`,
+    [pocCommunities()],
   );
   return rows;
 }
@@ -199,6 +203,85 @@ export async function dataQualityRows(db) {
   const { rows } = await db.query(
     `SELECT source, ran_at AS "ranAt", rows_in AS "rowsIn", score, results
        FROM v_data_quality ORDER BY score ASC NULLS LAST`,
+  );
+  return rows;
+}
+
+/**
+ * Every KPI in the registry, computed now over the trailing 30 days from the view the
+ * registry names as its source — the same formula the library prints beside it. The
+ * monthly snapshots only ever covered two of the ten, so the other eight read "—".
+ */
+export async function kpiLiveValues(db) {
+  const { rows } = await db.query(`
+    WITH r AS (SELECT response_sec, within_target, outcome, state, floor, vrt_sec, reported_at
+                 FROM v_incident_response WHERE reported_at >= now() - interval '30 days'),
+         s AS (SELECT acknowledge_sec, turnout_sec
+                 FROM v_assignment_stages WHERE offered_at >= now() - interval '30 days'),
+         n AS (SELECT incident_id, MAX(detect_to_notify_sec) AS m
+                 FROM v_agency_sla WHERE notified_at >= now() - interval '30 days' GROUP BY incident_id)
+    SELECT
+      (SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY response_sec) FROM r WHERE response_sec IS NOT NULL) AS response_p50,
+      (SELECT PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY response_sec) FROM r WHERE response_sec IS NOT NULL) AS response_p90,
+      (SELECT 100.0 * COUNT(*) FILTER (WHERE within_target) / NULLIF(COUNT(*) FILTER (WHERE response_sec IS NOT NULL), 0) FROM r) AS within_target_pct,
+      (SELECT 100.0 * COUNT(*) FILTER (WHERE outcome = 'transported') / NULLIF(COUNT(*) FILTER (WHERE outcome IS NOT NULL), 0) FROM r) AS transport_pct,
+      (SELECT 100.0 * COUNT(*) FILTER (WHERE state = 'closed') / NULLIF(COUNT(*), 0) FROM r WHERE reported_at < now() - interval '6 hours') AS closure_pct,
+      (SELECT AVG(vrt_sec) FROM r WHERE floor >= 20 AND vrt_sec IS NOT NULL) AS vrt_mean,
+      (SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY acknowledge_sec) FROM s WHERE acknowledge_sec IS NOT NULL) AS acknowledge_p50,
+      (SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY turnout_sec) FROM s WHERE turnout_sec IS NOT NULL) AS turnout_p50,
+      (SELECT AVG(abs_error_sec) FROM v_eta_accuracy WHERE onscene_at >= now() - interval '30 days') AS eta_mae,
+      (SELECT AVG(m) FROM n) AS agency_notify_sec`);
+  return rows[0] ?? {};
+}
+
+/**
+ * Data quality, measured now rather than recorded once by the seed. Per source: how many
+ * records carry every field the platform relies on (completeness), how many are internally
+ * consistent (validity), duplicated keys, and when the newest record arrived — so a feed
+ * that has stopped shows up as stale instead of holding the score it had last month.
+ */
+export async function dataQualityLive(db, fleetRefs) {
+  const { rows } = await db.query(`
+    SELECT 'incidents' AS source, COUNT(*)::int AS rows_in,
+           100.0 * COUNT(*) FILTER (WHERE zone_id IS NOT NULL AND geom IS NOT NULL AND priority IS NOT NULL AND kind IS NOT NULL
+                                      AND (state <> 'closed' OR outcome IS NOT NULL)) / NULLIF(COUNT(*), 0) AS completeness,
+           100.0 * COUNT(*) FILTER (WHERE (first_onscene_at IS NULL OR first_onscene_at >= reported_at)
+                                      AND (closed_at IS NULL OR closed_at >= reported_at)) / NULLIF(COUNT(*), 0) AS validity,
+           100.0 * (COUNT(*) - COUNT(DISTINCT ref)) / NULLIF(COUNT(*), 0) AS duplication,
+           MAX(reported_at) AS latest, 60 AS cadence_min
+      FROM incidents WHERE reported_at >= now() - interval '30 days'
+    UNION ALL
+    SELECT 'assignments', COUNT(*)::int,
+           100.0 * COUNT(*) FILTER (WHERE onscene_at IS NOT NULL AND acknowledged_at IS NOT NULL AND enroute_at IS NOT NULL)
+                 / NULLIF(COUNT(*) FILTER (WHERE onscene_at IS NOT NULL), 0),
+           100.0 * COUNT(*) FILTER (WHERE (acknowledged_at IS NULL OR acknowledged_at >= offered_at)
+                                      AND (onscene_at IS NULL OR enroute_at IS NULL OR onscene_at >= enroute_at)) / NULLIF(COUNT(*), 0),
+           100.0 * (COUNT(*) - COUNT(DISTINCT ref)) / NULLIF(COUNT(*), 0),
+           MAX(offered_at), 60
+      FROM assignments WHERE offered_at >= now() - interval '30 days'
+    UNION ALL
+    SELECT 'weather_hourly', COUNT(*)::int,
+           100.0 * COUNT(DISTINCT date_trunc('hour', ts)) / (30 * 24),
+           100.0 * COUNT(*) FILTER (WHERE temp_c BETWEEN -5 AND 60 AND humidity BETWEEN 0 AND 100) / NULLIF(COUNT(*), 0),
+           100.0 * (COUNT(*) - COUNT(DISTINCT ts)) / NULLIF(COUNT(*), 0),
+           (SELECT MAX(ts) FROM weather_hourly), 60
+      FROM weather_hourly WHERE ts >= now() - interval '30 days'
+    UNION ALL
+    SELECT 'unit_positions', COUNT(*)::int,
+           100.0 * COUNT(DISTINCT p.unit_id) / NULLIF(cardinality($1::text[]), 0),
+           100.0 * COUNT(*) FILTER (WHERE p.speed IS NULL OR p.speed BETWEEN 0 AND 200) / NULLIF(COUNT(*), 0),
+           0,
+           MAX(p.ts), 10
+      FROM unit_positions p JOIN units u ON u.id = p.unit_id
+     WHERE p.ts >= now() - interval '24 hours' AND u.ref = ANY($1::text[])
+    UNION ALL
+    SELECT 'makani_points', COUNT(*)::int,
+           100.0 * COUNT(*) FILTER (WHERE makani_address IS NOT NULL AND makani_address <> '') / NULLIF(COUNT(*), 0),
+           100.0 * COUNT(*) FILTER (WHERE makani ~ '^[0-9]{10}$' AND geom IS NOT NULL) / NULLIF(COUNT(*), 0),
+           100.0 * (COUNT(*) - COUNT(DISTINCT makani)) / NULLIF(COUNT(*), 0),
+           NULL, NULL
+      FROM makani_points`,
+    [fleetRefs],
   );
   return rows;
 }

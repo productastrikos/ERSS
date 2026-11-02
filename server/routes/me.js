@@ -18,6 +18,8 @@ import * as incidents from '../repos/incidents.js';
 import { shapeAssignmentWithActions } from '../services/dispatch.js';
 import * as unitsSvc from '../services/units.js';
 import { actorFrom } from '../services/actor.js';
+import * as sim from '../sim/live.js';
+import { assistFor } from '../services/crewAssist.js';
 
 const router = Router();
 
@@ -49,6 +51,20 @@ router.patch('/me/unit/status', requireRole('responder'), wrap(async (req, res) 
   const unit = await fleet.unitById(pool, req.user.unit_id);
   if (!unit) throw forbidden('Unit not found or archived');
   res.json(await unitsSvc.setStatus(unit.ref, { status: r.data.status }, actorFrom(req.user)));
+}));
+
+/** The crew's AI co-pilot for the current job (services/crewAssist.js); null when idle. */
+router.get('/me/unit/assist', requireRole('responder'), wrap(async (req, res) => {
+  if (!req.user.unit_id) throw forbidden('This account is not bound to a unit');
+  res.json(await assistFor(req.user.unit_id));
+}));
+
+/** The crew app's "Simulate a call": a camera-raised collision, offered to this unit. */
+router.post('/me/unit/demo-job', requireRole('responder'), wrap(async (req, res) => {
+  if (!req.user.unit_id) throw forbidden('This account is not bound to a unit');
+  const unit = await fleet.unitById(pool, req.user.unit_id);
+  if (!unit) throw forbidden('Unit not found or archived');
+  res.status(201).json(await sim.demoJobFor(unit.ref));
 }));
 
 const PROFILE_SHAPE = z.object({

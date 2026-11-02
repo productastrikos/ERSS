@@ -7,21 +7,33 @@
  * camera — which sees the vehicle from BEHIND — it was a blank slab. This one is modelled
  * to be recognised from any side at thirty pixels:
  *
- *   from above    the red cross on the roof, the light bar, the dark windscreen
- *   from the side the raked cab, the tall patient box, the red battenburg band, a cross,
- *                 glazed cab windows, wheels with hubs
- *   from behind   the rear-door windows, the red-and-white chequer, tail lights, and the
- *                 corner beacons — the view a chase camera actually has
+ *   from above    the white front and blue rear of the roof split by the red heartbeat,
+ *                 the light bar, the dark windscreen
+ *   from the side the raked cab, the tall patient box, glazed cab windows, wheels with hubs
+ *                 — and the DCAS livery: white front, royal-blue rear behind a red ECG line,
+ *                 "إسعاف / Ambulance", the red-and-white chequer along the sill
+ *   from behind   blue rear doors with their windows, the heartbeat across them, the
+ *                 wordmark, the chequer, tail lights and the beacon bar — the view a chase
+ *                 camera actually has
+ *
+ * THE LIVERY IS THE CLIENT'S OWN. It is the Dubai Corporation for Ambulance Services'
+ * Emergency Response Unit as it runs on the road (white Chevrolet box body, blue rear, the
+ * red heartbeat between them, "Always in Safe Hands"), painted onto decal panels that sit a
+ * hair proud of the body: a canvas texture drawn once (`ambulanceLiveryTexture`), mapped onto
+ * both flanks, the cab doors, the rear doors and the roof (`ambulanceLiveryMesh`). Each flank
+ * has its own copy of the art, so the wordmark reads correctly on both sides, as it does on
+ * the vehicle.
  *
  * Built in code rather than loaded as a glTF on purpose: a control room may be air-gapped
  * (the fonts are self-hosted for the same reason), and the whole vehicle is ~1,900
  * triangles with no network request and nothing to cache-bust.
  *
  * COLOUR IS PAINT, NOT THEME. Every other mark on the map takes a token, because it is a
- * symbol. This is a model of a physical object: an ambulance is white with red markings
- * whether the console is in dark mode or light, so its colours are baked into the vertices
- * (`colors`) and the layer's instance colour only tints or dims it. Legibility against
- * either basemap comes from shading and the contact shadow, not from recolouring the van.
+ * symbol. This is a model of a physical object: a DCAS ambulance is white and blue with red
+ * markings whether the console is in dark mode or light, so its colours are baked into the
+ * vertices (`colors`) and the livery texture, from ONE paint palette below, and the layer's
+ * instance colour only tints or dims it. Legibility against either basemap comes from
+ * shading and the contact shadow, not from recolouring the van.
  *
  * No normals are supplied, deliberately: without them SimpleMeshLayer derives a flat
  * normal per pixel from screen-space derivatives, which gives every panel a crisp faceted
@@ -50,7 +62,10 @@ export interface MeshData {
 // ── Paint ────────────────────────────────────────────────────────────────────
 
 const WHITE: Rgb = [0.94, 0.94, 0.92];
-const RED: Rgb = [0.84, 0.11, 0.13];
+/** DCAS red — the heartbeat, the chequer, the Arabic wordmark on the cab. */
+const RED: Rgb = [0.86, 0.1, 0.16];
+/** DCAS royal blue — the rear of the body and the English wordmark. */
+const BLUE: Rgb = [0.13, 0.29, 0.66];
 const GLASS: Rgb = [0.09, 0.12, 0.16];
 const TRIM: Rgb = [0.17, 0.17, 0.18];
 const TYRE: Rgb = [0.06, 0.06, 0.065];
@@ -255,11 +270,7 @@ function buildShell(): MeshData {
   b.flank(cabWindow, CAB_HALF + PROUD, GLASS);
   b.flank(cabWindow, -CAB_HALF - PROUD, GLASS);
 
-  // Rear doors: two windows, and the split between the doors.
-  const rear = BOX.x0 - PROUD;
-  b.face([[0.12, 1.98], [0.84, 1.98], [0.84, 2.52], [0.12, 2.52]], rear, GLASS);
-  b.face([[-0.84, 1.98], [-0.12, 1.98], [-0.12, 2.52], [-0.84, 2.52]], rear, GLASS);
-  b.face([[-0.02, 0.9], [0.02, 0.9], [0.02, 2.8], [-0.02, 2.8]], rear - 0.001, TRIM);
+  // The rear doors — windows, split and paint — are on the livery texture (below).
 
   // Wheels.
   // Tucked just inside the body line, as a van's are, so a tyre never shares a plane with
@@ -269,48 +280,8 @@ function buildShell(): MeshData {
     b.wheel(x, -1.04, 0.28, 0.4, 0.4);
   }
 
-  // ── Livery ──
-  // Battenburg: two rows of alternating red blocks along the box, the one pattern that
-  // says "emergency ambulance" to anyone at any distance.
-  // Kept inside the flat part of the flank — the outer 0.12 m is bevel.
-  const rows: Array<[number, number]> = [[0.92, 1.24], [1.24, 1.56]];
-  const cols = 7;
-  const w = (BOX.x1 - 0.12 - (BOX.x0 + 0.12)) / cols;
-  for (let r = 0; r < rows.length; r++) {
-    for (let c = 0; c < cols; c++) {
-      if ((r + c) % 2) continue;
-      const x0 = BOX.x0 + 0.12 + c * w;
-      const cell: P2[] = [[x0, rows[r][0]], [x0 + w, rows[r][0]], [x0 + w, rows[r][1]], [x0, rows[r][1]]];
-      b.flank(cell, BOX.half + PROUD, RED);
-      b.flank(cell, -BOX.half - PROUD, RED);
-    }
-  }
-  // The band carries on round the cab as a stripe.
-  const cabStripe: P2[] = [[0.86, 1.1], [2.84, 1.1], [2.84, 1.36], [0.86, 1.36]];
-  b.flank(cabStripe, CAB_HALF + PROUD, RED);
-  b.flank(cabStripe, -CAB_HALF - PROUD, RED);
-  // And across the back as a chequer, for the chase camera's view.
-  for (let c = 0; c < 6; c++) {
-    const y0 = -0.98 + c * (1.96 / 6);
-    const y1 = y0 + 1.96 / 6;
-    for (let r = 0; r < 2; r++) {
-      if ((r + c) % 2) continue;
-      const z0 = 0.92 + r * 0.3;
-      b.face([[y0, z0], [y1, z0], [y1, z0 + 0.3], [y0, z0 + 0.3]], rear, RED);
-    }
-  }
-
-  // Crosses: one on each flank, one on the roof — the roof cross is what an operator sees
-  // from a tilted overview.
-  const crossAt = (cx: number, cz: number, arm: number, bar: number): P2[][] => [
-    [[cx - arm, cz - bar], [cx + arm, cz - bar], [cx + arm, cz + bar], [cx - arm, cz + bar]],
-    [[cx - bar, cz - arm], [cx + bar, cz - arm], [cx + bar, cz + arm], [cx - bar, cz + arm]],
-  ];
-  for (const part of crossAt(-1.15, 2.26, 0.42, 0.13)) {
-    b.flank(part, BOX.half + PROUD * 2, RED);
-    b.flank(part, -BOX.half - PROUD * 2, RED);
-  }
-  for (const part of crossAt(-0.9, 0, 0.62, 0.2)) b.roof(part, BOX.z1 + PROUD, RED);
+  // The livery — DCAS blue, the heartbeat, the wordmarks, the chequer — is not geometry:
+  // it is a texture on decal panels (ambulanceLiveryMesh / ambulanceLiveryTexture).
 
   return b.mesh();
 }
@@ -332,11 +303,335 @@ function buildBeacons(side: 1 | -1): MeshData {
   return b.mesh();
 }
 
+// ── The livery: decal panels and the art painted on them ────────────────────
+//
+// Five panels (two flanks, two cab doors, the rear doors, the roof) each map a rectangle of
+// ONE canvas atlas. The canvas's top row is v = 0 (luma.gl uploads it unflipped). Each panel
+// is the flat part of its face, corners cut so no decal overhangs the body's bevel, lifted
+// PROUD off the paint so the two never fight for the same depth.
+
+const ATLAS = { w: 1024, h: 512 };
+interface Region { x: number; y: number; w: number; h: number }
+const R_FLANK_L: Region = { x: 0, y: 0, w: 508, h: 266 };
+const R_FLANK_R: Region = { x: 516, y: 0, w: 508, h: 266 };
+const R_REAR: Region = { x: 0, y: 274, w: 236, h: 226 };
+const R_ROOF: Region = { x: 244, y: 274, w: 410, h: 223 };
+const R_CAB_L: Region = { x: 662, y: 274, w: 250, h: 100 };
+const R_CAB_R: Region = { x: 662, y: 382, w: 250, h: 100 };
+
+/** The flat of the box flank (and roof length): inside the 0.1 m bevel. */
+const FLANK = { x0: BOX.x0 + 0.11, x1: BOX.x1 - 0.11, z0: BOX.z0 + 0.11, z1: BOX.z1 - 0.11 };
+/** The cab door, below the side window and clear of the bonnet's rake. */
+const CAB_DOOR = { x0: 0.95, x1: 2.3, z0: 0.9, z1: 1.44 };
+/** Across the back and the roof. */
+const ACROSS = { y0: -BOX.half + 0.11, y1: BOX.half - 0.11 };
+/** The chequer band along the sill — the same physical height on the box and the cab. */
+const CHEQUER_M = 0.18;
+
+/** A textured triangle list: positions and texture coordinates, colour left white. */
+class DecalBuilder {
+  readonly positions: number[] = [];
+  readonly texCoords: number[] = [];
+
+  /** A convex outline, each vertex carrying its own UV, as a triangle fan. */
+  panel(pts: Vec3[], uv: (p: Vec3) => [number, number]): void {
+    for (let i = 1; i < pts.length - 1; i++) {
+      for (const p of [pts[0], pts[i], pts[i + 1]]) {
+        this.positions.push(...p);
+        this.texCoords.push(...uv(p));
+      }
+    }
+  }
+
+  mesh(): MeshData {
+    const n = this.positions.length / 3;
+    return {
+      positions: { value: new Float32Array(this.positions), size: 3 },
+      colors: { value: new Float32Array(n * 3).fill(1), size: 3 },
+      texCoords: { value: new Float32Array(this.texCoords), size: 2 },
+    };
+  }
+}
+
+/** Atlas UV for a point (s, t) in [0, 1] of a region — s across, t down. */
+const atlasUv = (r: Region, s: number, t: number): [number, number] =>
+  [(r.x + s * r.w) / ATLAS.w, (r.y + t * r.h) / ATLAS.h];
+
+function buildLivery(): MeshData {
+  const d = new DecalBuilder();
+  const rect = (a0: number, a1: number, b0: number, b1: number): P2[] => chamfer([[a0, b0], [a1, b0], [a1, b1], [a0, b1]], 0.1);
+  const fx = (x: number) => (FLANK.x1 - x) / (FLANK.x1 - FLANK.x0);          // 0 at the front
+  const fz = (z: number) => (FLANK.z1 - z) / (FLANK.z1 - FLANK.z0);          // 0 at the top
+  const ay = (y: number) => (ACROSS.y1 - y) / (ACROSS.y1 - ACROSS.y0);       // 0 on the left (+Y)
+
+  // Flanks. Seen from the vehicle's left (+Y) the front is on the viewer's left; from its
+  // right, on the viewer's right — so each side gets the art laid out for it.
+  const flank = rect(FLANK.x0, FLANK.x1, FLANK.z0, FLANK.z1);
+  const yl = BOX.half + PROUD;
+  d.panel(flank.map(([x, z]) => [x, yl, z] as Vec3), ([x, , z]) => atlasUv(R_FLANK_L, fx(x), fz(z)));
+  d.panel(flank.map(([x, z]) => [x, -yl, z] as Vec3), ([x, , z]) => atlasUv(R_FLANK_R, 1 - fx(x), fz(z)));
+
+  // Cab doors — the cab is narrower than the box.
+  const door = rect(CAB_DOOR.x0, CAB_DOOR.x1, CAB_DOOR.z0, CAB_DOOR.z1);
+  const cx = (x: number) => (CAB_DOOR.x1 - x) / (CAB_DOOR.x1 - CAB_DOOR.x0);
+  const cz = (z: number) => (CAB_DOOR.z1 - z) / (CAB_DOOR.z1 - CAB_DOOR.z0);
+  const yc = CAB_HALF + PROUD;
+  d.panel(door.map(([x, z]) => [x, yc, z] as Vec3), ([x, , z]) => atlasUv(R_CAB_L, cx(x), cz(z)));
+  d.panel(door.map(([x, z]) => [x, -yc, z] as Vec3), ([x, , z]) => atlasUv(R_CAB_R, 1 - cx(x), cz(z)));
+
+  // Rear doors: standing behind it you face the way it does, so its left (+Y) is your left.
+  const back = rect(ACROSS.y0, ACROSS.y1, FLANK.z0, FLANK.z1);
+  d.panel(back.map(([y, z]) => [BOX.x0 - PROUD, y, z] as Vec3), ([, y, z]) => atlasUv(R_REAR, ay(y), fz(z)));
+
+  // Roof, read from above with the nose to the left: the vehicle's RIGHT side is then at the
+  // top. (Nose left with its left side on top would be a mirror image, and 998 would read
+  // backwards from every heading.)
+  const roof = rect(FLANK.x0, FLANK.x1, ACROSS.y0, ACROSS.y1);
+  d.panel(roof.map(([x, y]) => [x, y, BOX.z1 + PROUD] as Vec3), ([x, y]) => atlasUv(R_ROOF, fx(x), 1 - ay(y)));
+
+  return d.mesh();
+}
+
+// ── The art ──────────────────────────────────────────────────────────────────
+
+const css = ([r, g, b]: Rgb, a = 1) => `rgb(${Math.round(r * 255)} ${Math.round(g * 255)} ${Math.round(b * 255)} / ${a})`;
+const DISPLAY = "'Lexend Deca', 'Lato', sans-serif";
+/** Arabic is set in whatever Arabic face the device has: neither brand face carries it. */
+const ARABIC = "'Segoe UI', 'Noto Naskh Arabic', 'Geeza Pro', sans-serif";
+
+type Ctx = CanvasRenderingContext2D;
+
+/** Text centred at (x, y), shrunk to fit `maxW` rather than overrunning a panel's edge. */
+function label(g: Ctx, text: string, x: number, y: number, px: number, font: string, colour: string, maxW: number, weight = 800, rtl = false): void {
+  g.save();
+  g.font = `${weight} ${px}px ${font}`;
+  g.direction = rtl ? 'rtl' : 'ltr';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillStyle = colour;
+  const w = g.measureText(text).width;
+  if (w > maxW) {
+    g.translate(x, y);
+    g.scale(maxW / w, 1);
+    g.fillText(text, 0, 0);
+  } else {
+    g.fillText(text, x, y);
+  }
+  g.restore();
+}
+
+/** Two rows of alternating red and white squares between x0 and x1, the band's top at y. */
+function chequer(g: Ctx, x0: number, x1: number, y: number, h: number): void {
+  const cell = h / 2;
+  g.fillStyle = css(WHITE);
+  g.fillRect(x0, y, x1 - x0, h);
+  g.fillStyle = css(RED);
+  for (let row = 0; row < 2; row++) {
+    for (let i = 0; x0 + i * cell < x1; i++) {
+      if ((i + row) % 2) continue;
+      g.fillRect(x0 + i * cell, y + row * cell, Math.min(cell, x1 - (x0 + i * cell)), cell);
+    }
+  }
+}
+
+/**
+ * The heartbeat: a red trace along a path, with one beat in it. `along` maps the trace's
+ * progress (0..1) to a canvas point, `across` is the unit vector the beat swings along, and
+ * `amp` its height in pixels.
+ */
+function heartbeat(g: Ctx, along: (k: number) => [number, number], across: [number, number], amp: number, width: number, beatAt = 0.5): void {
+  // One P-QRS-T complex as (progress offset, swing) pairs around `beatAt`.
+  const beat: Array<[number, number]> = [
+    [-0.16, 0], [-0.13, 0.18], [-0.1, 0], [-0.06, 0], [-0.04, -0.28], [0, 1], [0.035, -0.62], [0.06, 0],
+    [0.1, 0], [0.14, 0.26], [0.18, 0],
+  ];
+  const pts: Array<[number, number]> = [along(0)];
+  for (const [dk, sw] of beat) {
+    const [x, y] = along(beatAt + dk);
+    pts.push([x + across[0] * sw * amp, y + across[1] * sw * amp]);
+  }
+  pts.push(along(1));
+  g.save();
+  g.strokeStyle = css(RED);
+  g.lineWidth = width;
+  g.lineJoin = 'miter';
+  g.miterLimit = 6;
+  g.lineCap = 'butt';
+  g.beginPath();
+  pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
+  g.stroke();
+  g.restore();
+}
+
+/** The 998 badge: white on red, rounded. */
+function badge998(g: Ctx, cx: number, cy: number, h: number): void {
+  const w = h * 1.9;
+  g.fillStyle = css(RED);
+  g.beginPath();
+  g.roundRect(cx - w / 2, cy - h / 2, w, h, h * 0.2);
+  g.fill();
+  label(g, '998', cx, cy + h * 0.04, h * 0.72, DISPLAY, css(WHITE), w * 0.9, 900);
+}
+
+/**
+ * One flank of the patient box. `frontLeft`: the vehicle's nose is at the region's left edge
+ * (the left flank, seen from outside); otherwise at its right edge. Positions are worked in
+ * "front fraction" f (0 at the nose end of the box, 1 at the tail) so both sides are one design.
+ */
+function paintFlank(g: Ctx, r: Region, frontLeft: boolean): void {
+  const X = (f: number) => r.x + (frontLeft ? f : 1 - f) * r.w;
+  const Y = (t: number) => r.y + t * r.h;
+  const pxPerM = r.h / (FLANK.z1 - FLANK.z0);
+
+  g.save();
+  g.beginPath();
+  g.rect(r.x, r.y, r.w, r.h);
+  g.clip();
+  g.fillStyle = css(WHITE);
+  g.fillRect(r.x, r.y, r.w, r.h);
+
+  // The blue rear, behind a boundary that leans back as it rises — as on the vehicle.
+  const edge = (t: number) => 0.535 + 0.085 * (1 - t);
+  g.fillStyle = css(BLUE);
+  g.beginPath();
+  g.moveTo(X(edge(0)), Y(0));
+  g.lineTo(X(1.02), Y(0));
+  g.lineTo(X(1.02), Y(1));
+  g.lineTo(X(edge(1)), Y(1));
+  g.closePath();
+  g.fill();
+
+  // The chequer along the sill, under the white.
+  const band = CHEQUER_M * pxPerM;
+  const sillEnd = X(edge(1) - 0.01);
+  chequer(g, Math.min(X(0), sillEnd), Math.max(X(0), sillEnd), Y(1) - band, band);
+
+  // The heartbeat up the boundary, its beat swinging toward the nose.
+  const nose: [number, number] = [frontLeft ? -1 : 1, 0];
+  heartbeat(g, (k) => [X(edge(1 - k) - 0.008), Y(1 - k)], nose, 0.065 * r.w, Math.max(3, 0.04 * pxPerM), 0.5);
+
+  // Blue side: the wordmark, white.
+  const blueMid = X((edge(0.5) + 1) / 2 + 0.01);
+  const blueW = (1 - edge(0.5)) * r.w * 0.86;
+  label(g, 'إسعاف', blueMid, Y(0.36), r.h * 0.2, ARABIC, css(WHITE), blueW, 800, true);
+  label(g, 'Ambulance', blueMid, Y(0.56), r.h * 0.12, DISPLAY, css(WHITE), blueW, 800);
+
+  // White side: the motto in blue, the unit's name in red, the 998 badge by the boundary.
+  const whiteMid = X(0.27);
+  const whiteW = 0.42 * r.w;
+  label(g, 'دوما بأيد أمينة', whiteMid, Y(0.27), r.h * 0.07, ARABIC, css(BLUE), whiteW, 700, true);
+  label(g, 'Always in Safe Hands', whiteMid, Y(0.35), r.h * 0.05, DISPLAY, css(BLUE), whiteW, 700);
+  label(g, 'وحدة الإستجابة الطارئة', whiteMid, Y(0.5), r.h * 0.075, ARABIC, css(RED), whiteW, 800, true);
+  label(g, 'EMERGENCY RESPONSE UNIT', whiteMid, Y(0.585), r.h * 0.05, DISPLAY, css(RED), whiteW, 800);
+  badge998(g, X(0.47), Y(0.11), r.h * 0.09);
+  g.restore();
+}
+
+/** A cab door: "إسعاف" in red over "Ambulance" in blue, the chequer running on from the box. */
+function paintCab(g: Ctx, r: Region, frontLeft: boolean): void {
+  const X = (f: number) => r.x + (frontLeft ? f : 1 - f) * r.w;
+  const pxPerM = r.h / (CAB_DOOR.z1 - CAB_DOOR.z0);
+  g.save();
+  g.beginPath();
+  g.rect(r.x, r.y, r.w, r.h);
+  g.clip();
+  g.fillStyle = css(WHITE);
+  g.fillRect(r.x, r.y, r.w, r.h);
+  const band = CHEQUER_M * pxPerM;
+  chequer(g, r.x, r.x + r.w, r.y + r.h - band, band);
+  const mid = X(0.55);
+  label(g, 'إسعاف', mid, r.y + r.h * 0.27, r.h * 0.34, ARABIC, css(RED), r.w * 0.6, 800, true);
+  label(g, 'Ambulance', mid, r.y + r.h * 0.55, r.h * 0.18, DISPLAY, css(BLUE), r.w * 0.6, 800);
+  g.restore();
+}
+
+/** The rear doors, seen from behind: blue, two windows, the heartbeat, the wordmark, the chequer. */
+function paintRear(g: Ctx, r: Region): void {
+  const X = (u: number) => r.x + u * r.w;
+  const Y = (t: number) => r.y + t * r.h;
+  const pxPerM = r.h / (FLANK.z1 - FLANK.z0);
+  g.save();
+  g.beginPath();
+  g.rect(r.x, r.y, r.w, r.h);
+  g.clip();
+  g.fillStyle = css(BLUE);
+  g.fillRect(r.x, r.y, r.w, r.h);
+  // Windows, framed.
+  for (const [u0, u1] of [[0.08, 0.44], [0.56, 0.92]]) {
+    g.fillStyle = css(TRIM);
+    g.beginPath();
+    g.roundRect(X(u0) - 2, Y(0.12) - 2, X(u1) - X(u0) + 4, Y(0.43) - Y(0.12) + 4, 5);
+    g.fill();
+    g.fillStyle = css(GLASS);
+    g.beginPath();
+    g.roundRect(X(u0), Y(0.12), X(u1) - X(u0), Y(0.43) - Y(0.12), 4);
+    g.fill();
+  }
+  const band = CHEQUER_M * pxPerM;
+  chequer(g, r.x, r.x + r.w, Y(1) - band, band);
+  // The split between the two doors — under the paint that crosses it, as on the vehicle.
+  g.fillStyle = css(TRIM, 0.85);
+  g.fillRect(X(0.5) - 1, Y(0.04), 2, Y(1) - band - Y(0.04));
+  heartbeat(g, (k) => [X(k), Y(0.585)], [0, -1], 0.075 * r.h, Math.max(3, 0.04 * pxPerM), 0.3);
+  label(g, 'إسعاف', X(0.5), Y(0.71), r.h * 0.12, ARABIC, css(WHITE), r.w * 0.8, 800, true);
+  label(g, 'Ambulance', X(0.5), Y(0.82), r.h * 0.08, DISPLAY, css(WHITE), r.w * 0.8, 800);
+  g.restore();
+}
+
+/** The roof, nose at the left: white forward, blue aft, the heartbeat across, 998 for the air. */
+function paintRoof(g: Ctx, r: Region): void {
+  const X = (f: number) => r.x + f * r.w;
+  const Y = (t: number) => r.y + t * r.h;
+  g.save();
+  g.beginPath();
+  g.rect(r.x, r.y, r.w, r.h);
+  g.clip();
+  g.fillStyle = css(WHITE);
+  g.fillRect(r.x, r.y, r.w, r.h);
+  g.fillStyle = css(BLUE);
+  g.fillRect(X(0.58), r.y, r.w * 0.42, r.h);
+  heartbeat(g, (k) => [X(0.575), Y(k)], [-1, 0], 0.09 * r.w, Math.max(3, 0.05 * r.h), 0.5);
+  badge998(g, X(0.3), Y(0.5), r.h * 0.34);
+  g.restore();
+}
+
+let livery: MeshData | null = null;
+let liveryArt: HTMLCanvasElement | null = null;
+
+/** The livery's decal panels — drawn with `ambulanceLiveryTexture()` as the texture. */
+export function ambulanceLiveryMesh(): MeshData {
+  livery ??= buildLivery();
+  return livery;
+}
+
+/** The livery art, one atlas for every panel. Drawn once, on first use. */
+export function ambulanceLiveryTexture(): HTMLCanvasElement {
+  if (liveryArt) return liveryArt;
+  const canvas = document.createElement('canvas');
+  canvas.width = ATLAS.w;
+  canvas.height = ATLAS.h;
+  const g = canvas.getContext('2d');
+  if (g) {
+    // Gutters between regions take the body's white, so a far-off mip level bleeds white.
+    g.fillStyle = css(WHITE);
+    g.fillRect(0, 0, ATLAS.w, ATLAS.h);
+    paintFlank(g, R_FLANK_L, true);
+    paintFlank(g, R_FLANK_R, false);
+    paintCab(g, R_CAB_L, true);
+    paintCab(g, R_CAB_R, false);
+    paintRear(g, R_REAR);
+    paintRoof(g, R_ROOF);
+  }
+  liveryArt = canvas;
+  return canvas;
+}
+
 let shell: MeshData | null = null;
 let beaconLeft: MeshData | null = null;
 let beaconRight: MeshData | null = null;
 
-/** The whole painted vehicle — body, glass, wheels, trim and livery — in one draw. */
+/** The painted vehicle — body, glass, wheels and trim — in one draw. The livery is a
+ *  second, textured draw over it (ambulanceLiveryMesh). */
 export function ambulanceMesh(): MeshData {
   shell ??= buildShell();
   return shell;
@@ -376,12 +671,13 @@ let topDown: ColourIcon | null = null;
 /**
  * The ambulance from directly above, nose up — what the 3D model looks like from a
  * satellite, so shrinking from model to symbol as the camera pulls back is a change of
- * detail, not a change of object. Laid FLAT on the map (billboard: false) and turned to
- * the heading, it lies on the road the way the vehicle does.
+ * detail, not a change of object: the white front, the blue rear, the red heartbeat
+ * between them, the light bar. Laid FLAT on the map (billboard: false) and turned to the
+ * heading, it lies on the road the way the vehicle does.
  *
- * Full colour, not a mask, for the same reason the model's paint is baked: it is a
- * picture of a white vehicle with red markings. A dark keyline keeps it legible on the
- * light basemap.
+ * Full colour, not a mask, for the same reason the model's paint is baked: it is a picture
+ * of a DCAS vehicle, in the same paint palette as the model. A dark keyline keeps it legible
+ * on the light basemap.
  */
 export function ambulanceTopIcon(): ColourIcon {
   if (topDown) return topDown;
@@ -397,35 +693,57 @@ export function ambulanceTopIcon(): ColourIcon {
       g.roundRect(x, y, w, h, r);
     };
     // Soft shadow so it sits on the road rather than floating over it.
-    g.shadowColor = 'rgba(0,0,0,0.55)';
+    g.shadowColor = css(TYRE, 0.55);
     g.shadowBlur = 6;
     rr(10, 8, 44, 112, 9);
-    g.fillStyle = '#F0F0EB';
+    g.fillStyle = css(WHITE);
     g.fill();
     g.shadowBlur = 0;
+    // The blue rear of the box, clipped to the body's outline.
+    g.save();
+    rr(10, 8, 44, 112, 9);
+    g.clip();
+    g.fillStyle = css(BLUE);
+    g.fillRect(10, 76, 44, 46);
+    g.restore();
+    rr(10, 8, 44, 112, 9);
     g.lineWidth = 3;
-    g.strokeStyle = 'rgba(20,20,20,0.85)';
+    g.strokeStyle = css(TYRE, 0.85);
     g.stroke();
     // Bonnet and windscreen (the front is at the top).
     rr(15, 12, 34, 12, 5);
-    g.fillStyle = '#D9D9D4';
+    g.fillStyle = css(ROOF_UNIT);
     g.fill();
     rr(14, 25, 36, 11, 3);
-    g.fillStyle = '#18202A';
+    g.fillStyle = css(GLASS);
     g.fill();
     // Light bar: red left, blue right.
-    g.fillStyle = '#D81E22';
+    g.fillStyle = css(RED);
     g.fillRect(14, 39, 17, 6);
-    g.fillStyle = '#2A62E0';
+    g.fillStyle = css(BLUE);
     g.fillRect(33, 39, 17, 6);
-    // Roof cross.
-    g.fillStyle = '#D81E22';
-    g.fillRect(27, 60, 10, 38);
-    g.fillRect(16, 74, 32, 10);
+    // The heartbeat across the boundary.
+    g.strokeStyle = css(RED);
+    g.lineWidth = 3.2;
+    g.lineJoin = 'miter';
+    g.beginPath();
+    g.moveTo(11, 76);
+    g.lineTo(24, 76);
+    g.lineTo(27, 70);
+    g.lineTo(31, 84);
+    g.lineTo(35, 66);
+    g.lineTo(38, 79);
+    g.lineTo(41, 76);
+    g.lineTo(53, 76);
+    g.stroke();
+    // 998 on the white of the roof.
+    g.fillStyle = css(RED);
+    rr(20, 52, 24, 12, 2);
+    g.fill();
     // Rear edge.
-    g.fillStyle = '#2A2A2C';
+    g.fillStyle = css(TRIM);
     g.fillRect(14, 114, 36, 4);
   }
-  topDown = { id: 'ambulance-top', url: canvas.toDataURL(), width: W, height: H, mask: false };
+  topDown = { id: 'ambulance-top-dcas', url: canvas.toDataURL(), width: W, height: H, mask: false };
   return topDown;
 }

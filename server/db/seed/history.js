@@ -58,9 +58,18 @@ export async function seedHistory({ rngSeed, months, log }) {
   const totalDays = (end - start) / DAY_MS;
   log(`  target        ${Math.round(PER_DAY * totalDays).toLocaleString('en-GB')} incidents over ${Math.round(totalDays)} days`);
 
+  // Live and demo incidents survive a reseed and share the per-day ref namespace; a
+  // seeded ref that lands on one moves up by 10000 rather than failing the whole load.
+  const taken = new Set((await query('SELECT ref FROM incidents')).rows.map((r) => r.ref));
   const out = generateHistory({
     ...reference, rng, start: start.getTime(), end: end.getTime(),
-    refFor: (ts, seq) => `INC-${fmtDate(ts)}-${String(seq % 10000).padStart(4, '0')}`,
+    refFor: (ts, seq) => {
+      let n = seq % 10000;
+      let ref = `INC-${fmtDate(ts)}-${String(n).padStart(4, '0')}`;
+      while (taken.has(ref)) { n += 10000; ref = `INC-${fmtDate(ts)}-${n}`; }
+      taken.add(ref);
+      return ref;
+    },
   });
   log(`  generated     ${out.incidents.length.toLocaleString('en-GB')} incidents in memory`);
   await bulkLoad({ ...out, log });

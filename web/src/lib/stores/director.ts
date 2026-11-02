@@ -18,6 +18,8 @@ import { createStore, useStore } from './createStore';
 export interface DirectorState {
   /** The incident being followed, or null before the first one. */
   ref: string | null;
+  /** Where it is, from the alert itself — so the map can go there before the live feed has it. */
+  at: [number, number] | null;
   /** When it was picked up (ms). */
   since: number;
   /** A person has the camera for this story. */
@@ -26,11 +28,11 @@ export interface DirectorState {
   followRequest: { asgRef: string; at: number } | null;
 }
 
-export const directorStore = createStore<DirectorState>({ ref: null, since: 0, paused: false, followRequest: null });
+export const directorStore = createStore<DirectorState>({ ref: null, at: null, since: 0, paused: false, followRequest: null });
 
-export function focusIncident(ref: string): void {
+export function focusIncident(ref: string, at: [number, number] | null = null): void {
   if (directorStore.get().ref === ref) return;
-  directorStore.set({ ref, since: Date.now(), paused: false });
+  directorStore.set({ ref, at, since: Date.now(), paused: false });
 }
 
 export const pauseDirector = () => { if (!directorStore.get().paused) directorStore.set({ paused: true }); };
@@ -40,5 +42,8 @@ export const resumeDirector = () => directorStore.set({ paused: false });
  *  director stands back for the rest of the story. */
 export const requestFollow = (asgRef: string) => directorStore.set({ followRequest: { asgRef, at: Date.now() }, paused: true });
 export const clearFollowRequest = () => directorStore.set({ followRequest: null });
+
+/** A PoC restart: the story being followed no longer exists. */
+export const resetDirector = () => directorStore.set({ ref: null, at: null, since: 0, paused: false, followRequest: null });
 
 export const useDirector = () => useStore(directorStore);

@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useRef, type ReactNode } from 'react';
-import type { Incident, Priority, Unit, UnitKind, UnitStatus } from '../lib/types';
+import type { Hospital, Incident, Priority, Unit, UnitKind, UnitStatus } from '../lib/types';
 import { useBoot } from '../lib/stores/session';
 import { MapCanvas, type MapCanvasHandle } from '../shared/map/MapCanvas';
 import { setFollow, setLayerData, type MapView } from '../shared/map/layerRegistry';
@@ -24,7 +24,7 @@ export interface TrackUnit {
   heading: number | null;
 }
 
-export function TrackMap({ view, target, priority = 'P1', unit, route, leg = 'scene', follow = false, fitKey, children }: {
+export function TrackMap({ view, target, priority = 'P1', unit, route, leg = 'scene', follow = false, fitKey, hospital, children }: {
   view: MapView;
   target: { lng: number; lat: number } | null;
   priority?: Priority;
@@ -35,6 +35,8 @@ export function TrackMap({ view, target, priority = 'P1', unit, route, leg = 'sc
   follow?: boolean;
   /** Change it to re-frame the ambulance and the destination together. */
   fitKey?: string;
+  /** The hospital the patient is going to, on a view with a `destination` layer (citizenMap). */
+  hospital?: { ref: string; name: string; lng: number; lat: number } | null;
   children?: ReactNode;
 }) {
   const agencies = useBoot()?.agencies;
@@ -60,20 +62,34 @@ export function TrackMap({ view, target, priority = 'P1', unit, route, leg = 'sc
     setLayerData(view, 'responses', { routes: route && route.length > 1 ? [{ ref: 'route', leg, priority, path: route }] : [] });
   }, [view, route, leg, priority]);
 
+  const hRef = hospital?.ref ?? null;
+  const hLng = hospital?.lng;
+  const hLat = hospital?.lat;
+  const hName = hospital?.name;
+  const drawsDestination = hospital !== undefined;
+  useEffect(() => {
+    if (!drawsDestination) return;   // this view does not draw a destination
+    setLayerData(view, 'destination', hRef && hLng != null && hLat != null
+      ? [{ ref: hRef, name: hName, lng: hLng, lat: hLat, onDiversion: false } as unknown as Hospital]
+      : []);
+  }, [view, hRef, hLng, hLat, hName, drawsDestination]);
+
   const unitRef = unit?.ref ?? null;
   useEffect(() => {
     setFollow(view, follow && unitRef ? { layerId: 'units', id: unitRef } : null);
   }, [view, follow, unitRef]);
 
   // Frame both ends once per fitKey, from the latest positions.
-  const latest = useRef({ unit, target });
-  useEffect(() => { latest.current = { unit, target }; });
+  const latest = useRef({ unit, target, hospital });
+  useEffect(() => { latest.current = { unit, target, hospital }; });
   useEffect(() => {
     if (!fitKey) return;
     const { unit: u, target: tg } = latest.current;
     const points: Array<[number, number]> = [];
     if (u) points.push([u.lng, u.lat]);
     if (tg) points.push([tg.lng, tg.lat]);
+    const h = latest.current.hospital;
+    if (h) points.push([h.lng, h.lat]);
     if (points.length) focus.fitTo(points, { padding: 70, maxZoom: 15.5 });
   }, [fitKey, focus]);
 

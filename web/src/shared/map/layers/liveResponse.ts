@@ -7,12 +7,10 @@
  *   WHERE ARE THE CALLS?      A column of light rises from every live emergency, its
  *                             height and hue set by priority. A column is visible across
  *                             the whole emirate at a tilt, where a 9-pixel dot is not.
- *   IS ANYONE GOING?          A dashed violet line joins the responding ambulance to its
- *                             call. One look says which alerts are covered and which are
- *                             not — a call with no link is a call with nobody on the way.
- *                             It is STRAIGHT, DASHED and a colour no road on this map uses,
- *                             because the first version was a priority-coloured arc and an
- *                             operator could not tell it from the route itself.
+ *   IS ANYONE GOING?          The road ahead of the responding ambulance, from vehicle to
+ *                             call. Only when no road is known yet does a dashed violet
+ *                             straight link stand in for it — beside a drawn route, a
+ *                             straight line reads as the crew cutting across the city.
  *   WHERE HAVE THEY GOT TO?   The ambulance drives its route: the road ahead is drawn as
  *                             a lit path, the road behind fades out as a trail, and the
  *                             vehicle itself sits at its live position, turned to its
@@ -125,7 +123,7 @@ const LABEL_RANK: Record<Priority, number> = { P1: 4, P2: 3, P3: 2, P4: 1 };
 const LABEL_OFFSET_PX = 30;
 
 const priorityToken = (p: Priority) =>
-  (p === 'P1' ? '--app-danger' : p === 'P2' ? '--app-accent' : p === 'P3' ? '--app-info' : '--app-text-muted');
+  (p === 'P1' ? '--app-danger' : p === 'P2' ? '--app-warning' : p === 'P3' ? '--app-info' : '--app-text-muted');
 
 const priorityColour = (p: Priority, alpha = 1): Rgba => rgba(priorityToken(p), alpha);
 
@@ -143,7 +141,7 @@ const priorityColour = (p: Priority, alpha = 1): Rgba => rgba(priorityToken(p), 
  * route's colour is free to say where the crew is going, which is what an operator asks.
  */
 const legColour = (r: LiveResponse, alpha = 1): Rgba =>
-  (r.leg === 'hospital' ? rgba('--app-info', alpha) : rgba('--app-accent', alpha));
+  (r.leg === 'hospital' ? rgba('--series-3', alpha) : rgba('--app-accent', alpha));
 
 /** Every live call: the ones being responded to, plus the ones still waiting. */
 const columns = memoOn((d: LiveResponseData): Array<{ ref: string; position: LngLat; priority: Priority; kind: string; covered: boolean; label: string }> => [
@@ -184,14 +182,14 @@ export const liveResponseLayer = defineLayer<LiveResponseData>({
   // like at each priority, then the three kinds of line. Each row is also a filter.
   legend: [
     { label: 'map.legend.liveP1', key: 'P1', swatch: { kind: 'hazard', token: '--app-danger' } },
-    { label: 'map.legend.liveP2', key: 'P2', swatch: { kind: 'hazard', token: '--app-accent' } },
+    { label: 'map.legend.liveP2', key: 'P2', swatch: { kind: 'hazard', token: '--app-warning' } },
     { label: 'map.legend.liveP3', key: 'P3', swatch: { kind: 'hazard', token: '--app-info' } },
     { label: 'map.legend.liveP4', key: 'P4', swatch: { kind: 'hazard', token: '--app-text-muted' } },
     { label: 'map.legend.liveAlert', key: 'alert', swatch: { kind: 'hazard-ring', token: '--app-danger' } },
     { label: 'map.legend.liveEnroute', key: 'enroute', swatch: { kind: 'line', token: '--app-accent' } },
     { label: 'map.legend.liveTraffic', key: 'enroute', swatch: { kind: 'line', token: '--app-danger' } },
     { label: 'map.legend.liveLink', key: 'link', swatch: { kind: 'dashed', token: '--map-link' } },
-    { label: 'map.legend.liveToHospital', key: 'hospital', swatch: { kind: 'line', token: '--app-info' } },
+    { label: 'map.legend.liveToHospital', key: 'hospital', swatch: { kind: 'line', token: '--series-3' } },
   ],
   filterFor: (data, key) => {
     if (key === 'P1' || key === 'P2' || key === 'P3' || key === 'P4') {
@@ -470,11 +468,14 @@ function trails(rows: LiveResponse[], ctx: LayerContext): Layer[] {
  * transport colour. It is drawn over the buildings (depthCompare: always) so a tower
  * standing between the two cannot break the relationship it states.
  *
- * Hidden while riding with a vehicle: at street height it is a line across the windscreen,
- * and the road ahead already says where the crew is going.
+ * Only where there is no road to draw. Beside a drawn route, a straight line from the same
+ * vehicle to the same call reads as the ambulance cutting across the city, whatever its
+ * colour — the road ahead already says who is going where. Hidden while riding with a
+ * vehicle for the same reason.
  */
 function assignmentLinks(rows: LiveResponse[], ctx: LayerContext): Layer[] {
-  const scene = rows.filter((r): r is LiveResponse & { unit: LngLat } => !!r.unit && r.leg === 'scene');
+  const scene = rows.filter((r): r is LiveResponse & { unit: LngLat } =>
+    !!r.unit && r.leg === 'scene' && !(r.path && r.path.length > 1));
   if (!scene.length || ctx.follow?.layerId === 'live') return [];
   const link = rgba('--map-link', 0.95);
   const over = { depthCompare: 'always' as const, depthWriteEnabled: false };

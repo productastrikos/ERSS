@@ -830,6 +830,60 @@ CREATE TABLE IF NOT EXISTS dispatch_rules (
 );
 
 
+-- Every reasonable road for one journey (OSRM main route + alternatives), with manoeuvres
+-- and per-segment free-flow speeds — what the AI weighs when it chooses a ROUTE rather
+-- than a straight line (engines/drive.js). JSON because it is read whole and never queried.
+CREATE TABLE IF NOT EXISTS route_options_cache (
+  key         text PRIMARY KEY,               -- osrm:options:lng,lat;lng,lat at ~1 m
+  body        jsonb NOT NULL,
+  fetched_at  timestamptz NOT NULL DEFAULT now()
+);
+
+
+-- The AI's log of an incident, KEPT. The console's step-by-step reasoning (which
+-- ambulances it weighed, which roads, why it chose what it chose) and the crew app's AI
+-- co-pilot (the briefing, the road advice, scene safety, the drafted handover) were built
+-- on every read and lost with the process. Written here as they happen, so an after-action
+-- replay shows the team exactly what each screen said and when — and the review findings
+-- computed at close sit beside them (`source = 'review'`).
+CREATE TABLE IF NOT EXISTS incident_ai_log (
+  id           bigserial PRIMARY KEY,
+  incident_id  uuid NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
+  source       text NOT NULL CHECK (source IN ('console', 'crew', 'review')),
+  key          text NOT NULL,
+  ts           timestamptz NOT NULL,
+  title        text NOT NULL,
+  detail       text,
+  tone         text,
+  items        jsonb NOT NULL DEFAULT '[]',
+  meta         jsonb,
+  recorded_at  timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (incident_id, source, key)
+);
+CREATE INDEX IF NOT EXISTS incident_ai_log_inc_idx ON incident_ai_log (incident_id, ts);
+
+
+-- The day's incident-ref high-water mark (repos/incidents.js nextIncidentRef), so a ref is
+-- never handed out twice — not even after a PoC restart deletes the incidents that had it.
+CREATE TABLE IF NOT EXISTS ref_counters (
+  prefix text PRIMARY KEY,
+  last   int NOT NULL
+);
+
+-- A person's edits to an incident report before they download it (title, summary,
+-- clinical notes, recommendations, sections left out) — kept per audience, so the console's
+-- report and the crew's hand-over report of the same incident do not overwrite each other.
+-- services/reports.js also creates this on first use, for a database older than this build.
+CREATE TABLE IF NOT EXISTS incident_reports (
+  incident_id uuid NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
+  audience    text NOT NULL,
+  edits       jsonb NOT NULL DEFAULT '{}',
+  updated_by  text,
+  updated_at  timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (incident_id, audience)
+);
+
+
 -- A short SIGN-IN NAME, separate from the operational ref. A ref is `<rolecode>-<4 hex>`
 -- (docs/03 §1) and identifies a person in the audit trail; `admin` is not a ref, an email
 -- or a phone number, and forcing it to be one of them would either break that convention

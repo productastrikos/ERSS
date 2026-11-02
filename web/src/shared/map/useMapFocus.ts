@@ -11,6 +11,7 @@ import { useCallback, type RefObject } from 'react';
 import { LngLatBounds } from 'maplibre-gl';
 import type { MapCanvasHandle } from './MapCanvas';
 import { setFollow } from './layerRegistry';
+import { occlusion, padded } from './occlusion';
 
 export const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -27,7 +28,8 @@ export function useMapFocus(handle: RefObject<MapCanvasHandle | null>): MapFocus
   const flyTo = useCallback((lngLat: [number, number], zoom?: number) => {
     const map = handle.current?.map();
     if (!map) return;
-    const opts = { center: lngLat, zoom: zoom ?? Math.max(map.getZoom(), 14) };
+    // Centred in what is VISIBLE — not under a panel laid over the map (occlusion.ts).
+    const opts = { center: lngLat, zoom: zoom ?? Math.max(map.getZoom(), 14), padding: occlusion(map) };
     if (prefersReducedMotion()) map.jumpTo(opts);
     else map.flyTo({ ...opts, duration: 900, essential: true });
   }, [handle]);
@@ -41,7 +43,7 @@ export function useMapFocus(handle: RefObject<MapCanvasHandle | null>): MapFocus
     }
     const bounds = points.reduce((b, p) => b.extend(p), new LngLatBounds(points[0], points[0]));
     map.fitBounds(bounds, {
-      padding: opts.padding ?? 64,
+      padding: padded(occlusion(map), opts.padding ?? 64),
       maxZoom: opts.maxZoom ?? 16,
       duration: prefersReducedMotion() ? 0 : 700,
     });

@@ -171,6 +171,57 @@
   }
 }
 
+/* ── Basemap picker — heads the layer panel ─────────────────────────────────── */
+
+.map-basemaps {
+  padding-bottom: var(--sp-10);
+
+  &__grid {
+    /* One equal column per option the deployment offers (two or three). */
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: var(--sp-8);
+    padding-inline: var(--sp-14);
+  }
+
+  &__option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--app-text-muted);
+    cursor: pointer;
+
+    &:hover { color: var(--app-text); }
+    &[aria-checked='true'] { color: var(--app-text); font-weight: 800; }
+    &:focus-visible { outline: none; }
+    &:focus-visible .map-basemaps__swatch { outline: 2px solid var(--app-accent); outline-offset: 2px; }
+  }
+
+  &__swatch {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border-radius: var(--r-8);
+    background: var(--app-surface-raised);
+    box-shadow: inset 0 0 0 1px var(--app-border-soft);
+    color: var(--app-text-muted);
+    transition: box-shadow var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+
+    svg { width: 18px; height: 18px; }
+  }
+  &__option:hover &__swatch { color: var(--app-text); }
+  &__option[aria-checked='true'] &__swatch {
+    box-shadow: inset 0 0 0 2px var(--app-accent);
+    color: var(--app-accent);
+  }
+}
+
 /* ── Legend ─────────────────────────────────────────────────────────────────── */
 
 .map-legend {

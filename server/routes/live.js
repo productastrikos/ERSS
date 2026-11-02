@@ -100,6 +100,13 @@ router.post('/sim/hold/:ref', requireCap('operations.dispatch'), wrap(async (req
   res.json(sim.hold(req.params.ref));
 }));
 
+/** The demonstration's next scenario, now — refused while the current one is still running. */
+router.post('/sim/next', CONTROL, wrap(async (req, res) => {
+  const state = await sim.nextScenario();
+  await audit({ action: 'sim.next', entity: 'simulation', entityId: state.runRef, actor: auditActor(actorFrom(req.user)), payload: { next: state.scenario?.next?.title ?? null } });
+  res.json(state);
+}));
+
 router.post('/sim/reset', CONTROL, wrap(async (req, res) => {
   const out = await sim.reset();
   await audit({ action: 'sim.reset', entity: 'simulation', actor: auditActor(actorFrom(req.user)), payload: { removed: out.removed } });

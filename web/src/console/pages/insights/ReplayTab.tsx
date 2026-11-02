@@ -27,6 +27,8 @@ import { REPLAY_VEHICLE } from '../../../shared/map/layers/replay';
 import { buildTrip, PlaybackClock } from '../../../shared/map/replay/trip';
 import type { ReplayResult } from '../../../lib/types';
 import { useInsight } from './useInsight';
+import { ReplayAiLog, ReplayReview, ReplayRoads } from './ReplayAiPanel';
+import { ReportButton } from '../../../shared/report/ExportButton';
 
 /** Findings over one reconstructed job — the forensic read, not the aggregate. */
 function replayFindings(r: ReplayResult): Finding[] {
@@ -105,7 +107,9 @@ const clock = (sec: number) => {
 
 export function ReplayTab() {
   const list = useInsight('replayable', () => api.insights.replayable(24));
-  const [ref, setRef] = useState<string | null>(null);
+  // A deep link (/insights/replay?incident=…) — from the AI response drawer or the wall
+  // view's corpus panel — opens that job straight away.
+  const [ref, setRef] = useState<string | null>(() => new URLSearchParams(window.location.search).get('incident'));
   const detail = useInsight(ref ?? '', () => (ref ? api.insights.replay(ref) : Promise.resolve(null)));
   const mapRef = useRef<MapCanvasHandle>(null);
   const view = useMapView(replayMap);
@@ -249,7 +253,8 @@ export function ReplayTab() {
           <AdvisoryStrip findings={replayFindings(r)} note="Computed from this job's own reconstruction." />
 
           <Card title={`${t(`kind.${r.incident.kind}`)} · ${r.incident.priority}`}
-                subtitle={[r.incident.buildingName, r.incident.zoneName].filter(Boolean).join(', ') || undefined} flush>
+                subtitle={[r.incident.buildingName, r.incident.zoneName].filter(Boolean).join(', ') || undefined} flush
+                actions={<ReportButton incidentRef={r.incident.ref} label="Download report" />}>
             <div className="insights__replay-body">
               <div className="insights__replay-map">
                 <MapCanvas view={replayMap} ref={mapRef}
@@ -337,6 +342,18 @@ export function ReplayTab() {
               </div>
             </div>
           </Card>
+
+          {r.ai && (
+            <div className="insights__replay-ai">
+              <ReplayAiLog ai={r.ai} playing={playing}
+                           atMs={trip ? trip.from + progress * (trip.to - trip.from) : null}
+                           onSeek={(ms) => trip && seek(Math.min(1, Math.max(0, (ms - trip.from) / (trip.to - trip.from))))} />
+              <div className="insights__replay-ai-side">
+                <ReplayReview ai={r.ai} />
+                <ReplayRoads ai={r.ai} />
+              </div>
+            </div>
+          )}
 
           <Card title={t('timeline.title')} variant="flat">
             <ol className="insights__timeline">

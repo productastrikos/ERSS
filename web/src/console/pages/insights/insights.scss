@@ -234,7 +234,7 @@
   cursor: pointer;
 
   &[data-priority='P1'] { border-inline-start-color: var(--app-danger); }
-  &[data-priority='P2'] { border-inline-start-color: var(--app-accent); }
+  &[data-priority='P2'] { border-inline-start-color: var(--app-warning); }
   &[data-priority='P3'] { border-inline-start-color: var(--app-info); }
   &[data-priority='P4'] { border-inline-start-color: var(--app-text-faint); }
 

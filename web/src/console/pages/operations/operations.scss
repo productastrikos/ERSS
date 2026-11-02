@@ -17,7 +17,7 @@
               background: var(--app-panel); box-shadow: var(--app-shadow-sm), var(--app-edge-light);
               /* Same livery cap as every other map/card on the app (dashboard, live ops). */
               &::before { content: ''; position: absolute; inset-inline: 0; inset-block-start: 0; height: 3px;
-                          background: var(--app-brand-gradient); z-index: 1; } }
+                          background: var(--app-brand-blue); z-index: 1; } }
   &__detail { grid-area: detail; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: var(--sp-12);
               scrollbar-gutter: stable; }
   &__kpis   { grid-area: kpis; }

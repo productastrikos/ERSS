@@ -26,7 +26,10 @@ import { IconLayer, ScatterplotLayer } from '@deck.gl/layers';
 import { SimpleMeshLayer } from '@deck.gl/mesh-layers';
 import type { Layer } from '@deck.gl/core';
 import type { LayerContext } from '../layerRegistry';
-import { AMBULANCE_LENGTH_M, ambulanceBeaconMesh, ambulanceMesh, ambulanceTopIcon, headingToOrientation } from '../icons/vehicleMesh';
+import {
+  AMBULANCE_LENGTH_M, ambulanceBeaconMesh, ambulanceLiveryMesh, ambulanceLiveryTexture, ambulanceMesh, ambulanceTopIcon,
+  headingToOrientation,
+} from '../icons/vehicleMesh';
 import { rgba, type Rgba } from '../tokens';
 
 type LngLat = [number, number];
@@ -183,6 +186,15 @@ export function vehicleLayers<T>(o: VehicleOptions<T>): Layer[] {
         pickable: o.pickable ?? true,
         mesh: ambulanceMesh(),
         getColor: [255, 255, 255, 255],
+        material: PAINT,
+      }),
+      // The DCAS livery on its decal panels — lit like the paint it is. Not pickable: a pick
+      // on the livery falls through to the body beneath it, which is.
+      new SimpleMeshLayer<T>({
+        ...common,
+        id: `${id}:livery`,
+        mesh: ambulanceLiveryMesh(),
+        texture: ambulanceLiveryTexture(),
         material: PAINT,
       }),
       // Beacons are unlit: a lamp is a light source, and shading one makes it look off.

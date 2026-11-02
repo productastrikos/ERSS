@@ -14,11 +14,13 @@ import type {
   Incident, Unit, Assignment, Advisory, Paged, ApiErrorShape, GeoJSONFeatureCollection,
   AgencyNotification, Patient, IncidentDetail, Recommendation, Correlation, HospitalRanking,
   KpiToday, CreateIncidentResult, TransitionResult, AssignmentAction, AgencyCode,
-  SimState, SimIntensity, LiveAssignments, LiveSummary, FeedItem, AlertItem, Priority, SosStatus,
+  SimState, SimIntensity, LiveAssignments, LiveSummary, FeedItem, AlertItem, Priority, SosStatus, SosDemoPlace,
+  IncidentReport, ReportDraft, ReportRow, VitalsPack,
   AlmanacResult, MonthlyResult, DailyResult, CallTypesResult, RadialResult, CompareResult,
   CallCentreResult, PerformanceResult, EtaAccuracyResult, ReplayableItem, ReplayResult,
   FilterOptions, Camera, Detection,
   DecisionTrace, AutoDispatchReport, UnitDetail, DispatchRules, DispatchRulesState,
+  CrewAssist, NearestAmbulance,
 } from './types';
 import { getToken } from './authToken';
 
@@ -341,6 +343,8 @@ export const api = {
     /** Take a call back from the AI's countdown. */
     hold: (incidentRef: string) => post<SimState>(`/api/sim/hold/${incidentRef}`),
     reset: () => post<{ removed: number; state: SimState }>('/api/sim/reset'),
+    /** The demonstration's next incident, now — refused while one is still running. */
+    next: () => post<SimState>('/api/sim/next'),
   },
   /** Camera detections — the floor under the `detection:stage` socket stream, for a
    *  console that has just loaded or just reconnected. */
@@ -413,13 +417,34 @@ export const api = {
   },
 
   // ── Citizen ───────────────────────────────────────────────────────────────
+  /** Incident reports — every audience; the server decides which one this user reads. */
+  reports: {
+    register: (days = 30) => get<ReportRow[]>('/api/reports/incidents', { days }),
+    get: (ref: string) => get<IncidentReport>(`/api/reports/incidents/${ref}`),
+    saveDraft: (ref: string, edits: ReportDraft) => put<ReportDraft>(`/api/reports/incidents/${ref}/draft`, edits),
+  },
+  /** The patient's own vitals on an incident (citizen wearable), with the trend analysis. */
+  incidentVitals: (ref: string) => get<VitalsPack | null>(`/api/incidents-vitals/${ref}`),
+
   sos: {
-    create: (data: { kind?: string; lng: number; lat: number; accuracy?: number; silent?: boolean; note?: string }, idempotencyKey?: string) =>
+    create: (data: {
+      kind?: string; lng: number; lat: number; accuracy?: number; silent?: boolean; note?: string;
+      /** The wearable readings that led up to the SOS — epoch ms. */
+      vitals?: Array<{ ts: number; bpm: number | null; spo2: number | null }>; vitalsDevice?: string;
+    }, idempotencyKey?: string) =>
       post<{ ref: string; state: string }>('/api/sos', data, { idempotencyKey }),
+    /** More readings while help is on the way — streamed to the crew answering. */
+    vitals: (ref: string, readings: Array<{ ts: number; bpm: number | null; spo2: number | null }>, device?: string) =>
+      post<{ added: number }>(`/api/sos/${ref}/vitals`, { readings, device }),
     cancel: (ref: string) => post<{ ok: true }>(`/api/sos/${ref}/cancel`),
     /** A deliberately narrow projection: never the unit's position history, never
      *  another caller's incident. */
     status: (ref: string) => get<SosStatus>(`/api/sos/${ref}/status`),
+    /** The demonstration caller's place — a road near the paired crew — and who that crew is. */
+    demoPlace: () => get<SosDemoPlace | null>('/api/sos/demo-place'),
+    /** The nearest free ambulance to each place — for a place picker. */
+    nearest: (points: Array<[number, number]>) =>
+      get<Array<NearestAmbulance | null>>(`/api/sos/nearest?points=${points.map(([lng, lat]) => `${lng},${lat}`).join('|')}`),
   },
 
   me: {
@@ -428,6 +453,10 @@ export const api = {
     /** The responder app's own unit and current assignment, if any. */
     unit: () => get<{ unit: Unit; assignment: Assignment | null; incident: Incident | null }>('/api/me/unit'),
     setUnitStatus: (status: 'available' | 'off_duty') => patch<Unit>('/api/me/unit/status', { status }),
+    /** Crew app demonstration: a camera-raised collision, offered to this unit. */
+    demoJob: () => post<{ incidentRef: string; assignmentRef: string | null; road: string }>('/api/me/unit/demo-job'),
+    /** The crew's AI co-pilot for the current job; null when the unit has none. */
+    assist: () => get<CrewAssist | null>('/api/me/unit/assist'),
   },
 
   // ── Assistant ─────────────────────────────────────────────────────────────

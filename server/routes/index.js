@@ -19,6 +19,7 @@ import assistantRoutes from './assistant.js';
 import patientRoutes from './patients.js';
 import liveRoutes from './live.js';
 import insightsRoutes from './insights.js';
+import reportRoutes from './reports.js';
 
 export function registerRoutes(app) {
   app.use('/api/auth', authRoutes);
@@ -37,4 +38,5 @@ export function registerRoutes(app) {
   app.use('/api', patientRoutes);         // /incidents/:ref/patients, /patients/:id/*
   app.use('/api', liveRoutes);            // /sim, /live/*, /feed, /alerts
   app.use('/api', insightsRoutes);        // /insights/* — almanac, radial search, comparison, replay
+  app.use('/api', reportRoutes);          // /reports/incidents/* — the report studio's data, every audience
 }

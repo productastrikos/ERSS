@@ -23,7 +23,7 @@ import { loadIncidents, useQueue, wireIncidentFeed } from '../../../lib/stores/i
 import { loadUnits, wireFleetFeed } from '../../../lib/stores/fleet';
 import { LiveOpsMap } from '../../../shared/map/live/LiveOpsMap';
 import { useDetail } from '../../../lib/stores/detail';
-import { DetailPanel } from '../../detail/DetailPanel';
+import { DetailDrawer } from '../../detail/DetailPanel';
 import { Skeleton } from '../../../shared/ui';
 import './liveops-page.scss';
 
@@ -62,7 +62,7 @@ export function LiveOpsPage() {
   return (
     <div className="liveops-page">
       <LiveOpsMap variant="full" onCollapse={() => navigate('/dashboard')} hideRail={!!detail} />
-      {detail && <DetailPanel className="liveops-page__detail" />}
+      <DetailDrawer />
 
       <button type="button" className={`liveops-page__corpus-toggle${showCorpus ? ' is-on' : ''}`}
               onClick={() => setShowCorpus((v) => !v)} title={t('liveops.corpus.toggle')}>

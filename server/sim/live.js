@@ -48,13 +48,15 @@ import * as incidentsSvc from '../services/incidents.js';
 import * as dispatch from '../services/dispatch.js';
 import * as unitsSvc from '../services/units.js';
 import * as osrm from '../integrations/osrm.js';
-import { reportPosition } from '../services/positions.js';
+import { reportPosition, deviceDriveFor } from '../services/positions.js';
 import { raise, setPendingCheck, kindLabel } from '../services/alerts.js';
-import { unitDeviceOnline } from '../realtime/index.js';
+import { unitDeviceOnline, mobileOnline } from '../realtime/index.js';
 import * as fanout from '../realtime/fanout.js';
 import { restoreRestingState } from '../db/seed/resting.js';
 import * as detection from '../engines/detection.js';
+import * as driveModel from '../engines/drive.js';
 import * as crashScript from './scripts/SC-RW-01-crash.js';
+import { DEMO_SCENARIOS, specFor as demoSpec } from './scripts/demoScenarios.js';
 import { env } from '../config/env.js';
 import * as traffic from './traffic.js';
 import * as decisions from '../services/decisions.js';
@@ -91,6 +93,10 @@ let runId = null;
 let runRef = null;
 /** unitId → crew */
 const crews = new Map();
+/** assignmentRef → unitId, for jobs a crew phone is driving (refreshed by syncCrews). */
+const deviceJobs = new Map();
+/** assignmentRef → the road to hospital for a phone-driven transport (null while fetching). */
+const deviceHospitalRoutes = new Map();
 /** incidentRef → { dueAt, priority, kind, zoneName } */
 const pendingAuto = new Map();
 const held = new Set();
@@ -150,7 +156,234 @@ export function publicState() {
       .map(([incidentRef, p]) => ({ incidentRef, dueAt: new Date(p.dueAt).toISOString(), windowSec: p.windowSec ?? null, priority: p.priority, kind: p.kind, zoneName: p.zoneName }))
       .sort((a, b) => a.dueAt.localeCompare(b.dueAt)),
     intensities: Object.entries(INTENSITY).map(([key, perHour]) => ({ key, perHour })),
+    scenario: demoState(),
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  THE DEMONSTRATION — three incidents, each end to end, one at a time
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// In the trial build the road is not a random stream any more. A room watching two or three
+// incidents at once lost all of them: the camera rode with one crew while the next alert
+// landed, the panel switched stories, and nobody saw a single response finish. So the
+// trial runs the curated scenarios in sim/scripts/demoScenarios.js, in order, and the next
+// one is not raised until the last one is CLOSED — the crew has handed over at hospital and
+// cleared — and the fleet is back on its stations. A person can start the next one early
+// (`POST /api/sim/next`) once the current one is finished; never while it is running.
+
+/** Between one incident closing and the next being raised: the room reads the ending. */
+const DEMO_GAP_MS = 45_000;
+/** How much longer the next one waits for crews still driving back to station. */
+const DEMO_RETURN_GRACE_MS = 90_000;
+
+const demo = {
+  index: -1,
+  /** idle → detecting → running → finished → detecting … */
+  phase: 'idle',
+  incidentRef: null,
+  detectionId: null,
+  startedAt: null,
+  finishedAt: null,
+  nextAt: null,
+  /** A person asked for the next one now. */
+  skip: false,
+  /** Live incidents the next scenario is waiting on (one story at a time). */
+  blockedBy: 0,
+  /** A phone (citizen or crew app) is connected: the phones drive the demonstration. */
+  heldForPhones: false,
+};
+
+/** Phones connected, and whether the scripted scenarios are standing back for them. */
+function phoneHold() {
+  const phones = mobileOnline();
+  return { phones, held: phones.citizens + phones.responders > 0 };
+}
+let adopted = false;
+
+/** Live incidents that would make a second story — stuck ones (nobody on them, older than
+ *  twenty minutes) excepted, so one stuck record can never stall the demonstration. */
+async function liveStories() {
+  const row = await one(`SELECT COUNT(*)::int AS n FROM incidents i
+     WHERE i.state NOT IN ('closed','cancelled') AND NOT i.is_seed AND NOT i.is_resting
+       AND (i.reported_at > now() - interval '20 minutes'
+            OR EXISTS (SELECT 1 FROM assignments a WHERE a.incident_id = i.id
+                         AND a.state IN ('offered','acknowledged','enroute','onscene','transporting','at_hospital','resolved_on_scene')))`);
+  return row?.n ?? 0;
+}
+
+/**
+ * After a server restart the demonstration's place in the sequence is gone, but its
+ * incident may still be on the road. Pick it back up — the same scenario, still running —
+ * rather than starting the sequence again beside it.
+ */
+async function adoptInFlight() {
+  adopted = true;
+  if (demo.phase !== 'idle') return;
+  for (let i = 0; i < DEMO_SCENARIOS.length; i++) {
+    const { place } = DEMO_SCENARIOS[i];
+    const row = await one(
+      `SELECT ref FROM incidents
+        WHERE state NOT IN ('closed','cancelled') AND NOT is_seed AND NOT is_resting AND source = 'sensor'
+          AND reported_at > now() - interval '45 minutes'
+          AND ST_DWithin(geom::geography, ST_SetSRID(ST_MakePoint($1,$2),4326)::geography, 150)
+        ORDER BY reported_at DESC LIMIT 1`, [place.lng, place.lat]).catch(() => null);
+    if (!row) continue;
+    Object.assign(demo, { index: i, phase: 'running', incidentRef: row.ref, startedAt: Date.now(), finishedAt: null, nextAt: null, skip: false });
+    demoIncidents.add(row.ref);
+    logger.info({ scenario: DEMO_SCENARIOS[i].id, incident: row.ref }, '[demo] picked up the scenario in flight after a restart');
+    broadcast(true);
+    return;
+  }
+}
+/** Incidents the demonstration raised — crews on these never decline or go silent. */
+const demoIncidents = new Set();
+
+function demoState() {
+  if (!poc.enabled) return null;
+  const sc = DEMO_SCENARIOS[demo.index] ?? null;
+  const upNext = DEMO_SCENARIOS[(demo.index + 1) % DEMO_SCENARIOS.length];
+  return {
+    index: demo.index, total: DEMO_SCENARIOS.length,
+    id: sc?.id ?? null, title: sc?.title ?? null, short: sc?.short ?? null, place: sc?.place.name ?? null,
+    phase: demo.phase, incidentRef: demo.incidentRef, blockedBy: demo.blockedBy,
+    // While a phone is connected the next camera scenario waits for it: the citizen app
+    // raises the incident and the crew app answers it. "Start now" still runs one.
+    phones: phoneHold().phones, heldForPhones: demo.heldForPhones,
+    startedAt: demo.startedAt ? new Date(demo.startedAt).toISOString() : null,
+    finishedAt: demo.finishedAt ? new Date(demo.finishedAt).toISOString() : null,
+    nextAt: demo.nextAt && (demo.phase === 'idle' || demo.phase === 'finished') ? new Date(demo.nextAt).toISOString() : null,
+    next: { index: (demo.index + 1) % DEMO_SCENARIOS.length, title: upNext.title, short: upNext.short },
+    scenarios: DEMO_SCENARIOS.map((s) => ({ id: s.id, title: s.title, short: s.short })),
+  };
+}
+
+/** Start the next scenario now — only once the current one, and anything else live, has finished. */
+export async function nextScenario() {
+  if (!poc.enabled) throw new AppError('conflict', 409, 'The demonstration runs only in the trial build');
+  if (demo.phase === 'detecting' || demo.phase === 'running') {
+    throw new AppError('conflict', 409, 'One incident at a time — the current one is still being handled');
+  }
+  if (await liveStories() > 0) {
+    throw new AppError('conflict', 409, 'One incident at a time — wait for the live incident to close');
+  }
+  demo.skip = true;
+  broadcast(true);
+  return publicState();
+}
+
+/**
+ * Idle trial ambulances back on their own stations before a scenario is raised. The
+ * scenarios were chosen with the fleet at home; an ambulance left on a standby point or
+ * still rolling back from the last job would change which crew is nearest and make the
+ * story the room sees depend on where the previous one happened to end.
+ */
+async function homeFleet() {
+  const { rows } = await pool.query(
+    `UPDATE units u SET current_geom = s.geom, status = 'available', current_speed = 0,
+            standby_geom = NULL, standby_reason = NULL, standby_advisory_id = NULL, last_seen_at = now()
+       FROM stations s
+      WHERE s.id = u.home_station_id AND u.ref = ANY($1::text[])
+        AND (ST_Distance(u.current_geom::geography, s.geom::geography) > 40 OR u.status NOT IN ('available'))
+        AND u.status NOT IN ('off_duty', 'out_of_service')
+        AND NOT EXISTS (SELECT 1 FROM assignments a WHERE a.unit_id = u.id
+              AND a.state IN ('offered','acknowledged','enroute','onscene','transporting','at_hospital','resolved_on_scene'))
+      RETURNING u.id, u.ref, ST_X(s.geom) AS lng, ST_Y(s.geom) AS lat`,
+    [poc.fleet],
+  );
+  for (const u of rows) {
+    crews.delete(u.id);
+    await reportPosition({ unitId: u.id, unitRef: u.ref, lng: u.lng, lat: u.lat, speed: 0, heading: null, status: 'available', runId });
+  }
+  if (rows.length) logger.info({ units: rows.map((u) => u.ref) }, '[demo] idle ambulances back on station');
+}
+
+async function startScenario(index) {
+  const sc = DEMO_SCENARIOS[index];
+  demo.index = index;
+  demo.phase = 'detecting';
+  demo.incidentRef = null;
+  demo.startedAt = Date.now();
+  demo.finishedAt = null;
+  demo.nextAt = null;
+  demo.skip = false;
+  demo.blockedBy = 0;
+  lastHeadlineAt = Date.now();
+  broadcast(true);
+  try {
+    await ensureRun(null);
+    await homeFleet();
+    opening.crash = 'running';
+    const d = await detection.run(demoSpec(sc, { runId }));
+    demo.detectionId = d.id;
+    logger.info({ scenario: sc.id, detection: d.id }, `[demo] ${sc.title}`);
+  } catch (err) {
+    logger.warn({ err: err.message, scenario: sc.id }, '[demo] scenario failed to start — trying again shortly');
+    demo.phase = 'finished';
+    demo.finishedAt = Date.now();
+    demo.nextAt = Date.now() + 15_000;
+    opening.crash = 'failed';
+  }
+  broadcast(true);
+}
+
+bus.on('detection:incident', ({ detectionId, incidentRef }) => {
+  if (!incidentRef || detectionId !== demo.detectionId) return;
+  demo.incidentRef = incidentRef;
+  demo.phase = 'running';
+  demoIncidents.add(incidentRef);
+  opening.crash = 'done';
+  broadcast(true);
+});
+
+async function scenarioTick() {
+  const now = Date.now();
+  if (!adopted && demo.phase === 'idle') await adoptInFlight();
+  if (demo.phase === 'detecting') {
+    // A detection that never produced its incident (a stage failed) must not stall the demo.
+    if (demo.startedAt && now - demo.startedAt > 60_000) {
+      demo.phase = 'finished';
+      demo.finishedAt = now;
+      demo.nextAt = now + 15_000;
+      broadcast(true);
+    }
+    return;
+  }
+  if (demo.phase === 'running') {
+    const row = demo.incidentRef ? await one('SELECT state FROM incidents WHERE ref = $1', [demo.incidentRef]) : null;
+    if (!row || row.state === 'closed' || row.state === 'cancelled') {
+      demo.phase = 'finished';
+      demo.finishedAt = now;
+      demo.nextAt = now + DEMO_GAP_MS;
+      logger.info({ incident: demo.incidentRef }, '[demo] incident closed — next one after the gap');
+      broadcast(true);
+    }
+    return;
+  }
+  if (demo.nextAt == null) demo.nextAt = now + OPENING_QUIET_MS;
+  if (!demo.skip) {
+    // THE PHONES DRIVE IT. With the citizen or crew app connected, the scripted camera
+    // scenarios stand back: the citizen's SOS is the incident, the crew phone answers it,
+    // and a camera collision raised beside it would be a second story competing for the
+    // same ambulances. When the last phone goes, the sequence resumes after a clean beat.
+    const { held } = phoneHold();
+    if (held !== demo.heldForPhones) {
+      demo.heldForPhones = held;
+      if (!held) demo.nextAt = Math.max(demo.nextAt, now + OPENING_QUIET_MS);
+      broadcast(true);
+    }
+    if (held) return;
+    if (now < demo.nextAt) return;
+    const returning = [...crews.values()].some((c) => c.phase === 'return' && c.path && !c.arrived);
+    if (returning && now < demo.nextAt + DEMO_RETURN_GRACE_MS) return;
+    // ONE AT A TIME, strictly: anything else still live (a crew-app demo job, a response
+    // that was in flight when the server restarted) finishes first. Only an incident that
+    // is genuinely stuck — nobody on it and older than twenty minutes — is not waited for.
+    const blocking = await liveStories();
+    if (blocking !== demo.blockedBy) { demo.blockedBy = blocking; broadcast(true); }
+    if (blocking > 0) return;
+  }
+  await startScenario((demo.index + 1) % DEMO_SCENARIOS.length);
 }
 
 let lastBroadcast = '';
@@ -169,6 +402,7 @@ export async function start({ intensity, autoDispatch, pace } = {}, actor) {
     settings.startedAt = new Date().toISOString();
     settings.startedBy = actor?.ref ?? null;
     await ensureRun(actor);
+    await alignTrialFleet();
     await ensureShifts();
     nextCallAt = Date.now() + OPENING_QUIET_MS;
     lastGeneratedAt = Date.now();
@@ -270,12 +504,15 @@ const HEADLINE_REPEAT_MS = 11 * 60_000;
 const opening = { crash: 'idle' };
 let openingTimers = [];
 let headlineRepeat = null;
+/** A headline is scheduled and has not fired yet — a second one must not be stacked on it. */
+let headlineArmed = false;
 
 export function clearOpeningSequence() {
   for (const t of openingTimers) clearTimeout(t);
   openingTimers = [];
   if (headlineRepeat) clearInterval(headlineRepeat);
   headlineRepeat = null;
+  headlineArmed = false;
   detection.clear();
   opening.crash = 'idle';
 }
@@ -313,6 +550,7 @@ async function headlineStillOpen() {
 let lastHeadlineAt = 0;
 
 async function runHeadlineDetection() {
+  if (opening.crash === 'running') return;   // one at a time, whoever asked for it
   lastHeadlineAt = Date.now();
   try {
     if (await headlineStillOpen()) {
@@ -331,12 +569,49 @@ async function runHeadlineDetection() {
   broadcast(true);
 }
 
+function armHeadline(seconds) {
+  headlineArmed = true;
+  at(seconds, async () => {
+    headlineArmed = false;
+    await runHeadlineDetection();
+  });
+}
+
+/**
+ * Someone has just signed in to the console. The simulation starts with the server, so on a
+ * server that has been up all morning the next demonstration incident could be minutes off
+ * — and the demonstration starts at sign-in, not at server start. So the next scenario is
+ * brought forward to 30 seconds from now, if one is not already running.
+ *
+ * Never more than that: in the trial build the demonstration is the ONLY thing that raises
+ * incidents, so a sign-in never puts a second story beside one in progress (the legacy
+ * junction headline used to fire here, and after a server restart its "ran recently" guard
+ * was forgotten — three people signing in during a scenario raised a second collision).
+ */
+function onConsoleSignIn() {
+  if (!poc.enabled || !settings.running) return;
+  if (demo.phase !== 'idle' && demo.phase !== 'finished') return;
+  if (demo.nextAt == null || demo.nextAt - Date.now() > OPENING_QUIET_MS) {
+    demo.nextAt = Date.now() + OPENING_QUIET_MS;
+    broadcast(true);
+    logger.info('[demo] console sign-in — next scenario in 30 s');
+  }
+}
+bus.on('console:signin', onConsoleSignIn);
+
 function startOpeningSequence() {
   clearOpeningSequence();
-  at(OPENING_AT.crash, runHeadlineDetection);
-  // In the trial build the headline takes its turn in the paced sequence instead
-  // (maybeGenerate), so it can never land on top of another response in progress.
-  if (poc.enabled) return;
+  // The trial build opens with the first demonstration scenario after a clean 30 s beat
+  // (scenarioTick), not with the junction headline — every scenario is its own camera
+  // detection, five stages and all.
+  if (poc.enabled) {
+    if (demo.phase !== 'running' && demo.phase !== 'detecting') {
+      demo.phase = demo.index < 0 ? 'idle' : 'finished';
+      demo.nextAt = Date.now() + OPENING_QUIET_MS;
+    }
+    return;
+  }
+  armHeadline(OPENING_AT.crash);
   headlineRepeat = setInterval(() => {
     if (!settings.running) return;
     void runHeadlineDetection();
@@ -362,6 +637,93 @@ export async function inject({ kind, priority, siteId } = {}) {
 }
 
 /**
+ * Make an incident part of the live run, so a PoC restart removes it with everything else
+ * the demonstration produced. The citizen app's SOS arrives through the ordinary incident
+ * service, which knows nothing of runs; without this it would survive every restart.
+ */
+export async function adoptIntoRun(ref) {
+  if (!poc.enabled || !ref) return;
+  await ensureRun(null);
+  await query('UPDATE incidents SET run_id = $2 WHERE ref = $1 AND run_id IS NULL', [ref, runId]);
+}
+
+/** A caller's place for the demonstration: on a real road, a short drive from `from`. */
+const DEMO_CALLER_ROAD_M = { min: 450, max: 1300 };
+
+/**
+ * Where the citizen app puts a demonstration caller — on a named road a minute or two's
+ * drive from the paired crew (services/sos.js demoPlace), so the response the room watches is
+ * a short one. Where it can, a place where that crew is ALSO the nearest free ambulance
+ * (`others` are the rest of the free fleet): then "nearest ambulance" on the caller's screen,
+ * the AI's choice and the paired crew are one and the same, and nobody in the room has to ask
+ * why it was not the closer one. Falls back to the nearest road-watch site, then to a point
+ * 700 m away.
+ */
+export async function demoPlaceNear(from, others = []) {
+  const nearestIsUs = (pt) => others.every((o) => haversine(o, pt) > haversine(from, pt) + 200);
+  for (let attempt = 0; attempt < 3 && others.length; attempt++) {
+    const p = await roadPointNear(from, DEMO_CALLER_ROAD_M, nearestIsUs).catch(() => null);
+    if (p) return { lng: p.lng, lat: p.lat, road: p.road };
+  }
+  const onRoad = await roadPointNear(from, DEMO_CALLER_ROAD_M).catch(() => null);
+  if (onRoad) return { lng: onRoad.lng, lat: onRoad.lat, road: onRoad.road };
+  const byRoad = await sitesByRoad(from, DEMO_CALLER_ROAD_M).catch(() => null);
+  const site = byRoad?.[0]?.s
+    ?? ROAD_SITES.map((x) => ({ x, m: haversine(from, [x.lng, x.lat]) })).sort((a, b) => a.m - b.m)[0]?.x;
+  if (site && haversine(from, [site.lng, site.lat]) < 4000) return { lng: site.lng, lat: site.lat, road: site.road };
+  const cosLat = Math.cos((from[1] * Math.PI) / 180);
+  return { lng: from[0] + 500 / (111_320 * cosLat), lat: from[1] + 500 / 111_320, road: null };
+}
+
+const CREW_DEMO = Object.freeze({
+  id: null, ref: 'CREW-DEMO', name: 'Crew app demonstration', role: 'system', kind: 'system',
+  agencyCode: 'DCAS', agencyId: null, unitId: null, zoneScope: [],
+});
+
+/** A demonstration call sits a short drive away: far enough to show the drive, near
+ *  enough that the whole job fits in a demo. */
+const DEMO_JOB_M = { min: 800, max: 3000 };
+/** By road: a drive of a minute or two at road speed, which a demonstration can watch. */
+const DEMO_ROAD_M = { min: 600, max: 2000 };
+
+/**
+ * A job for one ambulance, on demand — the crew app's "Simulate a call". The collision is
+ * raised by a camera like every other in the trial, so the console sees it arrive; it is
+ * then offered straight to this ambulance rather than waiting out the AI's countdown,
+ * because what is being shown is this crew's phone receiving it.
+ */
+export async function demoJobFor(unitRef) {
+  const unit = await one(
+    `SELECT u.status, ST_X(u.current_geom) AS lng, ST_Y(u.current_geom) AS lat,
+            EXISTS (SELECT 1 FROM assignments a WHERE a.unit_id = u.id
+                      AND a.state IN ('offered','acknowledged','enroute','onscene','transporting','at_hospital','resolved_on_scene')) AS busy
+       FROM units u WHERE u.ref = $1 AND u.archived_at IS NULL`,
+    [unitRef],
+  );
+  if (!unit || unit.lng == null) throw new AppError('conflict', 409, 'This ambulance has no known position');
+  if (unit.busy) throw new AppError('conflict', 409, 'Finish the current job first');
+  if (unit.status !== 'available' && unit.status !== 'standby') throw new AppError('conflict', 409, 'Go on duty first');
+
+  const from = [unit.lng, unit.lat];
+  let site = await roadPointNear(from, DEMO_ROAD_M);
+  if (!site) {
+    const byRoad = await sitesByRoad(from, DEMO_ROAD_M);
+    const byDistance = ROAD_SITES
+      .map((s) => ({ s, m: haversine(from, [s.lng, s.lat]) }))
+      .sort((a, b) => a.m - b.m);
+    const inBand = byDistance.filter((x) => x.m >= DEMO_JOB_M.min && x.m <= DEMO_JOB_M.max);
+    site = byRoad?.length ? pick(byRoad.slice(0, 2)).s
+      : (inBand.length ? pick(inBand.slice(0, 3)) : byDistance.find((x) => x.m >= 500) ?? byDistance[0]).s;
+  }
+
+  await ensureRun(null);
+  const created = await generateRoadIncident({ site, kind: 'rta' });
+  broadcast(true);
+  const { assignment } = await dispatch.commitDispatch(created.ref, { unitRef }, CREW_DEMO);
+  return { incidentRef: created.ref, assignmentRef: assignment?.ref ?? null, road: site.road };
+}
+
+/**
  * Remove everything the simulation created and put the fleet back at rest. Seeded history
  * and anything a person created outside a simulation run are untouched.
  */
@@ -372,12 +734,39 @@ export async function reset() {
   pendingAuto.clear();
   held.clear();
   crews.clear();
+  // Jobs a crew phone was driving: the phone is told to drop them (fanout.simReset below).
+  deviceJobs.clear();
+  deviceHospitalRoutes.clear();
   counters.generated = 0;
   counters.autoDispatched = 0;
+  // The demonstration starts again from the first scenario.
+  Object.assign(demo, { index: -1, phase: 'idle', incidentRef: null, detectionId: null, startedAt: null, finishedAt: null, nextAt: null, skip: false, heldForPhones: false });
+  demoIncidents.clear();
   for (const [hospitalId, beds] of edBoost) {
     await query('UPDATE hospitals SET ed_occupied = GREATEST(0, ed_occupied - $2) WHERE id = $1', [hospitalId, beds]);
   }
   edBoost.clear();
+
+  // An incident left OUTSIDE any run would survive every restart and sit beside the next
+  // story: a camera collision raised while no run existed, a citizen's SOS from the app, a
+  // crew phone's demo call from an earlier build. A restart is a FRESH START for every
+  // screen — console, crew phone and citizen phone — so anything still live that is not
+  // history (`is_seed`) or scenery (`is_resting`) is folded into the run here, whatever its
+  // source, and the clean-up below removes it with the rest.
+  if (poc.enabled) await ensureRun(null).catch(() => null);
+  if (runId) {
+    await query(`
+      WITH orphan AS (
+        SELECT id FROM incidents
+         WHERE run_id IS NULL AND NOT is_seed AND NOT is_resting
+           AND state NOT IN ('closed', 'cancelled')
+      ),
+      a AS (UPDATE assignments SET run_id = $1 WHERE incident_id IN (SELECT id FROM orphan) AND run_id IS NULL),
+      p AS (UPDATE patients SET run_id = $1 WHERE incident_id IN (SELECT id FROM orphan) AND run_id IS NULL),
+      adv AS (UPDATE advisories SET incident_id = NULL WHERE incident_id IN (SELECT id FROM orphan) AND run_id IS NULL)
+      UPDATE incidents SET run_id = $1 WHERE id IN (SELECT id FROM orphan)`, [runId]).catch((err) =>
+      logger.warn({ err: err.message }, '[sim] folding orphaned incidents into the run failed'));
+  }
 
   const before = await one(`SELECT COUNT(*)::int n FROM incidents WHERE run_id IS NOT NULL`);
 
@@ -433,7 +822,12 @@ export async function reset() {
   if (poc.enabled) await start({}, { ref: 'SYSTEM' });
 
   broadcast(true);
-  return { removed: before?.n ?? 0, archived: kept, resting, state: publicState() };
+  const removed = before?.n ?? 0;
+  // Every screen — the consoles, the crew phone, the citizen phone — drops what it was holding
+  // and reloads from the clean state, and the in-memory alerts, AI previews and SOS links go
+  // with it (each module listens for this on the bus).
+  fanout.simReset({ at: new Date().toISOString(), removed });
+  return { removed, archived: kept, resting, state: publicState() };
 }
 
 /** True while the AI is counting down to dispatch this incident itself. */
@@ -455,6 +849,37 @@ async function ensureShifts() {
     const end = new Date(Date.parse(start) + 12 * 3600_000).toISOString();
     await query('UPDATE units SET shift_start = $2, shift_end = $3 WHERE ref = $1', [ref, start, end]).catch(() => {});
   }
+}
+
+/** An idle trial ambulance further than this from its station is not on a standby point
+ *  (restFleet puts those within 1.8 km) — it is somewhere the seed left it. */
+const STRAY_M = 2500;
+
+/**
+ * The trial fleet where config/poc.js says it lives: home station, crew size from the
+ * roster, and — for an idle ambulance left elsewhere — back at the station, available.
+ * A unit on a job is not touched; it drives home when it clears.
+ */
+async function alignTrialFleet() {
+  if (!poc.enabled) return;
+  for (const [ref, stationRef] of Object.entries(poc.homes)) {
+    await query(
+      `UPDATE units SET home_station_id = s.id, crew_size = COALESCE($3, crew_size)
+         FROM stations s WHERE units.ref = $1 AND s.ref = $2`,
+      [ref, stationRef, TRIAL_CREWS[ref]?.crew.length ?? null],
+    );
+  }
+  const { rowCount } = await query(
+    `UPDATE units u SET current_geom = s.geom, status = 'available', current_speed = 0,
+            standby_geom = NULL, standby_reason = NULL, standby_advisory_id = NULL, last_seen_at = now()
+       FROM stations s
+      WHERE s.id = u.home_station_id AND u.ref = ANY($1::text[])
+        AND ST_Distance(u.current_geom::geography, s.geom::geography) > $2
+        AND NOT EXISTS (SELECT 1 FROM assignments a WHERE a.unit_id = u.id
+              AND a.state IN ('offered','acknowledged','enroute','onscene','transporting','at_hospital','resolved_on_scene'))`,
+    [poc.fleet, STRAY_M],
+  );
+  if (rowCount) logger.info({ moved: rowCount }, '[sim] trial ambulances returned to their stations');
 }
 
 async function ensureRun(actor) {
@@ -535,8 +960,78 @@ function weighted(items, weightOf) {
  * sequence (runHeadlineDetection above); routine traffic arriving through it would mean an
  * operator dismissing a full-screen dialog every seven minutes.
  */
-async function generateRoadIncident({ kind: wantKind, priority: wantPriority, siteId, patients } = {}) {
-  const site = siteId ? ROAD_SITES.find((r) => r.id === siteId) ?? pick(ROAD_SITES) : pick(ROAD_SITES);
+/** How far from a free trial ambulance routine road watch places a collision: near
+ *  enough that the response is a short drive, far enough that the drive is seen. */
+const NEAR_FREE_M = { min: 700, max: 3000 };
+/** The same, measured by ROAD — the distance the crew will actually drive. */
+const NEAR_ROAD_M = { min: 700, max: 2500 };
+
+/**
+ * Road sites within a short DRIVE of a point, nearest first — or null when routing does
+ * not answer. Straight-line distance misleads beside a motorway: a site 1.5 km away can
+ * be a 3 km drive round an interchange.
+ */
+async function sitesByRoad(from, band) {
+  const roads = await osrm.fromOne(from, ROAD_SITES.map((s) => [s.lng, s.lat])).catch(() => null);
+  if (!roads || roads.every((r) => !r)) return null;
+  const measured = ROAD_SITES.map((s, i) => ({ s, m: roads[i]?.distanceM ?? null }))
+    .filter((x) => x.m != null && x.m >= Math.min(band.min, 300))
+    .sort((a, b) => a.m - b.m);
+  const inBand = measured.filter((x) => x.m >= band.min && x.m <= band.max);
+  // Nothing in the band: the shortest drive there is, never a long one found by accident.
+  return inBand.length ? inBand : measured.slice(0, 1);
+}
+
+/**
+ * A collision point on a real road a short DRIVE from `from`: points scattered around it,
+ * snapped onto the road network, kept when the drive falls in the band. Named roads are
+ * preferred, so the alert can say where. Null when routing does not answer, and the fixed
+ * road-watch sites stand in.
+ */
+async function roadPointNear(from, band, accept = null) {
+  const cosLat = Math.cos((from[1] * Math.PI) / 180);
+  const points = Array.from({ length: 10 }, () => {
+    const b = Math.random() * 2 * Math.PI;
+    const r = rand(band.min * 0.5, band.max * 0.65);
+    return [from[0] + (r * Math.sin(b)) / (111_320 * cosLat), from[1] + (r * Math.cos(b)) / 111_320];
+  });
+  const snapped = await osrm.snapAndMeasure(from, points).catch(() => null);
+  if (!snapped) return null;
+  const inBand = snapped.filter((p) => p && p.snapM < 150 && p.distanceM >= band.min && p.distanceM <= band.max);
+  const ok = accept ? inBand.filter((p) => accept(p.location)) : inBand;
+  if (!ok.length) return null;
+  const readable = (n) => n && /^[\x20-\x7E]+$/.test(n) && !/access|petrol|parking|service|slip/i.test(n);
+  const named = ok.filter((p) => readable(p.name));
+  const p = pick(named.length ? named : ok);
+  return { id: null, road: readable(p.name) ? p.name : 'a local road', zone: null, lng: p.location[0], lat: p.location[1], kind: 'arterial' };
+}
+
+/** A road site a short drive from a free trial ambulance; any site if none is free. */
+async function nearbySite() {
+  const { rows } = await pool.query(
+    `SELECT ST_X(u.current_geom) AS lng, ST_Y(u.current_geom) AS lat
+       FROM units u
+      WHERE u.archived_at IS NULL AND u.current_geom IS NOT NULL AND u.status IN ('available','standby')
+        AND ($1::text[] IS NULL OR u.ref = ANY($1::text[]))
+        AND NOT EXISTS (SELECT 1 FROM assignments a WHERE a.unit_id = u.id
+              AND a.state IN ('offered','acknowledged','enroute','onscene','transporting','at_hospital','resolved_on_scene'))`,
+    [pocFleet()],
+  );
+  if (!rows.length) return pick(ROAD_SITES);
+  const unit = pick(rows);
+  const onRoad = await roadPointNear([unit.lng, unit.lat], NEAR_ROAD_M);
+  if (onRoad) return onRoad;
+  const byRoad = await sitesByRoad([unit.lng, unit.lat], NEAR_ROAD_M);
+  if (byRoad?.length) return pick(byRoad.slice(0, 4)).s;
+  const scored = ROAD_SITES.map((s) => ({
+    s, m: Math.min(...rows.map((u) => haversine([u.lng, u.lat], [s.lng, s.lat]))),
+  }));
+  const near = scored.filter((x) => x.m >= NEAR_FREE_M.min && x.m <= NEAR_FREE_M.max);
+  return near.length ? pick(near).s : scored.sort((a, b) => a.m - b.m)[0].s;
+}
+
+async function generateRoadIncident({ kind: wantKind, priority: wantPriority, siteId, site: given, patients } = {}) {
+  const site = given ?? (siteId ? ROAD_SITES.find((r) => r.id === siteId) ?? await nearbySite() : await nearbySite());
   const event = wantKind
     ? ROAD_EVENTS.find((e) => eventKind(e) === wantKind) ?? weighted(ROAD_EVENTS, (e) => e.weight)
     : weighted(ROAD_EVENTS, (e) => e.weight);
@@ -544,9 +1039,9 @@ async function generateRoadIncident({ kind: wantKind, priority: wantPriority, si
   const priority = wantPriority ?? weighted(Object.entries(event.priorities), ([, p]) => p)[0];
   const detectedBy = await cameraFor(site);
 
-  // A few metres of scatter along the road, so twenty collisions over an afternoon are not
-  // twenty marks stacked on one pixel.
-  const jitter = () => (Math.random() - 0.5) * 0.0016;
+  // A few metres of scatter at a fixed site, so twenty collisions over an afternoon are not
+  // twenty marks stacked on one pixel. A point already snapped onto a road stays on it.
+  const jitter = () => (site.id ? (Math.random() - 0.5) * 0.0016 : 0);
 
   const { incident } = await incidentsSvc.create({
     kind,
@@ -566,62 +1061,19 @@ async function generateRoadIncident({ kind: wantKind, priority: wantPriority, si
   return { ref: incident.ref, kind, priority, zone: site.zone, road: site.road, detectedBy };
 }
 
-/**
- * ONE STORY AT A TIME (trial build).
- *
- * The dashboard now follows every new incident by itself — it flies to the scene, shows
- * the AI weighing the ambulances, sends one and rides with it (web: useIncidentDirector).
- * A Poisson stream put the next collision on the screen while the camera was still
- * riding with the last crew, and the room lost both stories. So the next incident waits
- * until every live one has an ambulance ON SCENE, then a beat longer so the arrival is
- * seen, and never less than a few minutes after the last one. Fewer incidents, each one
- * complete — which is what the client asked to see.
- */
-const PACE = Object.freeze({
-  /** Least time between two alerts. */
-  minGapMs: 4 * 60_000,
-  /** Random extra on top, so it is not a metronome. */
-  jitterMs: 100_000,
-  /** How long the room gets to see an arrival before the next alert. */
-  afterArrivalMs: 75_000,
-  /** Never more live incidents than this (the rest of a job — transport, hand-over — runs on). */
-  maxLive: 3,
-  /** The five-stage headline detection takes a turn this often. */
-  headlineEveryMs: 20 * 60_000,
-});
-let gateOpenedAt = null;
 let lastGeneratedAt = 0;
 
-async function pacedGenerate() {
-  const live = await one(`
-    SELECT COUNT(*) FILTER (WHERE first_onscene_at IS NULL)::int AS waiting, COUNT(*)::int AS live
-      FROM incidents
-     WHERE state NOT IN ('closed', 'cancelled') AND NOT is_seed AND NOT is_resting`);
-  if ((live?.waiting ?? 0) > 0 || (live?.live ?? 0) >= PACE.maxLive || opening.crash === 'running') {
-    gateOpenedAt = null;
-    return;
-  }
-  if (gateOpenedAt == null) gateOpenedAt = Date.now();
-  if (Date.now() - gateOpenedAt < PACE.afterArrivalMs) return;
-  if (Date.now() - lastGeneratedAt < PACE.minGapMs) return;
-
-  lastGeneratedAt = Date.now();
-  nextCallAt = Date.now() + PACE.minGapMs + Math.random() * PACE.jitterMs;
-  gateOpenedAt = null;
-  if (Date.now() - lastHeadlineAt >= PACE.headlineEveryMs && !(await headlineStillOpen())) {
-    await runHeadlineDetection();
-    return;
-  }
-  await generateRoadIncident();
-}
-
 async function maybeGenerate() {
-  if (!settings.running || Date.now() < nextCallAt) return;
+  if (!settings.running) return;
   try {
+    // ONE STORY AT A TIME (trial build): the curated scenarios, each finished before the
+    // next is raised — see the demonstration section above.
     if (poc.enabled) {
-      await pacedGenerate();
+      await scenarioTick();
       return;
     }
+    if (Date.now() < nextCallAt) return;
+    lastGeneratedAt = Date.now();
     nextCallAt = Date.now() + exponentialGapMs();
     await generateRoadIncident();
   } catch (err) {
@@ -742,8 +1194,11 @@ async function runAutoDispatch() {
       const age = pv?.readyAt ? now - Date.parse(pv.readyAt) : Infinity;
       if (!pv || pv.status === 'failed' || pv.status === 'no_unit' || age > 60_000) await decisions.think(ref);
       const trafficDelays = decisions.delaysFor(ref);
+      // The road each leading crew would actually drive, timed by the drive model — the
+      // same figures the room watched the AI weigh.
+      const routeTimes = decisions.routeTimesFor(ref);
 
-      const rec = await dispatch.recommendFor(inc, { trafficDelays });
+      const rec = await dispatch.recommendFor(inc, { trafficDelays, routeTimes });
       const top = rec.value?.recommendations?.[0];
       if (!top) {
         decisions.note(ref, 'nounit', 'Every suitable trial ambulance is committed — it goes to the first crew that clears', 'bad');
@@ -766,7 +1221,11 @@ async function runAutoDispatch() {
           actions: [{ kind: 'open_incident', label: 'Open incident', payload: { incidentRef: ref } }],
         });
       }
-      await dispatch.commitDispatch(ref, { unitRef: top.unitRef, trafficDelays }, AI_DISPATCH);
+      if (top.paired) decisions.note(ref, 'paired', top.pairedWhy, 'good');
+      await dispatch.commitDispatch(ref, {
+        unitRef: top.unitRef, trafficDelays, routeTimes,
+        routePath: decisions.chosenRoad(ref, top.unitRef)?.coords ?? null,
+      }, AI_DISPATCH);
       counters.autoDispatched++;
     } catch (err) {
       if (!(err instanceof AppError && err.status === 409)) logger.warn({ err: err.message, ref }, '[sim] auto-dispatch failed');
@@ -845,12 +1304,28 @@ async function syncCrews() {
     [ACTIVE, poc.enabled]);
 
   const onJob = new Set();
+  deviceJobs.clear();
+  const active = new Set(rows.map((r) => r.ref));
+  for (const ref of deviceHospitalRoutes.keys()) if (!active.has(ref)) deviceHospitalRoutes.delete(ref);
   for (const r of rows) {
     onJob.add(r.unit_id);
-    if (unitDeviceOnline(r.unit_id)) { crews.delete(r.unit_id); continue; }
+    if (unitDeviceOnline(r.unit_id)) {
+      crews.delete(r.unit_id);
+      deviceJobs.set(r.ref, r.unit_id);
+      if (r.state === 'transporting' && r.hlng != null && r.ulng != null && !deviceHospitalRoutes.has(r.ref)) {
+        planDeviceHospitalRoute(r.ref, [r.ulng, r.ulat], [r.hlng, r.hlat]);
+      }
+      continue;
+    }
     let crew = crews.get(r.unit_id);
     if (!crew || crew.asgRef !== r.ref) {
-      crew = { unitId: r.unit_id, unitRef: r.unit_ref, asgRef: r.ref, busy: false, decline: Math.random() < 0.03, silent: Math.random() < 0.02 };
+      // A demonstration crew always takes the job: a scripted story that sometimes
+      // re-dispatches for no visible reason is a confusing story, not a realistic one.
+      const scripted = demoIncidents.has(r.inc_ref);
+      crew = {
+        unitId: r.unit_id, unitRef: r.unit_ref, asgRef: r.ref, busy: false, scripted,
+        decline: !scripted && Math.random() < 0.03, silent: !scripted && Math.random() < 0.02,
+      };
       crews.set(r.unit_id, crew);
     }
     crew.row = r;
@@ -895,42 +1370,49 @@ function enterState(crew, r) {
   crew.arrived = false;
   const at = (v) => (v ? new Date(v).getTime() : Date.now());
   const w = paceWait();
+  // A demonstration job keeps every interval a crew actually controls REAL (acknowledging
+  // on the tablet, getting belted in and rolling, walking to the patient) and shortens
+  // only time at the patient's side and the hospital hand-over, so a whole job — detection
+  // to hand-over — fits in a demonstration without any drive or turnout being faked.
+  const s = crew.scripted;
   switch (r.state) {
     case 'offered':
       crew.phase = 'ack';
-      // Compressed for the demo: an ambulance visibly moving within ~10s of dispatch
-      // matters more here than a realistic ack+turnout delay, which used to run up to
-      // 90s combined — long enough that a restart-to-recording take would sit on a
-      // stationary "assigned" ambulance for a minute and a half before anything moved.
-      crew.dueAt = at(r.offered_at) + rand(r.priority === 'P1' ? 2 : 2, r.priority === 'P1' ? 4 : 5) * 1000 * w;
+      crew.dueAt = at(r.offered_at) + (s ? rand(8, 13) : rand(2, 5)) * 1000 * w;
       break;
     case 'acknowledged':
       crew.phase = 'turnout';
-      crew.dueAt = at(r.acknowledged_at) + (r.unit_status === 'standby' ? rand(3, 5) : rand(4, 8)) * 1000 * w;
+      crew.dueAt = at(r.acknowledged_at) + (s
+        ? (r.priority === 'P1' ? rand(24, 32) : rand(30, 40))
+        : (r.unit_status === 'standby' ? rand(3, 5) : rand(4, 8))) * 1000 * w;
       break;
     case 'enroute':
       crew.phase = 'drive_scene';
       // Traffic judged at the moment of the alert — the same instant the AI weighed it at
       // (services/decisions.js), so the red stretches it saw are the ones this crew meets.
-      planRoute(crew, [r.ulng, r.ulat], [r.ilng, r.ilat], 'scene', r.route_proposed?.coordinates, r.route_proposed_sec,
-        r.reported_at ? new Date(r.reported_at).getTime() : Date.now());
+      planRoute(crew, [r.ulng, r.ulat], [r.ilng, r.ilat], 'scene', {
+        chosen: decisions.chosenRoad(r.inc_ref, r.unit_ref),
+        proposed: r.route_proposed?.coordinates,
+        trafficAt: r.reported_at ? new Date(r.reported_at).getTime() : Date.now(),
+      });
       break;
     case 'onscene':
       if (!r.at_patient_at) {
         crew.phase = 'vrt';
-        crew.dueAt = at(r.onscene_at) + (r.floor != null ? Math.min(420, 60 + r.floor * 5) : rand(25, 50)) * 1000 * w;
+        crew.dueAt = at(r.onscene_at) + (r.floor != null ? Math.min(420, 60 + r.floor * 5) : s ? rand(20, 30) : rand(25, 50)) * 1000 * w;
       } else {
         crew.phase = 'treat';
-        crew.dueAt = at(r.at_patient_at) + (r.priority === 'P1' ? rand(300, 460) : r.priority === 'P2' ? rand(220, 340) : rand(160, 260)) * 1000 * w;
+        crew.dueAt = at(r.at_patient_at) + (s ? rand(100, 140)
+          : r.priority === 'P1' ? rand(300, 460) : r.priority === 'P2' ? rand(220, 340) : rand(160, 260)) * 1000 * w;
       }
       break;
     case 'transporting':
       crew.phase = 'drive_hospital';
-      if (r.hlng != null) planRoute(crew, [r.ulng, r.ulat], [r.hlng, r.hlat], 'hospital');
+      if (r.hlng != null) planRoute(crew, [r.ulng, r.ulat], [r.hlng, r.hlat], 'hospital', { incidentRef: r.inc_ref });
       break;
     case 'at_hospital':
       crew.phase = 'handover';
-      crew.dueAt = at(r.at_hospital_at) + rand(140, 230) * 1000 * w;
+      crew.dueAt = at(r.at_hospital_at) + (s ? rand(55, 75) : rand(140, 230)) * 1000 * w;
       break;
     case 'resolved_on_scene':
       crew.phase = 'resolve';
@@ -942,63 +1424,125 @@ function enterState(crew, r) {
 }
 
 /**
- * The road route for a leg. The dispatch's own proposed route is reused when it starts where
- * the unit is; otherwise OSRM (cached, circuit-broken) is asked, and a straight line stands
- * in — honestly, at a detour-adjusted speed — when routing is unavailable.
+ * The road for a leg, and how this crew will drive it.
+ *
+ * To the scene, the crew drives the road the AI chose for it (services/decisions.js
+ * `chosenRoad`) — the one the room watched it pick — or, failing that, the proposed route
+ * stored at dispatch. Every other leg (to hospital, back to station, to a standby point)
+ * is chosen here the same way: the router's main route and its alternatives, each driven
+ * through the drive model (engines/drive.js), and the quickest taken. A straight line
+ * stands in — honestly, and only until the road answers — when routing is unavailable.
+ *
+ * The result is a SPEED PROFILE, not a speed: the vehicle accelerates away from rest,
+ * cruises by road class, brakes for every turn, roundabout and U-turn, crawls through a
+ * congested stretch, and pulls up at the end. The drive loop follows it in time, so the
+ * arrival the profile predicts is the arrival that happens.
  */
-function planRoute(crew, from, to, leg, proposed = null, predictedTravelSec = null, trafficAt = Date.now()) {
+function planRoute(crew, from, to, leg, { chosen = null, proposed = null, trafficAt = Date.now(), incidentRef = null } = {}) {
   if (from[0] == null || to[0] == null) return;
   crew.leg = leg;
   crew.routing = true;
   const token = Symbol('route');
   crew.routeToken = token;
+  const mode = leg === 'return' || leg === 'relocate' ? 'return' : 'emergency';
   (async () => {
-    let coords = null;
-    let durationSec = null;
-    if (proposed?.length > 1 && haversine(proposed[0], from) < 200) {
-      coords = proposed;
-    } else {
-      const road = await osrm.route(from, to, { timeoutMs: osrm.BACKGROUND_TIMEOUT_MS, attempts: 2 }).catch(() => null);
-      if (road?.coordinates?.length > 1) {
-        coords = road.coordinates;
-        durationSec = road.durationSec;
-        if (leg === 'scene' && crew.asgRef) storeProposedRoute(crew, coords);
-      }
+    let raw = null;
+    let road = null;
+    if (chosen?.coords?.length > 1 && haversine(chosen.coords[0], from) < 200) raw = chosen;
+    else if (proposed?.length > 1 && haversine(proposed[0], from) < 200) raw = { coords: proposed, steps: [], speeds: [] };
+    if (!raw) {
+      road = await decisions.bestRoad(from, to, { at: trafficAt, mode }).catch(() => null);
+      raw = road?.best.raw ?? null;
+      if (raw && leg === 'scene' && crew.asgRef) storeProposedRoute(crew, raw.coords);
     }
     if (crew.routeToken !== token) return;   // superseded while routing
-    const onRoad = Boolean(coords);
-    if (!coords) coords = straightLine(from, to);
-    // Keep the unit on the line from where it actually is.
-    if (haversine(coords[0], from) > 25) coords = [from, ...coords];
-    if (haversine(coords[coords.length - 1], to) > 25) coords = [...coords, to];
-
-    const cum = [0];
-    for (let i = 1; i < coords.length; i++) cum.push(cum[i - 1] + haversine(coords[i - 1], coords[i]));
-    const total = cum[cum.length - 1];
-
-    // The (simulated) traffic on this road, once per leg (sim/traffic.js). The crew slows
-    // inside each congested stretch; "effective length" is the distance the drive feels
-    // like at free-flow speed, so a road with a queue on it takes longer to cover.
-    const jam = leg === 'scene' || leg === 'hospital'
-      ? traffic.analyseRoute(coords, { at: trafficAt, queues: await traffic.activeQueues() })
-      : { segments: [], delaySec: 0 };
-    const effectiveLen = total + jam.segments.reduce((sum, seg) => sum + seg.lengthM * (1 / seg.factor - 1), 0);
-
-    // To the scene, drive at the pace the dispatch engine PREDICTED (its calibrated travel
-    // time for this trip, plus the traffic delay it weighed), with ordinary variance — so
-    // the arrival the console predicted is roughly the arrival it gets, and the
-    // ETA-accuracy figures stay honest. Other legs use emergency driving over OSRM's
-    // free-flow figure. Clamped to what Dubai roads allow.
-    const baseMps = leg === 'scene' && predictedTravelSec > 30 ? (effectiveLen / (predictedTravelSec + jam.delaySec)) * rand(0.9, 1.12)
-      : durationSec && total > 300 ? (total / durationSec) * 1.3
-        : onRoad ? 14 : 12;
-    crew.speedMps = Math.min(26, Math.max(10, baseMps)) * (leg === 'return' || leg === 'relocate' ? 0.75 : 1);
-    crew.path = { coords, cum, total, travelled: 0, onRoad, startedAt: Date.now(), traffic: jam.segments, trafficDelaySec: jam.delaySec };
+    const onRoad = Boolean(raw);
+    const path = await buildPath(raw ?? { coords: straightLine(from, to), steps: [], speeds: [] }, from, to, leg, trafficAt, mode);
+    if (crew.routeToken !== token) return;
+    // Each crew drives a touch differently — the same road, ±3 % on the clock.
+    crew.pace = rand(0.97, 1.03);
+    crew.elapsed = 0;
+    crew.path = { ...path, onRoad, startedAt: Date.now() };
     crew.routing = false;
+
+    // The transport leg is a decision too — which road to the hospital, and why — and the
+    // incident's AI log says so (services/decisions.js noteLeg).
+    if (leg === 'hospital' && incidentRef && path.drive) {
+      decisions.noteLeg(incidentRef, 'hospital', {
+        asgRef: crew.asgRef, unitRef: crew.unitRef,
+        stats: driveModel.summary(path.drive),
+        why: road?.why ?? [],
+        options: road ? [road.best, ...road.others].map((x, i) => ({ label: String.fromCharCode(65 + i), chosen: i === 0, ...driveModel.summary(x.a) })) : [],
+        hospitalWhy: crew.hospitalWhy ?? null,
+      });
+    }
+    if (!onRoad) scheduleReroute(crew, token, to, leg);
   })().catch((err) => {
     crew.routing = false;
     logger.warn({ err: err.message, unit: crew.unitRef }, '[sim] route planning failed');
   });
+}
+
+/** A path the crew can drive: anchored at where it is and where it is going, with the
+ *  (simulated) traffic on it — once per leg (sim/traffic.js) — and the speed profile the
+ *  drive model builds over it, congested stretches included. */
+async function buildPath(raw, from, to, leg, trafficAt, mode = 'emergency') {
+  let c = raw.coords;
+  let speeds = raw.speeds ?? [];
+  if (haversine(c[0], from) > 25) { c = [from, ...c]; speeds = speeds.length ? [speeds[0], ...speeds] : speeds; }
+  if (haversine(c[c.length - 1], to) > 25) { c = [...c, to]; speeds = speeds.length ? [...speeds, speeds[speeds.length - 1]] : speeds; }
+  const cum = [0];
+  for (let i = 1; i < c.length; i++) cum.push(cum[i - 1] + haversine(c[i - 1], c[i]));
+  const total = cum[cum.length - 1];
+  const jam = leg === 'scene' || leg === 'hospital'
+    ? traffic.analyseRoute(c, { at: trafficAt, queues: await traffic.activeQueues() })
+    : { segments: [], delaySec: 0 };
+  const analysed = driveModel.withTraffic(driveModel.analyse({ coords: c, steps: raw.steps ?? [], speeds }, { mode }), jam.segments);
+  return { coords: c, cum, total, travelled: 0, traffic: jam.segments, trafficDelaySec: analysed?.trafficDelaySec ?? jam.delaySec, drive: analysed };
+}
+
+/** The console draws the road ahead of every ambulance; a phone-driven one has no
+ *  simulated crew to plan its hospital leg, so the road is fetched once here. A failed
+ *  fetch is forgotten, so the next sync asks again. */
+function planDeviceHospitalRoute(asgRef, from, to) {
+  deviceHospitalRoutes.set(asgRef, null);
+  decisions.bestRoad(from, to)
+    .then((road) => {
+      if (!deviceHospitalRoutes.has(asgRef)) return;
+      if (road?.best.raw.coords?.length > 1) deviceHospitalRoutes.set(asgRef, road.best.raw.coords);
+      else deviceHospitalRoutes.delete(asgRef);
+    })
+    .catch(() => deviceHospitalRoutes.delete(asgRef));
+}
+
+const REROUTE_EVERY_MS = 4000;
+const REROUTE_TRIES = 15;
+
+/**
+ * A crew put on a straight line because routing did not answer keeps asking for the
+ * road, and joins it from wherever it has got to — no ambulance drives a whole leg
+ * across the desert because one request was slow.
+ */
+function scheduleReroute(crew, token, to, leg, tries = 0) {
+  if (tries >= REROUTE_TRIES) return;
+  const timer = setTimeout(async () => {
+    if (crew.routeToken !== token || !crew.path || crew.arrived || crew.path.onRoad) return;
+    const { at } = pointAlong(crew.path, crew.path.travelled);
+    const road = await decisions.bestRoad(at, to, { mode: leg === 'return' || leg === 'relocate' ? 'return' : 'emergency' }).catch(() => null);
+    if (crew.routeToken !== token || !crew.path || crew.arrived) return;
+    if (!road) {
+      scheduleReroute(crew, token, to, leg, tries + 1);
+      return;
+    }
+    const path = await buildPath(road.best.raw, at, to, leg, Date.now(), leg === 'return' || leg === 'relocate' ? 'return' : 'emergency');
+    if (crew.routeToken !== token || !crew.path || crew.arrived) return;
+    // Joining the road on the move: the profile's standing start does not apply.
+    crew.elapsed = Math.min(path.drive?.tcum?.[3] ?? 0, 6);
+    crew.path = { ...path, onRoad: true, startedAt: Date.now() };
+    if (leg === 'scene' && crew.asgRef) storeProposedRoute(crew, road.best.raw.coords);
+    logger.info({ unit: crew.unitRef, leg }, '[sim] back on the road route');
+  }, REROUTE_EVERY_MS);
+  timer.unref?.();
 }
 
 /**
@@ -1090,13 +1634,15 @@ async function stepCrew(crew, dtSec) {
       return;
     case 'treat': {
       if (now < crew.dueAt) return;
-      if (!dispatch.canTransport(r.unit_kind) || Math.random() > transportProbability(r.kind, r.priority)) return act(crew, 'resolve');
+      // A demonstration job always goes on to hospital: the transport leg is half the story.
+      if (!dispatch.canTransport(r.unit_kind) || (!crew.scripted && Math.random() > transportProbability(r.kind, r.priority))) return act(crew, 'resolve');
       crew.busy = true;
       try {
         const ranking = await dispatch.hospitalRecommendation(r.inc_ref, AI_DISPATCH);
         const best = ranking.value?.hospitals?.find((h) => !h.onDiversion) ?? ranking.value?.hospitals?.[0];
         crew.busy = false;
         if (!best) return act(crew, 'resolve');
+        crew.hospitalWhy = best.reasoning ?? null;
         return act(crew, 'transporting', { hospitalRef: best.ref });
       } catch (err) {
         crew.busy = false;
@@ -1122,10 +1668,28 @@ async function stepCrew(crew, dtSec) {
 async function drive(crew, dtSec) {
   const p = crew.path;
   if (!p || crew.arrived) return;
-  // Slower inside a congested stretch — the red on the map is where the vehicle crawls.
-  const mps = crew.speedMps * paceSpeed() * traffic.factorAt(p.traffic, p.travelled);
-  p.travelled = Math.min(p.total, p.travelled + mps * dtSec);
-  crew.nowMps = mps;
+  let mps;
+  if (p.drive) {
+    // Follow the speed profile IN TIME (engines/drive.js): away from rest, up to the road's
+    // cruise, down for each turn and roundabout, slow through a queue, pull up at the end.
+    // Time-based, so the arrival the profile predicted is the arrival that happens.
+    crew.elapsed = (crew.elapsed ?? 0) + dtSec * paceSpeed() / (crew.pace ?? 1);
+    const before = p.travelled;
+    // The profile's clock has run out: the vehicle is there, whatever a rounding error in
+    // the last metre says (a crew stuck 0.4 m short of the scene never arrives).
+    const done = crew.elapsed >= p.drive.tcum[p.drive.tcum.length - 1];
+    p.travelled = done ? p.total : Math.min(p.total, driveModel.distanceAt(p.drive, crew.elapsed));
+    mps = Math.max(0, (p.travelled - before) / Math.max(0.2, dtSec));
+    // The speed shown is the speed at this point of the road, not the tick's average.
+    const here = driveModel.speedAt(p.drive, p.travelled) / (crew.pace ?? 1);
+    crew.nowMps = p.travelled >= p.total ? 0 : Math.max(0, (here + mps) / 2);
+  } else {
+    // No profile (should not happen): an even 12 m/s, slowed in a congested stretch.
+    mps = 12 * paceSpeed() * traffic.factorAt(p.traffic, p.travelled);
+    p.travelled = Math.min(p.total, p.travelled + mps * dtSec);
+    crew.nowMps = mps;
+  }
+  mps = crew.nowMps;
   const { at, heading } = pointAlong(p, p.travelled);
   const status = crew.phase === 'drive_scene' ? 'responding'
     : crew.phase === 'drive_hospital' ? 'transporting'
@@ -1269,35 +1833,71 @@ export async function liveAssignments() {
         incidentPosition: [r.ilng, r.ilat],
         hospital: r.hospital_ref ? { ref: r.hospital_ref, name: r.hospital_name, position: [r.hlng, r.hlat] } : null,
         reportedAt: r.reported_at, onsceneAt: r.onscene_at, etaPredictedAt: r.eta_predicted_at,
-        path: simPath ?? (leg === 'scene' ? r.route_proposed?.coordinates ?? null : null),
+        // A unit the simulation is not driving (a crew phone) gets the planned road from
+        // where it actually is — the map reads a path's first point as the vehicle.
+        path: simPath ?? aheadOf(
+          leg === 'scene' ? r.route_proposed?.coordinates ?? null : leg === 'hospital' ? deviceHospitalRoutes.get(r.ref) ?? null : null,
+          r.ulng != null ? [r.ulng, r.ulat] : null,
+        ),
         simulated: Boolean(crew),
         // The congested stretches of the road still ahead — the only traffic the live map
         // draws (sim/traffic.js; simulated in this build and labelled so on screen).
         traffic: jam.map((j) => ({ level: j.level, cause: j.cause, inM: j.inM, lengthM: j.lengthM, delaySec: j.delaySec, path: j.path })),
         trafficDelaySec: jam.reduce((s, j) => s + j.delaySec, 0),
-        remainingM: driving ? Math.round(crew.path.total - crew.path.travelled) : null,
-        speedKmh: driving && crew.nowMps != null ? Math.round(crew.nowMps * 3.6) : null,
+        remainingM: driving ? Math.round(crew.path.total - crew.path.travelled) : deviceLive(r.ref)?.remainingM ?? null,
+        speedKmh: driving && crew.nowMps != null ? Math.round(crew.nowMps * 3.6) : deviceLive(r.ref)?.speedKmh ?? null,
       };
     }),
     legs,
   };
 }
 
+/** The part of a planned road still ahead of a vehicle: from the vertex nearest to it. */
+function aheadOf(coords, at) {
+  if (!coords || coords.length < 2) return null;
+  if (!at) return coords;
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 0; i < coords.length; i++) {
+    const d = haversine(coords[i], at);
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  const rest = coords.slice(best + 1);
+  return rest.length ? [at, ...rest] : null;
+}
+
 function trafficAhead(path) {
   return traffic.ahead(path.traffic, path.travelled, path.coords, path.cum);
 }
 
-/** What the decision log needs about a drive in progress (services/decisions.js). */
+/** What the decision log needs about a drive in progress (services/decisions.js). A unit
+ *  a crew phone is driving has no simulated crew; its own reports stand in. */
 export function liveFor(asgRef) {
   for (const c of crews.values()) {
     if (c.asgRef !== asgRef || !c.path || c.arrived) continue;
+    const ahead = trafficAhead(c.path).map(({ level, cause, inM, lengthM, delaySec }) => ({ level, cause, inM, lengthM, delaySec }));
+    const remainingM = Math.round(c.path.total - c.path.travelled);
     return {
-      remainingM: Math.round(c.path.total - c.path.travelled),
+      remainingM,
       speedKmh: c.nowMps != null ? Math.round(c.nowMps * 3.6) : null,
-      trafficAhead: trafficAhead(c.path).map(({ level, cause, inM, lengthM, delaySec }) => ({ level, cause, inM, lengthM, delaySec })),
+      trafficAhead: ahead,
+      // Which drive this is, and when it ends at the pace it is being driven plus the
+      // queues still ahead — the scene ETA comes from the dispatch model, but the leg to
+      // hospital has no other estimate, and "On scene" was all a transporting crew showed.
+      leg: c.leg ?? null,
+      // The profile's own clock for the rest of the road — braking, cruising and queues
+      // already in it — at this crew's pace.
+      etaSec: c.path.drive ? Math.round(driveModel.remainingSec(c.path.drive, c.path.travelled) * (c.pace ?? 1)) : null,
+      next: c.path.drive ? driveModel.upcoming(c.path.drive, c.path.travelled) : null,
     };
   }
-  return null;
+  const device = deviceLive(asgRef);
+  return device ? { ...device, trafficAhead: [] } : null;
+}
+
+function deviceLive(asgRef) {
+  const unitId = deviceJobs.get(asgRef);
+  return unitId ? deviceDriveFor(unitId) : null;
 }
 
 function pendingFor(ref) {
@@ -1305,6 +1905,9 @@ function pendingFor(ref) {
   if (!p) return null;
   return { dueAt: new Date(p.dueAt).toISOString(), windowSec: p.windowSec ?? null, held: held.has(ref) };
 }
+
+/** The road to hospital planned for a phone-driven transport (null until it is known). */
+export const deviceHospitalRouteFor = (asgRef) => deviceHospitalRoutes.get(asgRef) ?? null;
 
 /** The road still ahead of a simulated ambulance on this assignment, or null when no
  *  simulated crew is driving it (a real phone, or not moving). */
@@ -1350,6 +1953,9 @@ export function startLiveSimulation() {
     last = now;
     tick++;
     try {
+      // After a restart, pick the demonstration back up BEFORE the crews are rebuilt, so the
+      // crew on a scenario incident keeps the scenario's timings (and always transports).
+      if (poc.enabled && !adopted) await adoptInFlight();
       if (tick % 3 === 1) await syncCrews();
       await Promise.all([...crews.values()].map((c) => stepCrew(c, dt).catch((err) =>
         logger.warn({ err: err.message, unit: c.unitRef }, '[sim] crew tick failed'))));

@@ -35,14 +35,57 @@ export const poc = {
    */
   fleet: [
     'AMB-122',   // Medic 22    · ALS  · DSO Station
-    'AMB-16',    // Medic 16    · BLS  · DSO Station
-    'MICU-03',   // Intensive 3 · MICU · DSO Station
+    'AMB-16',    // Medic 16    · BLS  · Dubai Silicon Oasis Ambulance Point 95
+    'MICU-03',   // Intensive 3 · MICU · Dubai Silicon Oasis Ambulance Point 97
     'AMB-103',   // Medic 3     · ALS  · DCAS Headquarters, Warsan
-    'AMB-19',    // Medic 19    · BLS  · International City Standby Point 93
+    'AMB-19',    // Medic 19    · BLS  · International City Station
     'AMB-21',    // Medic 21    · BLS  · International City Standby Point 93
     'AMB-07',    // Medic 7     · BLS  · Mirdif Station
     'AMB-101',   // Medic 1     · ALS  · Mirdif Ambulance Point 83
   ],
+
+  /**
+   * Each trial ambulance's home station. The reference seed spreads the emirate's fleet
+   * over random stations, which scattered these eight from Jumeirah to Al Qusais; the
+   * live simulation holds them to these on every start and reset (sim/live.js
+   * alignTrialFleet), and a crew that clears drives back here.
+   */
+  homes: {
+    'AMB-122': 'STN-DCAS-11',
+    'AMB-16': 'STN-DCAS-110',
+    'MICU-03': 'STN-DCAS-112',
+    'AMB-103': 'STN-DCAS-01',
+    'AMB-19': 'STN-DCAS-13',
+    'AMB-21': 'STN-DCAS-108',
+    'AMB-07': 'STN-DCAS-09',
+    'AMB-101': 'STN-DCAS-98',
+  },
+
+  /**
+   * The trial catchment — Silicon Oasis out to Al Rashidiya and Mirdif, with a margin
+   * (sim/roadSites.js). What "the area the trial covers" means wherever a number is about
+   * the eight ambulances: coverage measured over the whole emirate with a fleet of eight
+   * read as 8% and said nothing about the trial.
+   */
+  catchment: { west: 55.31, south: 25.09, east: 55.45, north: 25.25 },
+
+  /**
+   * The six communities the eight ambulances are stationed to serve — each within 4 km of
+   * a trial station. Coverage is measured over these: the catchment box above has a margin
+   * that reaches Oud Metha and Al Jaddaf, 8–10 km from the nearest trial ambulance, which
+   * the trial was never meant to cover.
+   */
+  communities: [
+    'Z-C0704',   // Dubai Silicon Oasis
+    'Z-C0703',   // International City
+    'Z-C0701',   // Mirdif
+    'Z-C0706',   // Al Rashidiya
+    'Z-C0702',   // Al Warqa
+    'Z-C0705',   // Academic City
+  ],
+
+  /** The ambulance the demo crew phone (RSP-AMB122) is bound to. */
+  crewDemoUnit: 'AMB-122',
 
   /** Two cameras per ambulance: one on the road ahead, one on the cab. */
   camerasPerUnit: 2,
@@ -62,3 +105,6 @@ export const pocFleet = () => (poc.enabled ? poc.fleet : null);
 export const pocFleetSize = () => poc.fleet.length;
 
 export const inPocFleet = (ref) => !poc.enabled || poc.fleet.includes(ref);
+
+/** The trial's communities by ref, or `null` for "the whole emirate". */
+export const pocCommunities = () => (poc.enabled ? poc.communities : null);

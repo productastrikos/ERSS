@@ -30,6 +30,8 @@ export function AssignedCrewCard({ trace, now, showTitle = true, compact = false
   const p = a.profile;
   const live = a.live;
   const etaLeft = a.etaPredictedAt && !trace.incident.firstOnsceneAt ? Math.round((Date.parse(a.etaPredictedAt) - now) / 1000) : null;
+  // On the way to hospital the scene ETA is spent; the leg in progress has its own.
+  const toHospital = a.state === 'transporting' && live?.leg === 'hospital' && live.etaSec != null ? live.etaSec : null;
   const jam = live?.trafficAhead?.[0] ?? null;
   return (
     <section className="dtl-sec">
@@ -38,9 +40,20 @@ export function AssignedCrewCard({ trace, now, showTitle = true, compact = false
         <div className="dtl-crew__head">
           <div>
             <strong>{a.callsign}</strong>
-            <span>{a.unitKind}{p ? ` · ${p.plate} · ${p.vehicle}` : ''}</span>
+            {/* Compact: the hospital it is heading for rides in the subtitle, not a tile — the
+                strip has room for exactly one row of facts. */}
+            <span>{compact && a.hospital ? `${a.unitKind} · to ${a.hospital.name}` : `${a.unitKind}${p ? ` · ${p.plate} · ${p.vehicle}` : ''}`}</span>
           </div>
-          <Chip tone={trace.phase === 'enroute' ? 'accent' : trace.phase === 'onscene' ? 'success' : 'neutral'}>{t(`asg.state.${a.state}`)}</Chip>
+          <span className="dtl-crew__status">
+            <Chip tone={trace.phase === 'enroute' ? 'accent' : trace.phase === 'onscene' ? 'success' : 'neutral'}>{t(`asg.state.${a.state}`)}</Chip>
+            {/* In the dashboard's fixed-height strip the follow control rides in the header
+                row — as a row of its own under the facts it was cut off by the strip. */}
+            {compact && live && (
+              <Button size="sm" variant="primary" onClick={() => requestFollow(a.ref)} title={t('detail.followOnMap')}>
+                <Navigation aria-hidden /> Follow
+              </Button>
+            )}
+          </span>
         </div>
         {p && !compact && (
           <ul className="dtl-crew__people">
@@ -49,8 +62,12 @@ export function AssignedCrewCard({ trace, now, showTitle = true, compact = false
             ))}
           </ul>
         )}
-        <div className={`dtl-kv${compact ? ' dtl-kv--3' : ''}`}>
-          <div><span>{t('detail.inc.eta')}</span><strong className={etaLeft != null && etaLeft < 0 ? 'is-bad' : ''}>{etaLeft == null ? (trace.incident.firstOnsceneAt ? t('detail.inc.onScene') : '—') : etaLeft < 0 ? t('detail.inc.late', { t: withUnit(-etaLeft) }) : withUnit(etaLeft)}</strong></div>
+        <div className={`dtl-kv${compact ? ' dtl-kv--row dtl-kv--wrap' : ''}`}>
+          {toHospital != null ? (
+            <div><span>{t('detail.inc.etaHospital')}</span><strong>{withUnit(toHospital)}</strong></div>
+          ) : (
+            <div><span>{t('detail.inc.eta')}</span><strong className={etaLeft != null && etaLeft < 0 ? 'is-bad' : ''}>{etaLeft == null ? (trace.incident.firstOnsceneAt ? t('detail.inc.onScene') : '—') : etaLeft < 0 ? t('detail.inc.late', { t: withUnit(-etaLeft) }) : withUnit(etaLeft)}</strong></div>
+          )}
           <div><span>{t('detail.inc.toGo')}</span><strong>{km(live?.remainingM)}</strong></div>
           <div><span>{t('detail.inc.speed')}</span><strong>{live?.speedKmh != null ? `${live.speedKmh} km/h` : '—'}</strong></div>
           <div>
@@ -59,12 +76,14 @@ export function AssignedCrewCard({ trace, now, showTitle = true, compact = false
               {jam ? `${jam.level === 'heavy' ? t('detail.inc.heavy') : t('detail.inc.slow')} · ${Math.round(jam.lengthM)} m · +${duration(jam.delaySec)}` : live ? t('detail.inc.clear') : '—'}
             </strong>
           </div>
-          {a.hospital && <div><span>{t('detail.inc.hospital')}</span><strong>{a.hospital.name}</strong></div>}
+          {a.hospital && !compact && <div><span>{t('detail.inc.hospital')}</span><strong>{a.hospital.name}</strong></div>}
         </div>
-        <div className="dtl-actions dtl-actions--inline">
-          {live && <Button size="sm" variant="primary" onClick={() => requestFollow(a.ref)}><Navigation aria-hidden /> {t('detail.followOnMap')}</Button>}
-          {!compact && <Button size="sm" variant="secondary" onClick={() => openDetail({ kind: 'unit', ref: a.unitRef })}><Users aria-hidden /> {t('detail.inc.crewVehicle')}</Button>}
-        </div>
+        {!compact && (
+          <div className="dtl-actions dtl-actions--inline">
+            {live && <Button size="sm" variant="primary" onClick={() => requestFollow(a.ref)}><Navigation aria-hidden /> {t('detail.followOnMap')}</Button>}
+            <Button size="sm" variant="secondary" onClick={() => openDetail({ kind: 'unit', ref: a.unitRef })}><Users aria-hidden /> {t('detail.inc.crewVehicle')}</Button>
+          </div>
+        )}
         {p && !compact && <p className="dtl-sec__note">{t('detail.demoRoster')}</p>}
       </div>
     </section>

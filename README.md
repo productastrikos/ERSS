@@ -15,9 +15,6 @@ specification, scenarios, build phases — is in [`docs/`](docs/), indexed by
 
 ## Run it
 
-> **Deploying on Hostinger?** See [`HOSTINGER.md`](HOSTINGER.md). One process, one port:
-> `npm run build` then `npm start`.
-
 ### Prerequisites
 
 | | |
@@ -64,9 +61,38 @@ itself is `web/src/lib/demoAccounts.ts`. Every other demo account uses `erss2026
 Each browser TAB holds its own session, so a dispatcher, a duty officer and a service
 lead can be signed in side by side in one browser.
 
-Within about 45 seconds of signing in — or of pressing **Restart PoC** in the header — a
-camera raises a road collision, the map flies to it, and the right rail opens by itself
-on the AI log: what the platform saw, what it weighed, what it chose and why.
+Within about 30 seconds of signing in — or of pressing **Restart PoC** in the header — the
+first of three demonstration incidents is raised by a camera, the map flies to it, and the
+**AI response drawer** slides in from the right edge on the AI log: what the platform saw,
+which ambulances and which ROADS it weighed (turns, roundabouts, main-road share, traffic),
+what it chose and why. The map rides with the crew to the scene and again to hospital.
+
+The three incidents (`server/sim/scripts/demoScenarios.js`) run **one at a time, end to
+end**: the next is raised only after the last is closed and the fleet is back on station.
+The live map's demo chip shows which one is running and, between them, a countdown and a
+**Start now** button. Every response's AI log — the console's reasoning and the crew app's
+co-pilot — is kept (`incident_ai_log`) and plays back beside the map in **Insights → Replay**,
+with an after-action review of what went well and what to change.
+
+### The three-device demo — citizen phone, paramedic phone, console
+
+Open `/app` on two phones — sign one in as the **citizen** (`CIT-71BE`), the other as the
+**paramedic** (`RSP-AMB122`, Medic 22) — and the console dashboard on a laptop. All three are
+live over the socket:
+
+1. While any phone is connected, the scripted camera scenarios **pause** (the demo chip says
+   so); the phones drive the demo. **Start now** on the chip still runs a camera scenario.
+2. The citizen app places the caller on a road a short drive from Medic 22, where it is the
+   nearest free ambulance. Sliding **SOS** raises the incident; the console flies to it and
+   shows the AI weighing the fleet.
+3. With the paramedic app online, the AI **pairs** the SOS with that crew (stated in the AI log)
+   and offers it to the phone. The paramedic decides every step — accept, go, arrived, with
+   patient, which hospital (the AI ranks them), handover, clear. Offline, any ambulance is sent.
+4. The console rides with the ambulance; the citizen's map shows it approaching in real time.
+
+**Restart PoC** clears everything on every screen: live incidents (including the SOS), the
+paramedic's job and drive, the citizen's tracking, alerts and the AI log — and puts the fleet
+back on station.
 
 ### On a phone, over the LAN
 

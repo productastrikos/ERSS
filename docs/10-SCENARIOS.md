@@ -44,6 +44,44 @@ job is to make this the reliable outcome, not the exceptional one."
 
 ---
 
+## The trial demonstration — three incidents, one at a time
+
+In the trial build (`config/poc.js`) the road is not a random stream. A room watching two
+or three incidents at once lost all of them, and randomly placed collisions often sat on
+the wrong carriageway of a divided road, so the crew drove 3–4× the straight-line distance
+through a dozen turns. The trial runs three curated incidents instead
+(`server/sim/scripts/demoScenarios.js`), each a five-stage camera detection, each run to
+the end — dispatch, drive, scene, transport, hand-over, clear, closed — before the next is
+raised (45 s after the close, once the fleet is back on station; **Start now** on the live
+map's demo chip brings it forward, never while anything is live).
+
+| # | Incident | Where | What the AI is expected to find |
+|---|---|---|---|
+| 1 | P1 multi-vehicle collision | Al Ruwayyah St, DSO east | Nearest = fastest (Medic 16, BLS). The lesson is the ROAD: 2 roundabouts beat 4 on a road barely shorter; the ALS crew is 2½–3 min further — first crew on scene wins on a P1 |
+| 2 | P2 pedestrian struck | Warsan St 1, International City | Medic 19 leaves International City Station straight onto International City St 1 › Manama St; HQ's ALS crew has 5 manoeuvres and an alternative with a U-turn |
+| 3 | P1 driver collapsed at the wheel | Algeria St, Mirdif | Closest as the crow flies (Medic 7) is BLS — ruled out for a cardiac arrest — and its road is the slower one anyway; Medic 1 (ALS) is two manoeuvres away |
+
+Sites were chosen by routing every trial station to every snapped road point in the
+catchment and keeping the direct ones (≤ 1.5× straight line, named roads). The scripts
+state only what the cameras saw; the ambulance, the road, the hospital and every time
+come from the engines.
+
+**How the AI chooses a road** (`server/engines/drive.js`). Every leading candidate's road
+is fetched with alternatives and manoeuvres (OSRM), then driven through a speed profile:
+cruise by road class (motorway 100, arterial 72, local 42 km/h under lights), corner speeds
+for every manoeuvre (U-turn 14, sharp 18, turn 24, roundabout 26, slight 45 km/h),
+acceleration ≤ 1.4 m/s² and braking ≤ 2.6 m/s², and the simulated traffic on it. The
+quickest road is chosen per ambulance and the field is ranked on those times. The
+simulation drives the SAME profile, so the speed falls into each roundabout on the map
+exactly where the model said it would, and the arrival matches the prediction.
+
+**What is kept** (`incident_ai_log`, `server/services/aiLog.js`). The console's AI log, a
+drive checkpoint every 15 s, the decision snapshot (every ambulance and every road
+compared), the crew app's co-pilot output at each stage, and the after-action review
+(`server/services/afterAction.js`) — all played back beside the map in Insights → Replay.
+
+---
+
 ## The opening sequence — what starting the simulation always shows
 
 Two camera detections, built and running (`server/sim/scripts/`). They are **not a

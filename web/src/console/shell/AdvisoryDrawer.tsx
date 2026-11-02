@@ -59,7 +59,7 @@ export function AdvisoryDrawer({ open, onClose }: { open: boolean; onClose: () =
       {/* Transparent click-catcher: never dim or blur the page beneath. */}
       <div className="advisory-drawer__catcher" onClick={onClose} aria-hidden />
 
-      <aside className="advisory-drawer" role="dialog" aria-modal="false" aria-label={t('advisory.title')}>
+      <aside className="advisory-drawer" data-map-occluder="right" role="dialog" aria-modal="false" aria-label={t('advisory.title')}>
         <header className="advisory-drawer__head">
           <div>
             <h2><Sparkles aria-hidden /> {t('advisory.title')}</h2>

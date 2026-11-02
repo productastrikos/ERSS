@@ -14,11 +14,12 @@
  * Every figure carries its unit on its face. "4:32" is a clock time to half the room and a
  * response time to the other half; "4:32 min" is not a question.
  *
- * Every card opens its detail in the RIGHT RAIL (console/detail, lib/stores/detail.ts):
- * the Automatic dispatch card opens its rules, advisory and predictions; an incident opens
- * the AI's log of how it is handling it; an ambulance opens its crew and vehicle. The rail
- * is replaced rather than covered, so the map never is. The map itself follows each new
- * incident by itself (shared/map/live/useIncidentDirector.ts) and opens it here.
+ * Every card opens its detail in the DRAWER (console/detail, lib/stores/detail.ts): a
+ * full-height slide-over from the right edge that overlaps the rail while it is open and
+ * slides away when it is closed, leaving a tab on the edge to bring it back. The Automatic
+ * dispatch card opens its rules, advisory and predictions; an incident opens the AI's log
+ * of how it is handling it; an ambulance opens its crew and vehicle. The map follows each
+ * new incident by itself (shared/map/live/useIncidentDirector.ts) and opens it there.
  */
 
 import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
@@ -32,9 +33,9 @@ import { api } from '../../../lib/api';
 import { duration, durationUnit, plural } from '../../../lib/format';
 import { navigate, openIncident } from '../../../lib/router';
 import { onSocket } from '../../../lib/socket';
-import { openDetail, useDetail, useIsOpen, type DetailTarget } from '../../../lib/stores/detail';
-import { DetailPanel } from '../../detail/DetailPanel';
-import { usePoc } from '../../../lib/stores/session';
+import { openDetail, useIsOpen, type DetailTarget } from '../../../lib/stores/detail';
+import { DetailDrawer } from '../../detail/DetailPanel';
+import { usePoc, useUser } from '../../../lib/stores/session';
 import { useNow } from '../../../lib/stores/now';
 import { loadIncidents, useQueue, wireIncidentFeed } from '../../../lib/stores/incidents';
 import { loadUnits, wireFleetFeed } from '../../../lib/stores/fleet';
@@ -43,6 +44,8 @@ import { useDecisionTrace } from '../../../lib/stores/decisions';
 import { LiveOpsMap } from '../../../shared/map/live/LiveOpsMap';
 import { AssignedCrewCard } from '../../detail/AssignedCrewCard';
 import { Chip, Dot, EmptyState } from '../../../shared/ui';
+import { ExportButton, ReportButton } from '../../../shared/report/ExportButton';
+import { feedDoc, hospitalsDoc, liveDoc, todayDoc } from './exports';
 import './dashboard.scss';
 
 const RANK: Record<Priority, number> = { P1: 1, P2: 2, P3: 3, P4: 4 };
@@ -78,7 +81,6 @@ export function DashboardPage() {
   // A card below the map opens the incident's AI log in the rail; its ref chip still goes
   // to the dispatch board.
   const focusIncident = (inc: Incident) => openDetail({ kind: 'incident', ref: inc.ref });
-  const detail = useDetail();
 
   return (
     <div className="dash">
@@ -96,19 +98,17 @@ export function DashboardPage() {
       </section>
 
       <aside className="dash__rail">
-        {detail ? <DetailPanel /> : (
-          <>
-            <AutoDispatch />
-            <LiveFeed />
-          </>
-        )}
+        <AutoDispatch />
+        <LiveFeed />
       </aside>
 
       <section className="dash__bottom">
-        <ResponsesStrip incident={primary} count={responses.length} targets={summary?.targets} onFocus={focusIncident} />
+        <ResponsesStrip incident={primary} all={responses} count={responses.length} targets={summary?.targets} onFocus={focusIncident} />
         <AssignedStrip incidentRef={primary?.ref ?? null} />
         <HospitalLoad hospitals={summary?.hospitals ?? []} />
       </section>
+
+      <DetailDrawer />
     </div>
   );
 }
@@ -140,8 +140,12 @@ function HeroBand({ summary }: { summary: LiveSummary | null }) {
   const ai = summary?.aiDispatch;
   const active = summary?.active;
 
+  const by = useUser()?.name ?? null;
   return (
     <section className="dash__hero" aria-label="Today">
+      <div className="dash__hero-export">
+        <ExportButton label="Today's summary" build={() => todayDoc(summary, by)} title="Today's response performance — preview, edit, download" />
+      </div>
       <div className="hero-tile hero-tile--primary is-openable" {...opener({ kind: 'kpi', key: 'response' })}>
         <div className="hero-tile__label"><Timer aria-hidden /> {t('dash.responseToday')}</div>
         <div className="hero-tile__split">
@@ -160,60 +164,68 @@ function HeroBand({ summary }: { summary: LiveSummary | null }) {
 
       <div className="hero-tile is-openable" {...opener({ kind: 'kpi', key: 'within' })}>
         <div className="hero-tile__label"><CircleCheck aria-hidden /> {t('dash.withinTarget')}</div>
-        <div className="hero-tile__row">
-          <span className={`hero-tile__value ${within == null ? '' : within >= 90 ? 'is-good' : within >= 75 ? 'is-warn' : 'is-bad'}`}>
-            {within == null ? '—' : <>{Math.round(within)}<small className="hero-tile__suffix">%</small></>}
-          </span>
-          <span className="hero-tile__unit">{t('dash.ofResponsesUnit')}</span>
+        <div className="hero-tile__body">
+          <div className="hero-tile__row">
+            <span className={`hero-tile__value ${within == null ? '' : within >= 90 ? 'is-good' : within >= 75 ? 'is-warn' : 'is-bad'}`}>
+              {within == null ? '—' : <>{Math.round(within)}<small className="hero-tile__suffix">%</small></>}
+            </span>
+            <span className="hero-tile__unit">{t('dash.ofResponsesUnit')}</span>
+          </div>
+          <div className="hero-tile__sub">{t('dash.ofResponses', { n: kpi?.responded ?? 0, what: plural(kpi?.responded ?? 0, 'response', 'responses') })}</div>
         </div>
-        <div className="hero-tile__sub">{t('dash.ofResponses', { n: kpi?.responded ?? 0, what: plural(kpi?.responded ?? 0, 'response', 'responses') })}</div>
       </div>
 
       <div className="hero-tile is-openable" {...opener({ kind: 'kpi', key: 'active' })}>
         <div className="hero-tile__label"><Activity aria-hidden /> {t('dash.active')}</div>
-        <div className="hero-tile__row">
-          <span className="hero-tile__value">
-            {active?.total ?? '—'}
-            {active && <small className="hero-tile__suffix">{plural(active.total, 'incident', 'incidents')}</small>}
-          </span>
-          {!!active?.P1 && <Chip tone="danger">{active.P1} P1</Chip>}
-          {!!active?.P2 && <Chip tone="warning">{active.P2} P2</Chip>}
-        </div>
-        <div className={`hero-tile__sub ${active?.waiting ? 'is-bad' : ''}`}>
-          {active?.waiting ? t('dash.waiting', { n: active.waiting }) : t('dash.noneWaiting')}
+        <div className="hero-tile__body">
+          <div className="hero-tile__row">
+            <span className="hero-tile__value">
+              {active?.total ?? '—'}
+              {active && <small className="hero-tile__suffix">{plural(active.total, 'incident', 'incidents')}</small>}
+            </span>
+            {!!active?.P1 && <Chip tone="danger">{active.P1} P1</Chip>}
+            {!!active?.P2 && <Chip tone="warning">{active.P2} P2</Chip>}
+          </div>
+          <div className={`hero-tile__sub ${active?.waiting ? 'is-bad' : ''}`}>
+            {active?.waiting ? t('dash.waiting', { n: active.waiting }) : t('dash.noneWaiting')}
+          </div>
         </div>
       </div>
 
       <div className="hero-tile is-openable" {...opener({ kind: 'kpi', key: 'fleet' })}>
         <div className="hero-tile__label"><Ambulance aria-hidden /> {t('dash.fleet')}</div>
-        <div className="hero-tile__row">
-          <span className="hero-tile__value">
-            {ready ?? '—'}
-            {ready != null && <small className="hero-tile__suffix">{t('dash.ofFleet', { total: poc.enabled ? poc.fleetSize : f!.total })}</small>}
-          </span>
-          {/* "1 / 8 ambulances": the noun belongs to the fleet, not to the one that is ready. */}
-          <span className="hero-tile__unit">{plural(poc.enabled ? poc.fleetSize : f?.total ?? 0, 'ambulance', 'ambulances')}</span>
+        <div className="hero-tile__body">
+          <div className="hero-tile__row">
+            <span className="hero-tile__value">
+              {ready ?? '—'}
+              {ready != null && <small className="hero-tile__suffix">{t('dash.ofFleet', { total: poc.enabled ? poc.fleetSize : f!.total })}</small>}
+            </span>
+            {/* "1 / 8 ambulances": the noun belongs to the fleet, not to the one that is ready. */}
+            <span className="hero-tile__unit">{plural(poc.enabled ? poc.fleetSize : f?.total ?? 0, 'ambulance', 'ambulances')}</span>
+          </div>
+          <div className="hero-tile__sub">{f ? t('dash.fleetBusy', { busy: busy ?? 0, what: plural(busy ?? 0, 'ambulance', 'ambulances') }) : '—'}</div>
         </div>
-        <div className="hero-tile__sub">{f ? t('dash.fleetBusy', { busy: busy ?? 0, what: plural(busy ?? 0, 'ambulance', 'ambulances') }) : '—'}</div>
       </div>
 
-      <div className="hero-tile is-openable" {...opener({ kind: 'kpi', key: 'ai' })}>
+      <div className="hero-tile hero-tile--ai is-openable" {...opener({ kind: 'kpi', key: 'ai' })}>
         <div className="hero-tile__label"><BrainCircuit aria-hidden /> {t('dash.ai')}</div>
-        {ai && ai.dispatches > 0 ? (
-          <>
-            <div className="hero-tile__row">
-              <span className={`hero-tile__value ${ai.savedSec > 0 ? 'is-good' : ''}`}>
-                {minutesValue(ai.savedSec)}<small className="hero-tile__suffix">min</small>
-              </span>
-              <span className="hero-tile__unit">{t(ai.dispatches === 1 ? 'dash.aiDispatch' : 'dash.aiDispatches', { n: ai.dispatches })}</span>
-            </div>
-            <div className="hero-tile__sub" title={ai.basis}>
-              {ai.faster > 0 ? t('dash.aiSaved', { n: ai.faster }) : t('dash.aiNearest')}
-            </div>
-          </>
-        ) : (
-          <div className="hero-tile__sub">{t('dash.aiNone')}</div>
-        )}
+        <div className="hero-tile__body">
+          {ai && ai.dispatches > 0 ? (
+            <>
+              <div className="hero-tile__row">
+                <span className={`hero-tile__value ${ai.savedSec > 0 ? 'is-good' : ''}`}>
+                  {minutesValue(ai.savedSec)}<small className="hero-tile__suffix">min</small>
+                </span>
+                <span className="hero-tile__unit">{t(ai.dispatches === 1 ? 'dash.aiDispatch' : 'dash.aiDispatches', { n: ai.dispatches })}</span>
+              </div>
+              <div className="hero-tile__sub" title={ai.basis}>
+                {ai.faster > 0 ? t('dash.aiSaved', { n: ai.faster }) : t('dash.aiNearest')}
+              </div>
+            </>
+          ) : (
+            <div className="hero-tile__sub">{t('dash.aiNone')}</div>
+          )}
+        </div>
       </div>
     </section>
   );
@@ -350,13 +362,17 @@ const STAGE_TONE: Record<string, string> = {
 
 function LiveFeed() {
   const { items, fresh, status } = useFeed();
+  const by = useUser()?.name ?? null;
   return (
     <div className="dash-card feed">
       <div className="dash-card__head">
         <button type="button" className="dash-card__title dash-card__title--btn" onClick={() => openDetail({ kind: 'feed' })} title={t('dash.feedAll')}>
           <Activity aria-hidden /> {t('dash.feed')} <ChevronRight aria-hidden />
         </button>
-        <span className="feed__live"><span className="feed__pulse" aria-hidden /> LIVE</span>
+        <span className="dash-card__actions">
+          <ExportButton iconOnly label="Download the live feed" build={() => feedDoc(items, by)} />
+          <span className="feed__live"><span className="feed__pulse" aria-hidden /> LIVE</span>
+        </span>
       </div>
       <ol className="feed__list" aria-live="polite">
         {status === 'ready' && !items.length && <li className="feed__empty">{t('dash.feedNone')}</li>}
@@ -394,9 +410,10 @@ function FeedRow({ item, fresh }: { item: FeedItem; fresh: boolean }) {
  * every open call. `count` still reports how many are technically live, in case more
  * than one ever is, but only the most urgent (waiting calls first) gets a card.
  */
-function ResponsesStrip({ incident, count, targets, onFocus }: {
-  incident: Incident | null; count: number; targets: Record<Priority, number> | undefined; onFocus: (inc: Incident) => void;
+function ResponsesStrip({ incident, all, count, targets, onFocus }: {
+  incident: Incident | null; all: Incident[]; count: number; targets: Record<Priority, number> | undefined; onFocus: (inc: Incident) => void;
 }) {
+  const by = useUser()?.name ?? null;
   const pending = useSim().state?.pending;
   const now = useNow();
   const dueBy = new Map((pending ?? []).map((p) => [p.incidentRef, Date.parse(p.dueAt)]));
@@ -405,7 +422,11 @@ function ResponsesStrip({ incident, count, targets, onFocus }: {
     <div className="dash-card responses">
       <div className="dash-card__head">
         <div className="dash-card__title"><Timer aria-hidden /> {t('dash.responses')}</div>
-        <span className="dash-card__count">{count}</span>
+        <span className="dash-card__actions">
+          {incident && <ReportButton incidentRef={incident.ref} />}
+          {all.length > 0 && <ExportButton iconOnly label="Download live responses" build={() => liveDoc(all, by)} />}
+          <span className="dash-card__count">{count}</span>
+        </span>
       </div>
       {!incident ? (
         <EmptyState icon={<Ambulance aria-hidden />} title={t('dash.responsesNone')} body={t('dash.responsesNoneBody')} />
@@ -491,16 +512,20 @@ function AssignedStrip({ incidentRef }: { incidentRef: string | null }) {
 
 function HospitalLoad({ hospitals }: { hospitals: LiveSummary['hospitals'] }) {
   const [showAll, setShowAll] = useState(false);
+  const by = useUser()?.name ?? null;
   const shown = showAll ? hospitals : hospitals.slice(0, 6);
   return (
     <div className="dash-card hospitals">
       <div className="dash-card__head">
         <div className="dash-card__title"><Hospital aria-hidden /> {t('dash.hospitals')}</div>
-        {hospitals.length > 6 && (
-          <button type="button" className="dash-card__link" onClick={() => setShowAll((v) => !v)}>
-            {showAll ? 'Top 6' : `All ${hospitals.length}`}
-          </button>
-        )}
+        <span className="dash-card__actions">
+          {hospitals.length > 0 && <ExportButton iconOnly label="Download emergency department load" build={() => hospitalsDoc(hospitals, by)} />}
+          {hospitals.length > 6 && (
+            <button type="button" className="dash-card__link" onClick={() => setShowAll((v) => !v)}>
+              {showAll ? 'Top 6' : `All ${hospitals.length}`}
+            </button>
+          )}
+        </span>
       </div>
       <ul className="hospitals__list">
         {shown.map((h) => {

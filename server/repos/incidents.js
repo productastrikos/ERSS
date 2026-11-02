@@ -6,6 +6,7 @@
  */
 
 import { ACTIVE_ASSIGNMENT_STATES } from '../domain/lifecycle.js';
+import { pool } from '../lib/db.js';
 
 export const ACTIVE_SQL = `('offered','acknowledged','enroute','onscene','transporting','at_hospital','resolved_on_scene')`;
 // Kept honest against the domain module — the SQL list and the Set must agree.
@@ -193,17 +194,42 @@ export async function incidentRow(db, ref, { forUpdate = false } = {}) {
  * An advisory lock per day serialises concurrent creates, so two dispatchers creating
  * incidents in the same second cannot mint the same ref.
  */
+/** The day's ref counter table exists (created on first use for a database older than this
+ *  build; also in schema.sql). */
+let counterTable = null;
+
+/**
+ * The next incident ref of the day — and NEVER one that has been used before.
+ *
+ * "Highest existing + 1" alone handed numbers out again: a PoC restart deletes the
+ * simulation's newest incidents, and the next incident took the number of one just deleted.
+ * Every screen that remembered the old one (the crew app's answered offers, a console panel,
+ * a report draft) then mistook the new job for it — the crew phone's auto-run skipped
+ * "Acknowledge" on a ref it had already acknowledged, and the offer timed out. So the day's
+ * high-water mark is kept, and only ever moves forward.
+ */
 export async function nextIncidentRef(client, nowMs) {
   const gst = new Date(nowMs + 4 * 3600_000);   // Dubai observes no DST
   const day = `${String(gst.getUTCFullYear()).slice(2)}${String(gst.getUTCMonth() + 1).padStart(2, '0')}${String(gst.getUTCDate()).padStart(2, '0')}`;
   const prefix = `INC-${day}-`;
+  // On the pool, not this transaction's client: a rollback here must not undo the table.
+  counterTable ??= pool.query('CREATE TABLE IF NOT EXISTS ref_counters (prefix text PRIMARY KEY, last int NOT NULL)').catch((err) => { counterTable = null; throw err; });
+  await counterTable;
   await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [prefix]);
   const { rows } = await client.query(
-    `SELECT COALESCE(MAX(NULLIF(substring(ref FROM 12), '')::int), 0) AS n
-       FROM incidents WHERE ref LIKE $1 AND substring(ref FROM 12) ~ '^[0-9]+$'`,
-    [`${prefix}%`],
+    `SELECT GREATEST(
+              COALESCE((SELECT MAX(NULLIF(substring(ref FROM 12), '')::int)
+                          FROM incidents WHERE ref LIKE $1 AND substring(ref FROM 12) ~ '^[0-9]+$'), 0),
+              COALESCE((SELECT last FROM ref_counters WHERE prefix = $2), 0)) + 1 AS n`,
+    [`${prefix}%`, prefix],
   );
-  return `${prefix}${String(rows[0].n + 1).padStart(4, '0')}`;
+  const n = rows[0].n;
+  await client.query(
+    `INSERT INTO ref_counters (prefix, last) VALUES ($1, $2)
+     ON CONFLICT (prefix) DO UPDATE SET last = GREATEST(ref_counters.last, EXCLUDED.last)`,
+    [prefix, n],
+  );
+  return `${prefix}${String(n).padStart(4, '0')}`;
 }
 
 export async function insertIncident(client, v) {

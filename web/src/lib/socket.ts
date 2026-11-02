@@ -28,6 +28,8 @@ const handlers = new Map<string, Set<Handler>>();
 const resyncHandlers = new Set<() => void>();
 /** incident ref → how many screens are watching it. */
 const watched = new Map<string, number>();
+/** The citizen's own SOS refs being tracked — rejoined on every reconnect. */
+const watchedSos = new Set<string>();
 
 export function connectSocket(): void {
   if (socket) return;
@@ -41,6 +43,7 @@ export function connectSocket(): void {
   socket.on('connect', () => {
     socketStore.set({ status: 'live', since: Date.now() });
     for (const ref of watched.keys()) socket?.emit('incident:watch', { ref });
+    for (const ref of watchedSos) socket?.emit('sos:watch', { ref });
     // Refetch, never replay: whatever was missed while disconnected is read over REST.
     if (everConnected) for (const h of resyncHandlers) h();
     everConnected = true;
@@ -102,11 +105,25 @@ export function watchIncident(ref: string): () => void {
   };
 }
 
+/**
+ * The citizen app: join the room for one's OWN SOS while it is being tracked. The server
+ * checks ownership; the room carries "something changed" pings and the answering ambulance's
+ * position, never the incident record.
+ */
+export function watchSos(ref: string): () => void {
+  watchedSos.add(ref);
+  socket?.emit('sos:watch', { ref });
+  return () => {
+    watchedSos.delete(ref);
+    socket?.emit('sos:unwatch', { ref });
+  };
+}
+
 export const useSocketStatus = () => useStore(socketStore);
 
 /** The one client→server write the socket carries (docs/02 §6): a responder's own
  *  position, speed in km/h. High-frequency and lossy by nature — silently dropped if not
  *  connected. */
-export function reportPosition(payload: { lng: number; lat: number; speed?: number | null; heading?: number | null }): void {
+export function reportPosition(payload: { lng: number; lat: number; speed?: number | null; heading?: number | null; remainingM?: number | null }): void {
   socket?.emit('unit:position', payload);
 }

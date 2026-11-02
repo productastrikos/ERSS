@@ -12,13 +12,14 @@
 
 import { pool } from '../lib/db.js';
 import { jurisdiction } from '../config/jurisdiction.js';
+import { pocFleet } from '../config/poc.js';
 import * as repo from '../repos/intelligence.js';
 import { detectAnomaly } from '../engines/anomaly.js';
 import { assessEquity } from '../engines/equity.js';
 import { computeCoverage } from '../engines/coverage.js';
 import { assessCrowd } from '../engines/crowd.js';
 import { summarisePreemptImpact } from '../engines/preempt.js';
-import { forecastAccuracy } from '../engines/demand.js';
+import { forecastAccuracy, poissonQuantile } from '../engines/demand.js';
 import { forecast } from '../lib/forecast.js';
 import { summarise } from '../lib/filters.js';
 
@@ -155,16 +156,20 @@ export async function demandReport({ hours = 24, days = 30, filters = {} } = {})
     byBucket.set(key, b);
   }
   const round1 = (v) => Math.round(v * 10) / 10;
+  // A total of Poisson counts is itself Poisson, so its 80% interval is read off the summed
+  // rate. Adding the per-zone bounds instead put every zone at its 10th and 90th percentile
+  // at once — a band from 0 to four times the forecast that no hour would ever produce.
+  const band = (x) => ({ ...x, predicted: round1(x.predicted), lower80: poissonQuantile(x.predicted, 0.1), upper80: poissonQuantile(x.predicted, 0.9) });
 
   return {
     accuracy: forecastAccuracy(accuracyRows),
     forecast: rows,
     byZone: [...byZone.values()]
-      .map((z) => ({ ...z, predicted: round1(z.predicted), lower80: round1(z.lower80), upper80: round1(z.upper80) }))
+      .map(band)
       .sort((a, b) => b.predicted - a.predicted),
     byBucket: [...byBucket.values()]
       .sort((a, b) => a.bucketStart.localeCompare(b.bucketStart))
-      .map((b) => ({ ...b, predicted: round1(b.predicted), lower80: round1(b.lower80), upper80: round1(b.upper80) })),
+      .map(band),
     horizonHours: hours,
     accuracyWindowDays: days,
     filters: envelope(filters, ZONE_KEYS),
@@ -172,14 +177,66 @@ export async function demandReport({ hours = 24, days = 30, filters = {} } = {})
   };
 }
 
-/** Intelligence → KPI library: the registry (definition, formula, target) plus the
- *  most recent value on record for each, averaged across whatever zones it was
- *  snapshotted for — a glossary with a current reading, not a full drill-down. */
-export async function kpiLibrary() {
-  return repo.kpiRegistryWithLatest(pool);
+/** A minute is fresh enough for a glossary and a quality panel, and saves recomputing
+ *  thirty days of percentiles for every viewer who opens the page. */
+const CACHE_MS = 60_000;
+const cache = new Map();
+async function cached(key, fn) {
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_MS) return hit.value;
+  const value = await fn();
+  cache.set(key, { at: Date.now(), value });
+  return value;
 }
 
-/** Intelligence → Data quality. */
+/** Intelligence → KPI library: the registry (definition, formula, target) with each KPI's
+ *  current reading — computed over the trailing 30 days from the view it names, so the
+ *  number and the formula beside it are the same calculation. */
+export async function kpiLibrary() {
+  return cached('kpi', async () => {
+    const [registry, live] = await Promise.all([repo.kpiRegistryWithLatest(pool), repo.kpiLiveValues(pool)]);
+    const periodTo = new Date().toISOString();
+    return registry.map((k) => {
+      const v = live[k.key];
+      return v == null ? k : { ...k, value: Math.round(Number(v) * 100) / 100, periodTo, window: 'trailing 30 days' };
+    });
+  });
+}
+
+/** Intelligence → Data quality: every source profiled now. Timeliness is how recent the
+ *  newest record is against how often that source should report; a source with no cadence
+ *  (reference data) is not judged on it. */
 export async function dataQualityReport() {
-  return repo.dataQualityRows(pool);
+  return cached('dq', async () => {
+    const fleet = pocFleet() ?? (await pool.query(
+      `SELECT array_agg(u.ref) AS refs FROM units u JOIN agencies a ON a.id = u.agency_id WHERE a.code = 'DCAS'`)).rows[0]?.refs ?? [];
+    const rows = await repo.dataQualityLive(pool, fleet);
+    const ranAt = new Date().toISOString();
+    const r1 = (v) => (v == null ? null : Math.round(Number(v) * 10) / 10);
+    return rows.map((r) => {
+      const latest = r.latest ? new Date(r.latest) : null;
+      const ageMin = latest ? (Date.now() - latest.getTime()) / 60_000 : null;
+      const cadence = r.cadence_min == null ? null : Number(r.cadence_min);
+      // Full marks inside the reporting cadence, falling to zero a day past it.
+      const timeliness = cadence == null ? null
+        : ageMin == null ? 0
+          : Math.max(0, Math.min(100, 100 * (1 - Math.max(0, ageMin - cadence) / 1440)));
+      const parts = [r.completeness, r.validity, r.duplication == null ? null : 100 - Number(r.duplication), timeliness]
+        .filter((v) => v != null).map(Number);
+      const score = parts.length ? parts.reduce((a, b) => a + b, 0) / parts.length : null;
+      const stale = cadence != null && (ageMin == null || ageMin > cadence * 3);
+      return {
+        source: r.source, ranAt, rowsIn: r.rows_in, score: r1(score),
+        results: {
+          completeness: r1(r.completeness), validity: r1(r.validity), duplication: r1(r.duplication),
+          timeliness: r1(timeliness), latestAt: latest?.toISOString() ?? null, stale,
+          note: r.source === 'makani_points'
+            ? 'Reference data, refreshed on import. Completeness is the textual-address fill rate — under two thirds, as in the published index, which is why the platform keys on the Makani number and entrance points instead.'
+            : r.source === 'weather_hourly' && stale
+              ? 'Historical feed in this trial — the live weather integration is not connected, and the panel says so.'
+              : undefined,
+        },
+      };
+    }).sort((a, b) => (a.score ?? 101) - (b.score ?? 101));
+  });
 }

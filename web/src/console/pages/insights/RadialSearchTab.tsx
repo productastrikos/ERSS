@@ -86,6 +86,9 @@ function radialFindings(r: RadialResult): Finding[] {
 
 interface Community { ref: string; name: string; lng: number; lat: number }
 
+/** Dubai Silicon Oasis — where the trial's ambulances and road cameras are (config/poc.js). */
+const HOME_COMMUNITY = 'Z-C0704';
+
 export function RadialSearchTab() {
   const f = useFilters();
   const q = toQuery(f);
@@ -109,6 +112,10 @@ export function RadialSearchTab() {
         .filter((x): x is Community => !!x)
         .sort((a, b) => a.name.localeCompare(b.name));
       setCommunities(list);
+      // Open on the trial's home ground rather than an empty picker: a page that has to be
+      // driven before it shows anything reads as broken for the first few seconds.
+      const home = list.find((c) => c.ref === HOME_COMMUNITY);
+      if (home) setCentre((c) => c ?? { lng: home.lng, lat: home.lat, label: home.name });
     }).catch(() => {});
     return () => { cancelled = true; };
   }, []);

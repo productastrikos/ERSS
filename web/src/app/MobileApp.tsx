@@ -12,9 +12,11 @@ import { Loader2, AlertTriangle, Phone, Ambulance } from 'lucide-react';
 import { useSession, loadBootstrap, signIn, signOut } from '../lib/stores/session';
 import { t } from '../lib/i18n';
 import { DEMO_ADMIN, demoAccountsFor } from '../lib/demoAccounts';
-import { Button, Field, ErrorState } from '../shared/ui';
+import { Button, Field, ErrorState, Toaster } from '../shared/ui';
 import { ResponderSurface } from './responder/ResponderSurface';
 import { CitizenSurface } from './citizen/CitizenSurface';
+import { MobileLogoBand, ThemeToggle } from './common/MobileChrome';
+import { ReportStudioHost } from '../shared/report/ReportStudio';
 import './mobile.scss';
 import './mobile-live.scss';
 
@@ -26,7 +28,7 @@ export function MobileApp() {
   if (status === 'idle' || status === 'loading') {
     return (
       <div className="m-boot">
-        <img className="m-boot__logo" src="/brand/Astrikos_solo_logo.png" alt="" />
+        <img className="m-boot__logo" src="/brand/dubai-ambulance-logo.png" alt="Dubai Ambulance" />
         <Loader2 className="u-spin" aria-hidden />
       </div>
     );
@@ -48,11 +50,15 @@ export function MobileApp() {
 
   if (!user) return <MobileLogin />;
 
-  switch (user.role) {
-    case 'responder': return <ResponderSurface />;
-    case 'citizen':   return <CitizenSurface />;
-    default:          return <ConsoleAccount />;
-  }
+  return (
+    <>
+      {user.role === 'responder' ? <ResponderSurface />
+        : user.role === 'citizen' ? <CitizenSurface />
+          : <ConsoleAccount />}
+      <ReportStudioHost />
+      <Toaster />
+    </>
+  );
 }
 
 // ── Login ────────────────────────────────────────────────────────────────────
@@ -77,36 +83,47 @@ function MobileLogin() {
 
   return (
     <div className="m-login">
-      <form className="m-login__form" onSubmit={submit}>
-        <img className="m-login__logo" src="/brand/Astrikos_solo_logo.png" alt="" />
-        <h1 className="m-login__title">{t('app.name')}</h1>
-        <p className="m-login__client"><Ambulance aria-hidden /> {t('app.client')}</p>
+      <MobileLogoBand />
 
-        <Field label={t('auth.identifier')} error={err ?? undefined}>
-          <input value={identifier} onChange={(e) => setIdentifier(e.target.value)}
-                 autoComplete="username" autoCapitalize="characters" autoFocus required
-                 inputMode="text" />
-        </Field>
-        <Field label={t('auth.password')}>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                 autoComplete="current-password" required />
-        </Field>
+      <div className="m-login__body">
+        <form className="m-login__form" onSubmit={submit}>
+          <div className="m-login__head">
+            <span className="m-login__product"><Ambulance aria-hidden /> {t('app.name')}</span>
+            <span className="m-login__tagline">{t('app.tagline')}</span>
+          </div>
+          <h1 className="m-login__title">{t('auth.signIn')}</h1>
 
-        <Button type="submit" variant="primary" size="lg" block loading={busy}>
-          {t('auth.signIn')}
-        </Button>
+          <Field label={t('auth.identifier')} error={err ?? undefined}>
+            <input value={identifier} onChange={(e) => setIdentifier(e.target.value)}
+                   autoComplete="username" autoCapitalize="characters" autoFocus required
+                   inputMode="text" />
+          </Field>
+          <Field label={t('auth.password')}>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                   autoComplete="current-password" required />
+          </Field>
 
-        <DemoCredentials onPick={(a) => { setIdentifier(a.identifier); setPassword(a.password); }} />
-      </form>
+          <Button type="submit" variant="primary" size="lg" className="m-login__submit" block loading={busy}>
+            {t('auth.signIn')}
+          </Button>
 
-      {/* Always present, on every screen of the citizen path — including before login. */}
-      <EmergencyNumbers />
+          <DemoCredentials onPick={(a) => { setIdentifier(a.identifier); setPassword(a.password); }} />
+        </form>
+
+        {/* Always present, on every screen of the citizen path — including before login. */}
+        <EmergencyNumbers />
+
+        <footer className="m-login__foot">
+          <span>{t('auth.copyright', { year: new Date().getFullYear() })}</span>
+          <ThemeToggle />
+        </footer>
+      </div>
     </div>
   );
 }
 
 /**
- * The seeded accounts, tappable. A phone is the worst place to type `RSP-AMB14` from a
+ * The seeded accounts, tappable. A phone is the worst place to type `RSP-AMB122` from a
  * slide, so each one fills the form. Only the two MOBILE roles land here — an admin or a
  * dispatcher account signs in fine and then reaches ConsoleAccount below, which is a dead
  * end on a phone — so the console credential is stated as a line of text, not a button.

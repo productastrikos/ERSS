@@ -4,8 +4,15 @@
  * Client requirement: every visualisation carries a prediction. A prediction is only
  * worth showing if the screen can also say how it was made and how wrong it has been, so
  * every result here returns its method, its fitted parameters, a prediction interval, and
- * a walk-forward backtest (MAE / MAPE / interval coverage) measured on the same series it
- * is about to extrapolate. docs/00 D-09: a forecast is never presented as a measurement.
+ * a walk-forward backtest (MAE / percentage error / interval coverage) measured on the same
+ * series it is about to extrapolate. docs/00 D-09: a forecast is never presented as a
+ * measurement.
+ *
+ * The percentage error (`mape` in the result, a name kept for its callers) is WAPE: total
+ * absolute error over total volume. Plain MAPE averages |error ÷ actual| hour by hour, so a
+ * quiet 03:00 with one call forecast as three counts as a 200% miss — on hourly call counts
+ * it reported 40–80% error for a model whose misses were a few calls an hour. On monthly
+ * volumes the two agree to a decimal place.
  *
  * Deliberately dependency-free and explainable:
  *   n < 3                      → flat mean ("too short to model")
@@ -112,7 +119,7 @@ export function forecast(values, opts = {}) {
       ? `Holt linear trend, damped (alpha ${best.alpha}, beta ${best.beta}, phi ${best.phi})`
       : `Exponential smoothing, level only (alpha ${best.alpha})`;
 
-  if (back.mape != null && back.mape > 35) caveats.push(`backtest error is high (MAPE ${back.mape.toFixed(0)}%) — treat the band, not the line`);
+  if (back.mape != null && back.mape > 35) caveats.push(`backtest error is high (${back.mape.toFixed(0)}% of volume) — treat the band, not the line`);
   if (n < 12) caveats.push(`only ${n} points of history`);
 
   return {
@@ -214,7 +221,7 @@ function backtest(y, fit, sigma) {
   const holdout = Math.min(Math.max(3, Math.round(y.length / 3)), Math.max(0, y.length - (fit.season ? fit.season * 2 + 1 : 3)));
   if (holdout < 2) return { mae: null, mape: null, coverage80Pct: null };
   const errs = [];
-  const pcts = [];
+  let volume = 0;
   let covered = 0;
   for (let cut = y.length - holdout; cut < y.length; cut++) {
     const head = y.slice(0, cut);
@@ -224,13 +231,13 @@ function backtest(y, fit, sigma) {
     const actual = y[cut];
     const e = actual - step;
     errs.push(Math.abs(e));
-    if (actual !== 0) pcts.push(Math.abs(e / actual) * 100);
+    volume += Math.abs(actual);
     if (Math.abs(e) <= Z80 * sigma) covered++;
   }
   if (!errs.length) return { mae: null, mape: null, coverage80Pct: null };
   return {
     mae: round2(mean(errs)),
-    mape: pcts.length ? round2(mean(pcts)) : null,
+    mape: volume > 0 ? round2((100 * errs.reduce((sum, x) => sum + x, 0)) / volume) : null,
     coverage80Pct: round2((covered / errs.length) * 100),
   };
 }

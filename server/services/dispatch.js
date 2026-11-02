@@ -37,6 +37,7 @@ import * as reference from '../repos/reference.js';
 import * as eta from './eta.js';
 import * as osrm from '../integrations/osrm.js';
 import * as fanout from '../realtime/fanout.js';
+import { onlineCrewUnitRefs } from '../realtime/index.js';
 import { SYSTEM, auditActor } from './actor.js';
 import { scheduleKpiTick } from './kpi.js';
 import { effectiveRules } from './dispatchRules.js';
@@ -104,7 +105,16 @@ export function shapeAssignmentWithActions(row) {
  * @param {object} inc  an incidents.incidentRow
  * @param {{ excludeRefs?: string[] }} [opts]
  */
-export async function recommendFor(inc, { excludeRefs = [], trafficDelays = null } = {}) {
+/**
+ * @param {object} [opts]
+ * @param {Record<string, number>|null} [opts.trafficDelays]  unitRef → seconds of (simulated) congestion on its road
+ * @param {Record<string, { sec: number, m: number }>|null} [opts.routeTimes]
+ *   unitRef → the drive time and distance of the ROAD THE AI CHOSE for it, from the drive
+ *   model (engines/drive.js: road class, every manoeuvre, acceleration). Replaces the
+ *   calibrated distance-based travel estimate for that unit: the road it will actually
+ *   drive is a better prediction than an average over all roads.
+ */
+export async function recommendFor(inc, { excludeRefs = [], trafficDelays = null, routeTimes = null } = {}) {
   const now = nowMs();
   // The automatic-dispatch policy in force this moment (services/dispatchRules.js): its
   // weight vector, and whether a P1 must go to an advanced-life-support crew.
@@ -135,11 +145,23 @@ export async function recommendFor(inc, { excludeRefs = [], trafficDelays = null
   // the commit path. Added to the arrival only when the policy says to weigh it.
   const useTraffic = policy.rules.avoidTraffic && trafficDelays;
   const scored = await Promise.all(candidates.map(async (c, i) => {
-    const base = travels[i].value ? await eta.arrival(travels[i].value.seconds, 'offer') : null;
+    const rt = routeTimes?.[c.ref];
+    const travel = rt?.sec > 0 ? {
+      ...travels[i],
+      method: 'road-profile-v1 (OSRM road + manoeuvre/speed model)',
+      confidence: Math.max(travels[i].confidence ?? 0, 0.8),
+      value: {
+        ...(travels[i].value ?? {}),
+        seconds: rt.sec, distanceM: rt.m,
+        // The profile is the road itself; what is left is how the crew drives it (±8 %).
+        p25: Math.round(rt.sec * 0.93), p75: Math.round(rt.sec * 1.08),
+      },
+    } : travels[i];
+    const base = travel.value ? await eta.arrival(travel.value.seconds, 'offer') : null;
     const trafficDelaySec = useTraffic ? Math.max(0, Math.round(trafficDelays[c.ref] ?? 0)) : 0;
     return {
       ...c,
-      travel: travels[i],
+      travel,
       arrivalSec: base == null ? null : base + trafficDelaySec,
       trafficDelaySec,
       shiftHours: c.shiftStart ? (now - Date.parse(c.shiftStart)) / 3_600_000 : null,
@@ -156,13 +178,44 @@ export async function recommendFor(inc, { excludeRefs = [], trafficDelays = null
     window: cal.window,
   });
 
+  const paired = pairWithCrewPhone(inc, result.value?.recommendations);
+
   // The vertical stage, predicted separately and never folded into travel.
   const vrt = await eta.vrtFor(inc.floor);
   return {
     ...result,
-    value: { ...result.value, vrt },
-    policy: { mode: policy.mode, rules: policy.rules, notes: policy.notes, trafficApplied: Boolean(useTraffic) },
+    value: { ...result.value, ...(paired ? { recommendations: paired.recommendations } : {}), vrt },
+    policy: {
+      mode: policy.mode, rules: policy.rules, trafficApplied: Boolean(useTraffic),
+      notes: paired ? [...(policy.notes ?? []), paired.note] : policy.notes,
+    },
   };
+}
+
+/**
+ * The demonstration's pairing (trial build only): an SOS raised from the citizen app goes to
+ * the crew whose phone is signed in, so the two phones in the room are each other's call.
+ *
+ * Narrow on purpose. It applies only to `app_sos` incidents, only to a crew phone that is
+ * connected right now, and only when that crew is ALREADY in the engine's qualifying field
+ * (free, capable, routable) — the engine's hard filters are never bypassed, only its order.
+ * With no crew phone online, or that crew busy, the engine's own choice stands and any
+ * ambulance can be sent. The ranked field is re-numbered and the choice says why, so the AI
+ * log and the dispatch rationale both state the pairing rather than hiding it.
+ */
+function pairWithCrewPhone(inc, recs) {
+  if (!poc.enabled || inc.source !== 'app_sos' || !recs?.length) return null;
+  const online = onlineCrewUnitRefs();
+  if (!online.size) return null;
+  const i = recs.findIndex((r) => online.has(r.unitRef));
+  if (i < 0) return null;
+  const pick = recs[i];
+  const why = i === 0
+    ? `Paired with the paramedic app: ${pick.callsign} is signed in on the crew phone — and is also the engine's first choice`
+    : `Paired with the paramedic app: ${pick.callsign} is signed in on the crew phone, so the citizen's SOS goes to them (the engine ranked them ${i + 1}; ${recs[0].callsign} was first)`;
+  const reordered = [pick, ...recs.slice(0, i), ...recs.slice(i + 1)]
+    .map((r, k) => ({ ...r, rank: k + 1, ...(k === 0 ? { paired: true, pairedWhy: why } : {}) }));
+  return { recommendations: reordered, note: why };
 }
 
 export async function recommendation(ref, actor, opts) {
@@ -234,7 +287,7 @@ export async function correlation(ref, actor) {
  * @param {{ unitRef: string, overrideReason?: string, excludeRefs?: string[], redispatch?: object }} body
  * @param {object} actor
  */
-export async function commitDispatch(ref, { unitRef, overrideReason, excludeRefs = [], redispatch = null, trafficDelays = null }, actor) {
+export async function commitDispatch(ref, { unitRef, overrideReason, excludeRefs = [], redispatch = null, trafficDelays = null, routeTimes = null, routePath = null }, actor) {
   const inc0 = await loadIncident(ref, actor);
   if (inc0.state === 'closed') throw conflict(`${ref} is closed`);
 
@@ -242,7 +295,7 @@ export async function commitDispatch(ref, { unitRef, overrideReason, excludeRefs
   if (!unit0) throw notFound('Unit');
   if (unit0.lng == null) throw conflict(`${unitRef} has no known position`);
 
-  const rec = await recommendFor(inc0, { excludeRefs, trafficDelays });
+  const rec = await recommendFor(inc0, { excludeRefs, trafficDelays, routeTimes });
   const recs = rec.value?.recommendations ?? [];
   const chosen = recs.find((r) => r.unitRef === unitRef) ?? null;
   const override = !chosen || chosen.rank !== 1;
@@ -385,7 +438,7 @@ export async function commitDispatch(ref, { unitRef, overrideReason, excludeRefs
   }
   scheduleKpiTick();
 
-  attachRouteGeometry(out.asgRef, [unit0.lng, unit0.lat], [inc0.lng, inc0.lat])
+  attachRouteGeometry(out.asgRef, [unit0.lng, unit0.lat], [inc0.lng, inc0.lat], routePath)
     .catch((err) => logger.warn({ err: err.message, assignment: out.asgRef }, '[dispatch] route geometry not attached'));
 
   return { assignment, incident: summary };
@@ -407,8 +460,11 @@ function nearestByDistance(recs) {
  * timeout. The map draws it when it arrives; if routing is down it is simply absent — a
  * straight line is never stored as if it were the road route.
  */
-export async function attachRouteGeometry(asgRef, from, to) {
-  const road = await osrm.route(from, to, { timeoutMs: osrm.BACKGROUND_TIMEOUT_MS, attempts: 3 });
+export async function attachRouteGeometry(asgRef, from, to, chosenPath = null) {
+  // The road the AI chose for this crew (services/decisions.js), when it chose one that
+  // starts where the ambulance is — otherwise the router's main route.
+  const chosen = chosenPath?.length > 1 && eta.haversineM(chosenPath[0], from) < 200 ? { coordinates: chosenPath } : null;
+  const road = chosen ?? await osrm.route(from, to, { timeoutMs: osrm.BACKGROUND_TIMEOUT_MS, attempts: 3, background: true });
   if (!road?.coordinates || road.coordinates.length < 2) return false;
   const { rowCount } = await pool.query(
     `UPDATE assignments SET route_proposed = ST_SetSRID(ST_GeomFromGeoJSON($2), 4326)
@@ -442,15 +498,21 @@ function authorise(action, asg, actor) {
   throw forbidden(`Role "${actor.role}" cannot act on assignments`);
 }
 
-function transitionLabel(action, a, { body, hospital, stampedFrom, vrtSec, timeoutSec }) {
+function transitionLabel(action, a, { body, hospital, stampedFrom, vrtSec, timeoutSec, floor = null }) {
+  // A road incident has no entrance and no stairs: "vertical access" on a collision on the
+  // carriageway read as a fault in the log. The building wording is kept for a call that
+  // has a floor.
+  const inBuilding = floor != null;
   const u = a.unit_ref;
   switch (action) {
     case 'acknowledge':  return `${u} acknowledged`;
     case 'decline':      return `${u} declined — ${body.reason}`;
     case 'timeout':      return `${u} did not acknowledge within ${timeoutSec} s`;
     case 'enroute':      return `${u} en route`;
-    case 'onscene':      return `${u} on scene at the entrance${stampedFrom === 'position' ? ' (stamped from its position fix)' : ''}`;
-    case 'at_patient':   return `${u} crew with the patient — vertical access ${mmss(vrtSec)}`;
+    case 'onscene':      return `${u} on scene${inBuilding ? ' at the entrance' : ''}${stampedFrom === 'position' ? ' (stamped from its position fix)' : ''}`;
+    case 'at_patient':   return inBuilding
+      ? `${u} crew with the patient — vertical access ${mmss(vrtSec)}`
+      : `${u} crew with the patient — ${mmss(vrtSec)} after arriving`;
     case 'transporting': return `${u} transporting to ${hospital.name}`;
     case 'resolve':      return `${u} treated on scene — no transport`;
     case 'at_hospital':  return `${u} arrived at ${a.hospital_name ?? 'hospital'}`;
@@ -550,7 +612,7 @@ export async function transition(asgRef, action, body, actor) {
     const row = await incidents.insertTimeline(c, inc.id, {
       ts: patch[def.stamp] ?? at,
       stage: def.stage,
-      label: transitionLabel(action, a, { body, hospital, stampedFrom, vrtSec, timeoutSec: D.acknowledgeTimeoutSec }) + logged,
+      label: transitionLabel(action, a, { body, hospital, stampedFrom, vrtSec, timeoutSec: D.acknowledgeTimeoutSec, floor: patch.vrt_breakdown?.floor ?? inc.floor ?? null }) + logged,
       actorKind: actor.kind, actorId: actor.ref, agencyCode: a.agency_code,
       detail: {
         assignmentRef: a.ref, unitRef: a.unit_ref, stampedFrom,

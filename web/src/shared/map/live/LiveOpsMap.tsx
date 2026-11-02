@@ -26,8 +26,10 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, BrainCircuit, Locate, Maximize2, Minimize2, Mountain, Navigation, Play, Radio, Square, TrafficCone } from 'lucide-react';
+import { Box, BrainCircuit, CheckCircle2, Clapperboard, Locate, Maximize2, Minimize2, Mountain, Navigation, Play, Radio, Satellite, SkipForward, Smartphone, Square, TrafficCone } from 'lucide-react';
 import { t } from '../../../lib/i18n';
+import { setBasemap, useBasemap } from '../../../lib/stores/basemap';
+import { availableBasemaps } from '../basemaps';
 import { duration, durationUnit } from '../../../lib/format';
 import { Button } from '../../ui';
 import { MapCanvas, type MapCanvasHandle } from '../MapCanvas';
@@ -43,13 +45,17 @@ import { pauseDirector, resumeDirector } from '../../../lib/stores/director';
 import { useUnitDetail } from '../../../lib/stores/unitDetail';
 import { useIncidentDirector, type DirectorPhase } from './useIncidentDirector';
 import { CAMERA_2D, CAMERA_3D, liveOpsMap } from './liveOpsView';
-import { useBoot, useQuietWindow } from '../../../lib/stores/session';
+import { useBoot } from '../../../lib/stores/session';
 import { useFleet } from '../../../lib/stores/fleet';
 import { useQueue } from '../../../lib/stores/incidents';
-import { useCameras, useDetections } from '../../../lib/stores/live';
+import { useCameras, useDetections, useSim } from '../../../lib/stores/live';
+import { useCan } from '../../../lib/stores/session';
+import { useNow } from '../../../lib/stores/now';
+import { api } from '../../../lib/api';
+import { toast } from '../../../lib/stores/toast';
 import { IncidentCctvPopup } from '../popups/IncidentCctvPopup';
 import { roadWatch } from './roadWatch';
-import { useLiveOps, EMPTY_LIVE_OPS, type LiveOpsModel } from './useLiveOps';
+import { useLiveOps, type LiveOpsModel } from './useLiveOps';
 import { liveMotion, wireLiveMotion } from './liveMotion';
 import { ResponseRail } from './ResponseRail';
 import './liveops.scss';
@@ -66,15 +72,10 @@ export interface LiveOpsMapProps {
 }
 
 export function LiveOpsMap({ variant = 'embedded', onExpand, onCollapse, hideRail = false, className = '' }: LiveOpsMapProps) {
+  // The same live picture every other panel shows, from the first frame. A clean start is
+  // "Restart PoC", which resets every screen at once — the map never hides what the
+  // response list beside it is showing.
   const live = useLiveOps();
-  // A cold open (session.ts): the first 30s after this tab recognised a signed-in user,
-  // this map shows nothing happening no matter what the shared PoC simulation already
-  // has mid-flight — a restart already starts the backend quiet (sim/live.js), but a
-  // sign-in mid-story otherwise would not. `shown` is what the map, the rail and the
-  // incident director are allowed to react to; `live` (the real picture) is kept only for
-  // the busy-unit exclusion below, so a truly idle ambulance still reads as idle.
-  const quiet = useQuietWindow();
-  const shown = quiet ? EMPTY_LIVE_OPS : live;
   const fleet = useFleet();
   const queue = useQueue();
   const boot = useBoot();
@@ -90,7 +91,7 @@ export function LiveOpsMap({ variant = 'embedded', onExpand, onCollapse, hideRai
   const [railOpen, setRailOpen] = useState(true);
 
   // ── Feed the layers ────────────────────────────────────────────────────────
-  useEffect(() => { setLayerData(liveOpsMap, 'live', shown); }, [shown]);
+  useEffect(() => { setLayerData(liveOpsMap, 'live', live); }, [live]);
 
   // Where each ambulance is BETWEEN fixes: dead-reckoned along its road at its reported
   // speed, so it drives rather than hops, and a camera riding with it moves at its pace.
@@ -123,8 +124,7 @@ export function LiveOpsMap({ variant = 'embedded', onExpand, onCollapse, hideRai
   useEffect(() => wireDecisionFeed(), []);
 
   useEffect(() => {
-    // Quiet: no incident marker either, the same as the live layer just above.
-    if (queue.status !== 'ready' || quiet) { if (quiet) setLayerData(liveOpsMap, 'incidents', []); return; }
+    if (queue.status !== 'ready') return;
     // Only the calls the live layer is NOT already drawing.
     //
     // Every live emergency used to appear twice: as a column of light from the live layer
@@ -140,7 +140,7 @@ export function LiveOpsMap({ variant = 'embedded', onExpand, onCollapse, hideRai
     setLayerData(liveOpsMap, 'incidents', queue.items.filter(
       (i) => i.state !== 'closed' && !i.isResting && !alreadyDrawn.has(i.ref),
     ));
-  }, [queue.items, queue.status, live.responses, live.alerts, quiet]);
+  }, [queue.items, queue.status, live.responses, live.alerts]);
 
   // ── The camera ─────────────────────────────────────────────────────────────
   const apply3D = useCallback((on: boolean) => {
@@ -156,9 +156,9 @@ export function LiveOpsMap({ variant = 'embedded', onExpand, onCollapse, hideRai
 
   const frameAll = useCallback(() => {
     setFollow(liveOpsMap, null);
-    if (shown.focusPoints.length) focus.fitTo(shown.focusPoints, { padding: variant === 'full' ? 140 : 90, maxZoom: 14 });
+    if (live.focusPoints.length) focus.fitTo(live.focusPoints, { padding: variant === 'full' ? 140 : 90, maxZoom: 14 });
     else mapRef.current?.map()?.easeTo({ ...(is3D ? CAMERA_3D : CAMERA_2D), duration: 700 });
-  }, [focus, shown.focusPoints, is3D, variant]);
+  }, [focus, live.focusPoints, is3D, variant]);
 
   const chasing = view.follow?.layerId === 'live' && view.follow.chase ? view.follow.id : null;
 
@@ -178,10 +178,10 @@ export function LiveOpsMap({ variant = 'embedded', onExpand, onCollapse, hideRai
     if (chasing === id) { setFollow(liveOpsMap, null); return; }
     setFollow(liveOpsMap, null);
     focus.fitTo(points, { padding: 160, maxZoom: 15.5 });
-    const row = shown.ordered.find((x) => x.id === id);
+    const row = live.ordered.find((x) => x.id === id);
     const incidentRef = row?.kind === 'response' ? row.response.incidentRef : row?.kind === 'alert' ? row.alert.ref : null;
     if (incidentRef) openDetail({ kind: 'incident', ref: incidentRef });
-  }, [chasing, focus, shown.ordered]);
+  }, [chasing, focus, live.ordered]);
 
   const onChase = useCallback((id: string) => {
     pauseDirector();
@@ -190,9 +190,7 @@ export function LiveOpsMap({ variant = 'embedded', onExpand, onCollapse, hideRai
   }, [chasing, startChase]);
 
   // ── The director: the map follows each new incident by itself ──────────────
-  // `shown`, not `live` — a quiet cold open must not have the director fly the camera to
-  // and open the panel for a story that's about to be hidden anyway.
-  const director = useIncidentDirector({ live: shown, focus, mapRef, is3D, startChase, releaseChase, frameAll, chasing });
+  const director = useIncidentDirector({ live, focus, mapRef, is3D, startChase, releaseChase, frameAll, chasing });
   const preview = usePreview(director.ref);
 
   // The AI log's steps, read here purely to mirror the CURRENTLY ACTIVE one on the map —
@@ -208,7 +206,7 @@ export function LiveOpsMap({ variant = 'embedded', onExpand, onCollapse, hideRai
   // The AI's choice being made, on the map — only until the job is sent.
   useEffect(() => {
     const deciding = director.phase === 'deciding' && preview;
-    const alert = deciding ? shown.alerts.find((a) => a.ref === director.ref) : null;
+    const alert = deciding ? live.alerts.find((a) => a.ref === director.ref) : null;
     const data: DecisionOverlayData = deciding && alert ? {
       incidentRef: director.ref,
       incident: alert.position,
@@ -221,7 +219,7 @@ export function LiveOpsMap({ variant = 'embedded', onExpand, onCollapse, hideRai
       })),
     } : EMPTY_DECISION;
     setLayerData(liveOpsMap, 'decision', data);
-  }, [director.phase, director.ref, preview, shown.alerts, activeStepUnits]);
+  }, [director.phase, director.ref, preview, live.alerts, activeStepUnits]);
 
   // The CCTV feed that raised this incident, shown on the map itself while the AI is
   // deciding — gone the moment a job is sent, so it never lingers through the response.
@@ -241,7 +239,7 @@ export function LiveOpsMap({ variant = 'embedded', onExpand, onCollapse, hideRai
     else if (sel.kind === 'response' || sel.kind === 'alert' || sel.kind === 'incident') openDetail({ kind: 'incident', ref: sel.id });
   }, []);
 
-  const ridden = chasing ? shown.responses.find((r) => r.ref === chasing) ?? null : null;
+  const ridden = chasing ? live.responses.find((r) => r.ref === chasing) ?? null : null;
   // Read once a second with the rest of the model (useLiveOps ticks on the domain clock).
   const riddenKmh = ridden ? liveMotion.speedOf(ridden.unitRef) : null;
 
@@ -249,20 +247,21 @@ export function LiveOpsMap({ variant = 'embedded', onExpand, onCollapse, hideRai
   // open on an empty emirate while three ambulances are mid-response off-screen.
   const framed = useRef(false);
   useEffect(() => {
-    if (framed.current || !shown.focusPoints.length) return;
+    if (framed.current || !live.focusPoints.length) return;
     framed.current = true;
     const id = setTimeout(frameAll, 400);
     return () => clearTimeout(id);
-  }, [shown.focusPoints.length, frameAll]);
+  }, [live.focusPoints.length, frameAll]);
 
   return (
     <div className={`liveops liveops--${variant} ${className}`}>
       <MapCanvas view={liveOpsMap} ref={mapRef} camera={is3D ? CAMERA_3D : CAMERA_2D} onSelect={onSelect} popups={false}>
         {/* Top left: what is happening, in four numbers — and what the AI is doing now. */}
         <div className="map-control map-control--top-left liveops__top-left">
-          <LiveTicker live={shown} onShowAll={frameAll} />
-          <DirectorChip phase={director.phase} paused={director.paused} live={shown} incidentRef={director.ref}
+          <LiveTicker live={live} onShowAll={frameAll} />
+          <DirectorChip phase={director.phase} paused={director.paused} live={live} incidentRef={director.ref}
                         weighing={preview?.status === 'thinking'} candidates={preview?.candidates.length ?? 0} />
+          <DemoChip />
         </div>
 
         {/* Top right: the view controls. */}
@@ -273,6 +272,7 @@ export function LiveOpsMap({ variant = 'embedded', onExpand, onCollapse, hideRai
             {is3D ? <Box aria-hidden /> : <Mountain aria-hidden />}
             <span>{is3D ? '3D' : '2D'}</span>
           </button>
+          <SatelliteToggle />
           <button type="button" className="liveops__tool" title={t('liveops.frameAll')} onClick={frameAll}>
             <Locate aria-hidden />
           </button>
@@ -280,7 +280,7 @@ export function LiveOpsMap({ variant = 'embedded', onExpand, onCollapse, hideRai
                   aria-pressed={railOpen} title={t('liveops.toggleRail')}
                   onClick={() => setRailOpen((v) => !v)}>
             <Radio aria-hidden />
-            {shown.counts.alerts > 0 && <span className="liveops__badge">{shown.counts.alerts}</span>}
+            {live.counts.alerts > 0 && <span className="liveops__badge">{live.counts.alerts}</span>}
           </button>
           <LayerControl view={liveOpsMap} />
           {onExpand && (
@@ -297,7 +297,7 @@ export function LiveOpsMap({ variant = 'embedded', onExpand, onCollapse, hideRai
 
         {railOpen && !hideRail && (
           <ResponseRail
-            live={shown}
+            live={live}
             chasing={chasing}
             onPick={onPick}
             onChase={onChase}
@@ -322,6 +322,25 @@ export function LiveOpsMap({ variant = 'embedded', onExpand, onCollapse, hideRai
   );
 }
 
+/**
+ * Satellite on and off in one click, beside the 3D switch — together they are the two
+ * views of the city a duty officer asks for. The Layers panel has the full choice
+ * (Map / Streets / Satellite); this is the shortcut. Off returns to the theme's map.
+ */
+function SatelliteToggle() {
+  const basemap = useBasemap();
+  if (!availableBasemaps().includes('satellite')) return null;
+  const on = basemap === 'satellite';
+  return (
+    <button type="button" className={`liveops__tool${on ? ' is-on' : ''}`} aria-pressed={on}
+            title={on ? t('liveops.satelliteOff') : t('liveops.satelliteOn')}
+            onClick={() => setBasemap(on ? 'standard' : 'satellite')}>
+      <Satellite aria-hidden />
+      <span>{t('map.basemap.satellite')}</span>
+    </button>
+  );
+}
+
 const clock = (sec: number) => {
   const s = Math.abs(Math.round(sec));
   return `${sec < 0 ? '+' : ''}${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -340,11 +359,14 @@ function DirectorChip({ phase, paused, live, incidentRef, weighing, candidates }
 }) {
   if (!incidentRef || phase === 'idle' || phase === 'gone') return null;
   const r = live.responses.find((x) => x.incidentRef === incidentRef);
+  const hospital = r?.hospital?.name ?? 'hospital';
   const text = phase === 'deciding'
     ? (weighing || !candidates ? t('liveops.director.thinking') : t('liveops.director.weighing', { n: candidates }))
     : phase === 'dispatched' ? t('liveops.director.dispatched', { unit: r?.callsign ?? '' })
       : phase === 'following' ? t('liveops.director.following', { unit: r?.callsign ?? '' })
-        : t('liveops.director.arrived', { unit: r?.callsign ?? '' });
+        : phase === 'transporting' ? t('liveops.director.transporting', { unit: r?.callsign ?? '', hospital })
+          : phase === 'handover' ? t('liveops.director.handover', { unit: r?.callsign ?? '', hospital })
+            : t('liveops.director.arrived', { unit: r?.callsign ?? '' });
   return (
     <div className={`liveops__director is-${phase}${paused ? ' is-paused' : ''}`} role="status" aria-live="polite">
       <BrainCircuit aria-hidden />
@@ -353,6 +375,70 @@ function DirectorChip({ phase, paused, live, incidentRef, weighing, candidates }
         <button type="button" className="liveops__director-resume" onClick={resumeDirector} title={t('liveops.director.resumeHelp')}>
           <Play aria-hidden /> {t('liveops.director.resume')}
         </button>
+      )}
+    </div>
+  );
+}
+
+// ── The demonstration ────────────────────────────────────────────────────────
+
+/**
+ * Which of the curated incidents is on screen, and — once it has finished — when the next
+ * one comes. One at a time: the next is raised only when this one is closed (server
+ * sim/live.js), so the button to bring it forward only appears then.
+ */
+function DemoChip() {
+  const s = useSim().state?.scenario ?? null;
+  const now = useNow();
+  const canControl = useCan('scenario.control');
+  const [busy, setBusy] = useState(false);
+  if (!s) return null;
+  const waiting = s.phase === 'idle' || s.phase === 'finished';
+  // Another incident still live: the next one waits for it, whatever the clock says.
+  const blocked = waiting && s.blockedBy > 0;
+  // A citizen or crew phone is connected: the phones drive the demonstration, and the next
+  // camera scenario waits until they go (server sim/live.js scenarioTick). "Start now" still
+  // runs one on demand.
+  const phoneDemo = waiting && !!s.heldForPhones;
+  const left = s.nextAt && !blocked ? Math.max(0, Math.ceil((Date.parse(s.nextAt) - now) / 1000)) : null;
+  const clockText = left == null ? '' : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  const go = () => {
+    setBusy(true);
+    api.sim.next()
+      .catch((err: Error) => toast({ level: 'warning', title: err.message }))
+      .finally(() => setBusy(false));
+  };
+  return (
+    <div className={`demochip${s.phase === 'finished' && !phoneDemo ? ' is-finished' : ''}${phoneDemo ? ' is-phones' : ''}`} role="status"
+         title={phoneDemo ? t('liveops.demo.phonesHint') : waiting ? undefined : t('liveops.demo.running')}>
+      {phoneDemo ? <Smartphone aria-hidden /> : s.phase === 'finished' ? <CheckCircle2 aria-hidden /> : <Clapperboard aria-hidden />}
+      {s.index >= 0 && !waiting && (
+        <span className="demochip__step">{t('liveops.demo.label', { n: s.index + 1, total: s.total })}</span>
+      )}
+      {!waiting && <span className="demochip__text">{s.short}</span>}
+      {phoneDemo && (
+        <>
+          <span className="demochip__text">{t(s.phones?.citizens ? 'liveops.demo.phones' : 'liveops.demo.phonesCrew')}</span>
+          {blocked && <span className="demochip__sub">{t('liveops.demo.blocked')}</span>}
+          {canControl && !blocked && (
+            <button type="button" className="demochip__go" onClick={go} disabled={busy} title={t('liveops.demo.nextReady', { title: s.next.short })}>
+              <SkipForward aria-hidden /> {t('liveops.demo.startNow')}
+            </button>
+          )}
+        </>
+      )}
+      {waiting && !phoneDemo && (
+        <>
+          <span className="demochip__text">{s.phase === 'finished' ? t('liveops.demo.done') : t('liveops.demo.nextReady', { title: s.next.short })}</span>
+          {s.phase === 'finished' && <span className="demochip__text">· {t('liveops.demo.nextReady', { title: s.next.short })}</span>}
+          {left != null && <span className="demochip__sub">{clockText}</span>}
+          {blocked && <span className="demochip__sub">{t('liveops.demo.blocked')}</span>}
+          {canControl && !blocked && (
+            <button type="button" className="demochip__go" onClick={go} disabled={busy}>
+              <SkipForward aria-hidden /> {t('liveops.demo.startNow')}
+            </button>
+          )}
+        </>
       )}
     </div>
   );

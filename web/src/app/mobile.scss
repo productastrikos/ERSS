@@ -13,6 +13,24 @@
   overscroll-behavior-y: contain;
 }
 
+/* On a wide screen the app is a phone-width column, not a stretched page. The transform
+   makes the column the containing block for fixed overlays (the offer takeover, the SOS
+   alert), so they cover the app rather than the whole window. */
+body.surface-mobile { background: var(--app-mobile-backdrop); }
+
+.surface-mobile #root {
+  max-width: var(--app-mobile-max-w);
+  height: auto;
+  min-height: 100%;
+  margin-inline: auto;
+  background: var(--app-bg);
+  transform: translateZ(0);
+}
+
+@media (min-width: 480px) {
+  .surface-mobile #root { box-shadow: var(--app-shadow-lg); }
+}
+
 /* ── Boot / login ───────────────────────────────────────────────────────────── */
 
 .m-boot {
@@ -25,20 +43,34 @@
   padding: var(--sp-24);
   text-align: center;
 
-  &__logo { height: 44px; width: auto; }
+  /* Dubai Ambulance on a white tile, so the logo keeps its approved colours on the dark theme. */
+  &__logo {
+    height: 64px; width: auto;
+    padding: var(--sp-12) var(--sp-16);
+    border-radius: var(--r-12);
+    background: var(--app-logo-band-bg);
+  }
   &__title { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
   &__msg { font-size: 14px; color: var(--app-text-muted); max-width: 34ch; }
 
   svg { width: 30px; height: 30px; }
 }
 
+/* The sign-in screen: the logo band full-bleed at the top, then the form in the lower half.
+   Brand red/blue here deliberately, as on the console's sign-in (shell.scss .login) — this
+   is the client's own front door. */
 .m-login {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   min-height: 100dvh;
-  padding: var(--sp-24) var(--sp-20) calc(var(--sp-20) + env(safe-area-inset-bottom));
-  gap: var(--sp-24);
+
+  &__body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-24);
+    padding: var(--sp-24) var(--sp-20) calc(var(--sp-12) + env(safe-area-inset-bottom));
+  }
 
   &__form {
     display: flex;
@@ -48,28 +80,59 @@
     margin-top: auto;
   }
 
-  &__logo { height: 44px; width: auto; align-self: center; }
+  &__head {
+    display: flex; flex-direction: column; gap: var(--sp-4);
+    padding-inline-start: var(--sp-12);
+    border-inline-start: 3px solid var(--app-brand-red);
+  }
+  &__product {
+    display: inline-flex; align-items: center; gap: var(--sp-6);
+    font-family: var(--font-display);
+    font-size: 15px; font-weight: 800;
+    color: var(--app-brand-blue-ink);
+    svg { width: 18px; height: 18px; color: var(--app-brand-red); }
+  }
+  &__tagline { font-size: 12px; color: var(--app-text-muted); }
+
   &__title {
     font-family: var(--font-display);
-    font-size: 22px; font-weight: 700;
-    text-align: center;
-  }
-  &__client {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--app-accent);
-    text-align: center;
-    line-height: 1.5;
-    margin: calc(-1 * var(--sp-10)) 0 0;
-    svg {
-      width: 13px; height: 13px;
-      display: inline-block;
-      vertical-align: -2px;
-      margin-inline-end: var(--sp-4);
-    }
+    font-size: 24px; font-weight: 800; letter-spacing: -0.015em;
+    margin: var(--sp-4) 0 0;
   }
 
   .u-field input { height: 48px; font-size: 16px; }   /* 16px stops iOS zoom-on-focus */
+  .u-field input:focus { border-color: var(--app-brand-blue); box-shadow: 0 0 0 3px var(--app-brand-blue-ring); }
+
+  /* Chained with .u-btn so it beats .u-btn--primary whichever stylesheet loads last. */
+  &__submit.u-btn {
+    background: var(--app-brand-red);
+    color: var(--app-brand-ink);
+    box-shadow: 0 1px 2px var(--app-brand-red-border), var(--app-edge-light);
+    &:active:not(:disabled) { background: color-mix(in srgb, var(--app-brand-red) 80%, black); }
+  }
+
+  &__foot {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12);
+    font-size: 10.5px; line-height: 1.45; color: var(--app-text-faint);
+    .m-iconbtn { margin-inline-end: calc(-1 * var(--sp-10)); }
+  }
+}
+
+/* ── Logo band (common/MobileChrome.tsx MobileLogoBand) ──────────────────────
+   The console header's phone-width logo row (shell.scss .shell-header__tile): Dubai
+   Ambulance at the start, the Government of Dubai at the end, white in both themes, logos
+   in their approved colours and nothing else. The top of the band clears the notch. */
+.m-logoband {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-16);
+  padding: calc(var(--sp-8) + env(safe-area-inset-top)) var(--sp-12) var(--sp-8);
+  background: var(--app-logo-band-bg);
+
+  &__gov, &__dcas { display: block; width: auto; flex-shrink: 0; }
+  &__gov  { height: var(--app-mobile-logo-gov-h); }
+  &__dcas { height: var(--app-mobile-logo-dcas-h); }
 }
 
 /* ── Demo credentials (MobileApp.tsx DemoCredentials) ────────────────────────
@@ -140,25 +203,45 @@
 
 /* ── Shared mobile chrome ───────────────────────────────────────────────────── */
 
+/* Fixed to the viewport so the content scrolls and the tab bar stays under the thumb. */
 .m-shell {
   display: grid;
-  grid-template-rows: auto 1fr auto;
-  min-height: 100dvh;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;   /* logo band, top bar, content, tabs */
+  height: 100dvh;
   background: var(--app-bg);
 }
 
+/* Solid DCAS blue in both themes, like the console's toolbar — so it reads with the
+   --app-brand-ink* scale, not the theme's own text colours. The band above already clears
+   the notch. */
 .m-topbar {
   display: flex;
   align-items: center;
   gap: var(--sp-10);
-  padding: calc(var(--sp-12) + env(safe-area-inset-top)) var(--sp-16) var(--sp-12);
-  background: var(--app-chrome-bg);
-  border-bottom: 1px solid var(--app-border);
+  padding: var(--sp-10) var(--sp-16);
+  background: var(--app-brand-blue);
+  border-bottom: 1px solid var(--app-brand-divider);
+  color: var(--app-brand-ink);
 
   &__id { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
-  &__status { font-size: 12px; color: var(--app-text-muted); }
+  &__status { font-size: 12px; color: var(--app-brand-ink-muted); }
   &__spacer { flex: 1; }
+
+  .m-iconbtn {
+    color: var(--app-brand-ink-muted);
+    &:active { background: var(--app-brand-item-active); color: var(--app-brand-ink); }
+    &:focus-visible { outline-color: var(--app-brand-ink); }
+  }
+  /* The connection light on blue: white text on a light pill, the dot carries the state. */
+  .m-live { background: var(--app-brand-item-active); color: var(--app-brand-ink); }
+  .m-live--live .m-live__dot { background: var(--app-success); }
+  .m-live--wait .m-live__dot { background: var(--app-warning); }
+  .m-live--off  .m-live__dot { background: var(--app-danger); }
 }
+
+/* The topbar class is also borrowed for an inline "Ranking hospitals…" line in content,
+   where it must read in the theme's own muted text, not the bar's. */
+.m-content .m-topbar__status { color: var(--app-text-muted); }
 
 .m-content {
   padding: var(--sp-16);
@@ -167,6 +250,9 @@
   gap: var(--sp-16);
   min-height: 0;
   overflow-y: auto;
+
+  /* The area scrolls; a card must never be squeezed to fit it. */
+  > * { flex-shrink: 0; }
 }
 
 .m-tabs {
@@ -191,53 +277,11 @@
 
     svg { width: 20px; height: 20px; }
 
-    &[aria-current='page'] { color: var(--app-accent); }
-  }
-}
-
-/* ── Citizen: the SOS control ───────────────────────────────────────────────── */
-
-.m-sos {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--sp-12);
-  padding-block: var(--sp-24);
-
-  &__btn {
-    position: relative;
-    width: 240px;
-    height: 240px;
-    max-width: 62vw;
-    max-height: 62vw;
-    border-radius: var(--r-pill);
-    background: var(--app-btn);
-    color: var(--app-btn-text);
-    font-family: var(--font-display);
-    font-size: 40px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    box-shadow: 0 8px 28px var(--app-btn-shadow), var(--app-edge-light);
-    transition: transform var(--dur-fast) var(--ease), filter var(--dur-fast) var(--ease);
-
-    &:active { transform: scale(0.97); filter: brightness(0.94); }
-    &[data-holding='true'] { filter: brightness(1.08); }
-  }
-
-  /* The hold ring fills over two seconds — press-and-hold prevents pocket dialling. */
-  &__ring {
-    position: absolute;
-    inset: -6px;
-    border-radius: var(--r-pill);
-    pointer-events: none;
-  }
-
-  &__hint { font-size: 13px; color: var(--app-text-muted); }
-
-  &__where {
-    display: flex; flex-direction: column; align-items: center; gap: 2px;
-    font-size: 12px; color: var(--app-text-muted);
-    .mono { font-family: var(--font-mono); font-size: 13px; color: var(--app-text); }
+    /* The selected tab: DCAS blue ink, a red cap along the top edge. */
+    &[aria-current='page'] {
+      color: var(--app-brand-blue-ink);
+      box-shadow: inset 0 3px 0 var(--app-brand-red);
+    }
   }
 }
 
@@ -291,10 +335,18 @@
     font-size: 14px;
   }
 
+  /* Pinned to the bottom: the briefing above it scrolls, the decision never does. */
   &__actions {
+    position: sticky;
+    /* Down to the screen's edge, over the takeover's own bottom padding, so nothing
+       scrolls past underneath. */
+    bottom: calc(-1 * (var(--sp-20) + env(safe-area-inset-bottom)));
     margin-top: auto;
     display: grid;
     gap: var(--sp-10);
+    padding-top: var(--sp-10);
+    padding-bottom: calc(var(--sp-20) + env(safe-area-inset-bottom));
+    background: var(--app-bg);
     .u-btn--primary { height: 64px; font-size: 17px; }
     .u-btn--ghost   { height: 48px; font-size: 15px; }
   }
@@ -343,4 +395,57 @@
   &--offline { background: var(--app-danger-bg); color: var(--app-danger); }
   &--degraded { background: var(--app-warning-bg); color: var(--app-warning); }
   &--queued { background: var(--app-info-bg); color: var(--app-info); }
+}
+
+/* ── Shared mobile chrome (common/MobileChrome.tsx) ─────────────────────────── */
+
+/* An icon-only control in the top bar: 44 px, the minimum a thumb hits first time. */
+.m-iconbtn {
+  display: inline-grid; place-items: center;
+  width: 44px; height: 44px;
+  margin-inline-end: calc(-1 * var(--sp-8));
+  flex-shrink: 0;
+  border: 0; border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--app-text-muted);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  svg { width: 20px; height: 20px; }
+  &:active { background: var(--app-surface-raised); color: var(--app-text); }
+  &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
+}
+
+/* The connection light — the apps are live, and a phone that has dropped off must say so. */
+.m-live {
+  display: inline-flex; align-items: center; gap: var(--sp-6);
+  padding: var(--sp-2) var(--sp-8);
+  border-radius: var(--r-pill);
+  font-size: 11px; font-weight: 800; letter-spacing: 0.02em;
+  white-space: nowrap;
+
+  &__dot { width: 7px; height: 7px; border-radius: var(--r-pill); background: currentColor; }
+
+  &--live { background: var(--app-success-bg); color: var(--app-success); }
+  &--wait { background: var(--app-warning-bg); color: var(--app-warning); }
+  &--off  { background: var(--app-danger-bg);  color: var(--app-danger); }
+  &--live .m-live__dot { animation: m-live-pulse 2s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) { &--live .m-live__dot { animation: none; } }
+}
+@keyframes m-live-pulse { 50% { opacity: 0.35; } }
+
+/* A labelled setting row on the More tab. */
+.m-setting {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12);
+  min-height: 48px;
+  &__label { font-size: 14px; font-weight: 700; color: var(--app-text); }
+  .u-seg button { min-height: 36px; padding-inline: var(--sp-14); }
+}
+
+/* Toasts on a phone sit under the logo band and top bar, full width — not in a desktop's
+   bottom corner, where the tab bar and the thumb would cover them. */
+.surface-mobile .u-toasts {
+  inset-block-start: calc(var(--app-mobile-logo-gov-h) + 16px + 64px + env(safe-area-inset-top));
+  inset-block-end: auto;
+  inset-inline: var(--sp-12);
+  width: auto;
 }

@@ -241,6 +241,22 @@ export interface LineSeries {
   band?: Array<{ x: number; lower: number; upper: number }>;
 }
 
+/** Roughly how many intervals a line chart's y axis is divided into. */
+const Y_TICKS = 4;
+
+/** The smallest "round" step at least `raw` wide: 1, 2, 2.5 or 5 × a power of ten — or, for
+ *  an axis of durations in seconds, a whole number of seconds or minutes. */
+function niceStep(raw: number, duration: boolean): number {
+  if (!(raw > 0) || !Number.isFinite(raw)) return 1;
+  if (duration) {
+    for (const s of [5, 10, 15, 30, 60, 120, 180, 300, 600, 900, 1200, 1800, 3600, 7200]) if (s >= raw) return s;
+    return Math.ceil(raw / 3600) * 3600;
+  }
+  const p = 10 ** Math.floor(Math.log10(raw));
+  for (const m of [1, 2, 2.5, 5]) if (m * p >= raw - 1e-9) return m * p;
+  return 10 * p;
+}
+
 /**
  * One or a few series over a shared x axis, with prediction bands, a forecast divider and
  * one shared hover tooltip.
@@ -284,19 +300,25 @@ export function LineChart({
     if (target != null) ys.push(target);
     if (yMaxHint != null) ys.push(yMaxHint);
     const xMin = Math.min(...xs), xMax = Math.max(...xs);
-    const yMin = Math.min(0, ...ys), yMax = Math.max(...ys) || 1;
+    const rawMin = Math.min(0, ...ys), rawMax = Math.max(...ys) || 1;
+    // Round the axis out to a step a person would choose — 0/5k/10k/15k/20k, or 0:00/2:00/
+    // 4:00/6:00 for a duration — rather than quartering whatever the data's maximum was,
+    // which labelled axes 5622 / 11244 / 16866 and 1:34 / 3:08 / 4:42.
+    const step = niceStep((rawMax - rawMin) / Y_TICKS, /:/.test(yFormat(90)));
+    const yMin = Math.floor(rawMin / step) * step;
+    const yMax = Math.max(yMin + step, Math.ceil(rawMax / step) * step);
     return {
-      xMin, xMax, yMin, yMax,
+      xMin, xMax, yMin, yMax, step,
       sx: (x: number) => padL + ((x - xMin) / (xMax - xMin || 1)) * (width - padL - padR),
       sy: (y: number) => height - padB - ((y - yMin) / (yMax - yMin || 1)) * (height - padT - padB),
     };
-  }, [shown, height, target, yMaxHint]);
+  }, [shown, height, target, yMaxHint, yFormat]);
 
   if (!geometry) return null;
-  const { xMin, xMax, yMin, yMax, sx, sy } = geometry;
+  const { xMin, xMax, yMin, yMax, step: yStep, sx, sy } = geometry;
 
-  const yTicks = 4;
-  const ticks = Array.from({ length: yTicks + 1 }, (_, i) => yMin + ((yMax - yMin) * i) / yTicks);
+  const ticks: number[] = [];
+  for (let v = yMin; v <= yMax + yStep / 1000; v += yStep) ticks.push(Math.round(v * 1e6) / 1e6);
   const step = xTickEvery ?? Math.max(1, Math.ceil((xMax - xMin + 1) / 8));
   const xTicks: number[] = [];
   for (let x = xMin; x <= xMax; x += step) xTicks.push(Math.round(x));

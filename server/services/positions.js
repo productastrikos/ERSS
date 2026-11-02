@@ -11,7 +11,9 @@
 import { query } from '../lib/db.js';
 import { nowIso } from '../lib/clock.js';
 import { logger } from '../lib/logger.js';
+import { bus } from '../lib/bus.js';
 import { emitTo, room } from '../realtime/index.js';
+import { sosForUnit } from '../realtime/sosLinks.js';
 
 /** The current row is cheap to move; the breadcrumb is what grows. */
 const CURRENT_EVERY_MS = 2_000;
@@ -42,18 +44,45 @@ function queueFrame(unitRef, pos) {
     const out = [...frame.entries()].map(([ref, p]) => ({ unitRef: ref, ...p }));
     frame = new Map();
     frameTimer = null;
-    if (out.length) emitTo(room.consoleFleet, 'unit:position', out);
+    if (!out.length) return;
+    emitTo(room.consoleFleet, 'unit:position', out);
+    // The caller this ambulance is answering sees it move at the same rate the room does —
+    // the citizen app's map is pushed, not polled.
+    for (const p of out) {
+      const sosRef = sosForUnit(p.unitRef);
+      if (sosRef) emitTo(room.sos(sosRef), 'sos:position', { ref: sosRef, unitRef: p.unitRef, lng: p.lng, lat: p.lat, heading: p.heading, speed: p.speed });
+    }
   }, 1000);
   frameTimer.unref?.();
 }
 
+/** What a crew phone last said about its drive — the console's "to go" and speed for a
+ *  unit no simulated crew is driving. Stale after a few seconds of silence. */
+const deviceDrive = new Map();
+const DEVICE_FRESH_MS = 8_000;
+
+// A PoC restart ends every drive: a phone's last "to go" must not outlive the job it was for.
+bus.on('sim:reset', () => deviceDrive.clear());
+
+export function deviceDriveFor(unitId) {
+  const d = deviceDrive.get(unitId);
+  return d && Date.now() - d.at < DEVICE_FRESH_MS ? { remainingM: d.remainingM, speedKmh: d.speedKmh } : null;
+}
+
 /**
  * @param {{ unitId: string, unitRef: string, lng: number, lat: number,
- *           speed?: number|null, heading?: number|null, status?: string|null, runId?: string|null }} p
- *   speed in km/h; runId tags a simulated crew's breadcrumbs so a simulation reset removes them
+ *           speed?: number|null, heading?: number|null, status?: string|null, runId?: string|null,
+ *           remainingM?: number|null }} p
+ *   speed in km/h; runId tags a simulated crew's breadcrumbs so a simulation reset removes them;
+ *   remainingM is the road still ahead, when the phone is driving a planned route
  */
-export async function reportPosition({ unitId, unitRef, lng, lat, speed = null, heading = null, status = null, runId = null }) {
+export async function reportPosition({ unitId, unitRef, lng, lat, speed = null, heading = null, status = null, runId = null, remainingM = null }) {
   if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
+  if (Number.isFinite(remainingM)) {
+    deviceDrive.set(unitId, { remainingM: Math.round(remainingM), speedKmh: Number.isFinite(speed) ? Math.round(speed) : null, at: Date.now() });
+  } else {
+    deviceDrive.delete(unitId);
+  }
   queueFrame(unitRef, { lng, lat, speed, heading, status });
 
   const now = Date.now();

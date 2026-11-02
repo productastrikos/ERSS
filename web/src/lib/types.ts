@@ -185,6 +185,7 @@ export interface Unit {
   kind: UnitKind;
   agencyCode: AgencyCode;
   homeStationRef: string | null;
+  homeStationName?: string | null;
   capabilities: string[];
   crewSize: number;
   status: UnitStatus;
@@ -446,6 +447,47 @@ export type Correlation = EngineResult<{
   recommendedAgencies: Array<{ code: AgencyCode; reasons: string[] }>;
 }>;
 
+/** GET /api/me/unit/assist — the crew's AI co-pilot (server services/crewAssist.js). */
+export interface CrewAssist {
+  at: string;
+  assignmentRef: string;
+  state: Assignment['state'];
+  briefing: {
+    headline: string;
+    whyYou: string;
+    points: Array<{ text: string; source: string }>;
+    prepare: string[];
+    safety: string[];
+    backup: string | null;
+  };
+  route: {
+    to: string;
+    remainingM: number | null;
+    etaSec: number | null;
+    advice: string | null;
+    trafficAhead: Array<{ level: 'moderate' | 'heavy'; cause: string; inM: number; lengthM: number; delaySec: number }>;
+    simulatedTraffic: boolean;
+  } | null;
+  handover: { lines: Array<[string, string]>; ready: boolean };
+}
+
+/** GET /api/sos/nearest — the nearest free ambulance to a place. */
+/** Where the citizen app places a demonstration caller: a road point near the paired crew. */
+export interface SosDemoPlace {
+  lng: number;
+  lat: number;
+  road: string | null;
+  crew: { unitRef: string; callsign: string; kind: UnitKind; status: UnitStatus; online: boolean; straightM: number };
+}
+
+export interface NearestAmbulance {
+  callsign: string;
+  distanceM: number;
+  etaSec: number;
+  /** The paired paramedic app's crew — who an SOS from the app is sent to while it is online. */
+  paired?: boolean;
+}
+
 export interface HospitalChoice {
   ref: string;
   name: string;
@@ -532,6 +574,30 @@ export interface SimState {
   /** Calls the AI will dispatch by itself when the countdown ends. */
   pending: Array<{ incidentRef: string; dueAt: string; windowSec: number | null; priority: Priority; kind: string; zoneName: string | null }>;
   intensities: Array<{ key: SimIntensity; perHour: number }>;
+  /** The demonstration (trial build): curated incidents, one at a time, end to end. */
+  scenario?: DemoScenarioState | null;
+}
+
+export interface DemoScenarioState {
+  index: number;
+  total: number;
+  id: string | null;
+  title: string | null;
+  short: string | null;
+  place: string | null;
+  phase: 'idle' | 'detecting' | 'running' | 'finished';
+  incidentRef: string | null;
+  /** Live incidents the next scenario is waiting on — one story at a time. */
+  blockedBy: number;
+  startedAt: string | null;
+  finishedAt: string | null;
+  /** When the next one is raised by itself (idle/finished only). */
+  nextAt: string | null;
+  /** Phones connected now. While any is, the scripted scenarios hold: the phones drive it. */
+  phones?: { citizens: number; responders: number };
+  heldForPhones?: boolean;
+  next: { index: number; title: string; short: string };
+  scenarios: Array<{ id: string; title: string; short: string }>;
 }
 
 export type OpeningState = 'idle' | 'running' | 'done' | 'failed';
@@ -806,7 +872,9 @@ export interface MonthlyResult {
   /** The Concept Note's simple rule, kept visible beside the fitted model. */
   seasonalNaive: Array<{ month: string; calls: number | null }>;
   method: string;
-  yoy: number;
+  /** Last three complete months against the same three a year earlier; null when the
+   *  history does not reach back a year. */
+  yoy: number | null;
 }
 
 export interface DailyResult {
@@ -1027,6 +1095,57 @@ export interface ReplayResult {
   timeline: Array<{ ts: string; stage: string; label: string; detail: Record<string, unknown> }>;
   agencySla: Array<{ agencyCode: AgencyCode; agencyName: string; notifiedAt: string; acknowledgedAt: string | null; ackSec: number | null; slaSec: number; met: boolean | null }>;
   track: Array<{ unitRef: string; ts: string; lng: number; lat: number; speed: number | null; status: UnitStatus }>;
+  /** What the AI said, kept: the console's reasoning, the crew co-pilot, the review. */
+  ai?: ReplayAi;
+}
+
+/** One line of the kept AI log (server services/aiLog.js). */
+export interface AiLogEntry {
+  source: 'console' | 'crew';
+  key: string;
+  ts: string;
+  title: string;
+  detail: string | null;
+  tone: StepTone | null;
+  items: Array<{ label: string; value: string; tone?: StepTone }>;
+  meta: Record<string, unknown> | null;
+}
+
+/** One after-action finding (server services/afterAction.js). */
+export interface ReviewFinding {
+  id: string;
+  kind: 'good' | 'improve' | 'suggest';
+  tone: StepTone | null;
+  title: string;
+  detail: string | null;
+  metric: { label: string; value: string } | null;
+}
+
+export interface RouteOptionSummary {
+  label?: string; chosen?: boolean; distanceM: number; driveSec: number; timeSec: number; trafficDelaySec: number;
+  cornerLossSec: number; counts: { manoeuvres: number; roundabouts: number; uturns: number; sharp: number; turns: number };
+  majorShare: number; avgKmh: number | null; topKmh: number; text: string; via: string | null;
+  path?: Array<[number, number]>;
+}
+
+export interface ReplayDecisionCandidate {
+  unitRef: string; callsign: string; kind: string; rank: number; score: number; arrivalSec: number;
+  distanceM: number; straightM: number; trafficDelaySec: number; position: [number, number] | null;
+  route: { path: Array<[number, number]>; stats: RouteOptionSummary | null; why: string[]; options: RouteOptionSummary[]; timeSec: number } | null;
+}
+
+export interface ReplayAi {
+  log: AiLogEntry[];
+  decision: {
+    chosen: string | null; readyAt: string | null; thinkMs: number | null;
+    candidates: ReplayDecisionCandidate[];
+    excluded: Array<{ unitRef: string; callsign: string; kind: string; reason: string }>;
+    nearest: { unitRef: string; callsign: string; kind: string; straightM: number; excluded: string | null } | null;
+  } | null;
+  review: ReviewFinding[];
+  reviewNote: string;
+  /** True when the log was kept as it happened; false when rebuilt from the record. */
+  kept: boolean;
 }
 
 /** What a citizen watching their own SOS is shown — never another caller's, never history. */
@@ -1047,9 +1166,111 @@ export interface SosStatus {
   unitHeading: number | string | null;
   incidentLng: number | null;
   incidentLat: number | null;
-  /** The road still between the ambulance and the caller, while it is on its way. */
+  /** The road still between the ambulance and the caller while it is on its way — and,
+   *  once the patient is aboard, the road to the hospital. */
   route: Array<[number, number]> | null;
+  transportingAt?: string | null;
+  atHospitalAt?: string | null;
+  hospital?: { ref: string; name: string; lng: number; lat: number } | null;
   timeline: Array<{ ts: string; label: string }>;
+}
+
+// ── Patient vitals (citizen wearable → crew, hospital, report) ──────────────────
+
+export interface VitalsPoint { ts: string; hr: number | null; spo2: number | null }
+
+export interface VitalsFinding { key: string; tone: 'good' | 'warn' | 'bad' | 'info'; text: string }
+
+/** engines/vitalsTrend.js — what the readings did, in a clinician's words. */
+export interface VitalsAnalysis {
+  window: { from: string; to: string; durationSec: number };
+  samples: number;
+  gaps: number;
+  device: string | null;
+  hr: { baseline: number; latest: number; min: number; minAt: string; max: number; maxAt: string; above120Sec: number; above150Sec: number; below50Sec: number; maxRisePerMin: number } | null;
+  spo2: { baseline: number; latest: number; min: number; minAt: string; below94Sec: number; below90Sec: number; below85Sec: number; maxFallPerMin: number } | null;
+  sequence: { first: 'spo2' | 'hr' | 'together' | null; leadSec: number | null; text: string | null };
+  findings: VitalsFinding[];
+  considerations: string[];
+  prepare: string[];
+  headline: string;
+  severity: 'good' | 'warn' | 'bad';
+}
+
+export interface VitalsPack {
+  source: 'wearable' | 'monitor';
+  device: string | null;
+  series: VitalsPoint[];
+  analysis: EngineResult<VitalsAnalysis>;
+}
+
+// ── Incident reports (server services/reports.js) ───────────────────────────────
+
+export type ReportAudience = 'full' | 'crew' | 'citizen';
+
+export interface ReportDraft {
+  title?: string;
+  summary?: string;
+  clinicalNotes?: string;
+  recommendations?: string;
+  notes?: string;
+  hidden?: string[];
+  updatedBy?: string;
+  updatedAt?: string;
+}
+
+export interface IncidentReport {
+  ref: string;
+  audience: ReportAudience;
+  generatedAt: string;
+  generatedBy: string;
+  simulated: boolean;
+  classification: string | null;
+  incident: {
+    ref: string; kind: string; kindLabel: string; priority: Priority; state: IncidentState;
+    outcome: string | null; outcomeLabel: string | null; source: string; sourceLabel: string; reportedBy: string | null;
+    place: string | null; zoneName: string | null; lng: number; lat: number; makani: string | null;
+    reportedAt: string; dispatchedAt: string | null; firstOnsceneAt: string | null; closedAt: string | null;
+    chiefComplaint: string | null; accessNote: string | null; patients: number;
+  };
+  intervals: Array<{ key: string; label: string; from: string; to: string; sec: number; targetSec: number | null; ok: boolean | null }>;
+  totals: { responseSec: number | null; targetSec: number; withinTarget: boolean | null; totalSec: number | null };
+  unit: { ref: string; callsign: string; kind: UnitKind; plate: string | null; vehicle: string | null; crew: Array<{ name: string; title: string; staffId: string }> } | null;
+  dispatch: {
+    by: string; rank: number | null; of: number | null; score: number | null; confidence: number | null;
+    alternatives: Array<{ callsign: string; kind: string; rank: number; arrivalSec: number | null; distanceM: number | null; trafficDelaySec: number; score: number; chosen: boolean }>;
+    baseline: { callsign?: string; savedSec?: number } | null;
+    notes: string[];
+    predictedArrival: string | null;
+    predictionErrorSec: number | null;
+  } | null;
+  route: { toScene: { distanceM: number | null; sec: number | null; proposedSec: number | null }; toHospital: { distanceM: number | null; sec: number | null } | null } | null;
+  hospital: {
+    ref: string; name: string; edLoadPct: number | null; chosenAt: string | null; arrivedAt: string | null;
+    prealertSentAt: string | null; prealertAckAt: string | null; etaGivenSec: number | null; actualSec: number | null;
+    bay: string | null; ready: string[]; message: Record<string, unknown> | null;
+  } | null;
+  patient: {
+    profile: { bloodGroup?: string | null; allergies?: string[]; conditions?: string[]; medications?: string[]; emergencyContact?: { name: string; phone: string } | null } | null;
+    triageTag: string | null; ageBand: string | null; sex: string | null;
+  };
+  vitals: VitalsPack | null;
+  timeline: Array<{ ts: string; stage: string; label: string }>;
+  review: Array<{ kind: 'good' | 'improve' | 'suggest'; tone: string; title: string; detail: string | null; metric: { label: string; value: string } | null }>;
+  aiLog: Array<{ source: string; ts: string; title: string; detail: string | null; tone: string | null }>;
+  draft: ReportDraft | null;
+  narrative: string;
+  recommendations: string[];
+}
+
+/** One row of the incident register — every incident a person may report on. */
+export interface ReportRow {
+  ref: string; kind: string; kindLabel: string; priority: Priority; state: IncidentState; outcome: string | null;
+  source: string; sourceLabel: string; place: string | null; zoneName: string | null;
+  reportedAt: string; firstOnsceneAt: string | null; closedAt: string | null;
+  responseSec: number | null; targetSec: number; withinTarget: boolean | null;
+  callsign: string | null; unitKind: string | null; hospital: string | null;
+  hasVitals: boolean; prealerted: boolean; live: boolean;
 }
 
 export interface ServerEvents {
@@ -1071,6 +1292,14 @@ export interface ServerEvents {
   'decision:update': DecisionPreview;
   'dispatch:rules': DispatchRulesState;
   notify: { level: 'info' | 'warning' | 'danger' | 'success'; title: string; body: string; link?: string };
+  /** The PoC was restarted — to every socket, console and phones alike. Drop what you hold. */
+  'sim:reset': { at: string; removed: number };
+  /** The caller's own SOS changed; refetch /api/sos/:ref/status. A ping, never the detail. */
+  'sos:update': { ref: string; at: string };
+  /** The ambulance answering the caller's SOS moved. */
+  'sos:position': { ref: string; unitRef: string; lng: number; lat: number; heading: number | null; speed: number | null };
+  /** New wearable readings from the patient — to the crew on the job and consoles watching it. */
+  'patient:vitals': { incidentRef: string; readings: VitalsPoint[]; latest: VitalsPoint; device: string | null };
 }
 
 export interface Patient {
@@ -1261,7 +1490,13 @@ export interface DecisionCandidate {
   trafficDelaySec: number;
   canTransport: boolean;
   position?: [number, number] | null;
-  route?: { path: Array<[number, number]>; distanceM: number; delaySec: number; congestedM: number; traffic: TrafficStretch[] } | null;
+  route?: {
+    path: Array<[number, number]>; distanceM: number; delaySec: number; congestedM: number; traffic: TrafficStretch[];
+    /** The drive model's read of the road (server engines/drive.js) — present on new decisions. */
+    stats?: RouteOptionSummary | null;
+    why?: string[];
+    options?: RouteOptionSummary[];
+  } | null;
   factors: DecisionFactor[];
 }
 
@@ -1313,6 +1548,10 @@ export interface LiveDrive {
   remainingM: number;
   speedKmh: number | null;
   trafficAhead: Array<Omit<TrafficStretch, 'path'>>;
+  /** The drive in progress — to the scene, to hospital, back to station. */
+  leg?: 'scene' | 'hospital' | 'return' | 'relocate' | null;
+  /** Seconds to the end of this leg at the pace it is being driven, queues included. */
+  etaSec?: number | null;
 }
 
 export type DecisionPhase = 'detected' | 'thinking' | 'decided' | 'dispatched' | 'enroute' | 'onscene' | 'transport' | 'closed';

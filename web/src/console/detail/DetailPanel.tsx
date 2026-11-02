@@ -1,14 +1,24 @@
 /**
- * The detail panel — every dashboard card opens here (lib/stores/detail.ts).
+ * The detail drawer — every dashboard card, map click and the incident director open here
+ * (lib/stores/detail.ts).
+ *
+ * A full-height slide-over from the right edge, between the header and the status bar. It
+ * OVERLAPS the page rather than taking a slot in it: the rail and the edge of the map stay
+ * where they are underneath, and closing the drawer slides it away to reveal them. While it
+ * is closed, a tab on the right edge brings back what was last open — or, if nothing was,
+ * the incident the map is following — so the AI's reasoning is always one click away.
  *
  * One host, so every detail reads the same: a header that says what is open and how to
- * get back, and a scrolling body. On the Dashboard it takes the right rail's place (the map
- * is never covered); on the wall view it docks over the right edge of the map.
+ * get back, and a scrolling body.
  */
 
-import { ArrowLeft, X } from 'lucide-react';
+import { useEffect } from 'react';
+import { ArrowLeft, BrainCircuit, ChevronLeft, X } from 'lucide-react';
 import { t } from '../../lib/i18n';
-import { backDetail, closeDetail, useDetail, useDetailDepth, type DetailTarget } from '../../lib/stores/detail';
+import {
+  backDetail, closeDetail, closedDetail, reopenDetail, useDetailDrawer, type DetailTarget,
+} from '../../lib/stores/detail';
+import { useDirector } from '../../lib/stores/director';
 import { IncidentDetail } from './IncidentDetail';
 import { UnitDetailView } from './UnitDetailView';
 import { AutoDispatchDetail } from './AutoDispatchDetail';
@@ -27,33 +37,75 @@ function heading(target: DetailTarget): string {
   }
 }
 
-export function DetailPanel({ className = '' }: { className?: string }) {
-  const target = useDetail();
-  const depth = useDetailDepth();
-  if (!target) return null;
-  const id = target.kind === 'incident' || target.kind === 'unit' || target.kind === 'hospital' ? target.ref
-    : target.kind === 'kpi' ? target.key : target.kind;
+const idOf = (target: DetailTarget) => (target.kind === 'incident' || target.kind === 'unit' || target.kind === 'hospital' ? target.ref
+  : target.kind === 'kpi' ? target.key : target.kind);
+
+function tabLabel(target: DetailTarget): string {
+  if (target.kind === 'incident') return `${t('detail.tab.incident')} · ${target.ref.replace(/^INC-\d{6}-/, '#')}`;
+  return heading(target);
+}
+
+export function DetailDrawer() {
+  const { target, depth, closing, last } = useDetailDrawer();
+  const director = useDirector();
+  const shown = target ?? closing;
+
+  // Esc closes the drawer, as it closes every side panel.
+  useEffect(() => {
+    if (!target) return undefined;
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (e.key === 'Escape' && tag !== 'INPUT' && tag !== 'TEXTAREA') closeDetail();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [target]);
+
+  // What the edge tab brings back: the last thing open, else the incident being followed.
+  const reopen: DetailTarget | null = last ?? (director.ref ? { kind: 'incident', ref: director.ref } : null);
+
   return (
-    <aside className={`dtl ${className}`} aria-label={heading(target)}>
-      <header className="dtl__bar">
-        <button type="button" className="dtl__icon-btn" onClick={depth > 1 ? backDetail : closeDetail}
-                title={depth > 1 ? t('detail.back') : t('detail.backToRail')} aria-label={depth > 1 ? t('detail.back') : t('detail.backToRail')}>
-          <ArrowLeft aria-hidden />
+    <>
+      {shown && (
+        <aside
+          className={`dtl dtl-drawer ${target ? 'is-open' : 'is-closing'}`}
+          data-map-occluder="right"
+          aria-label={heading(shown)}
+          onAnimationEnd={(e) => { if (!target && e.target === e.currentTarget) closedDetail(); }}
+        >
+          <header className="dtl__bar">
+            <button type="button" className="dtl__icon-btn" onClick={backDetail} disabled={!target}
+                    title={depth > 1 ? t('detail.back') : t('detail.hide')} aria-label={depth > 1 ? t('detail.back') : t('detail.hide')}>
+              <ArrowLeft aria-hidden />
+            </button>
+            <span className="dtl__heading">
+              {shown.kind === 'incident' && <BrainCircuit aria-hidden className="dtl__heading-icon" />}
+              {heading(shown)}
+            </span>
+            <button type="button" className="dtl__icon-btn" onClick={closeDetail} disabled={!target}
+                    title={t('detail.hide')} aria-label={t('detail.hide')}>
+              <X aria-hidden />
+            </button>
+          </header>
+          {/* Keyed by what is open, so moving between two incidents starts each panel fresh. */}
+          <div className="dtl__body" key={`${shown.kind}:${idOf(shown)}`}>
+            {shown.kind === 'incident' && <IncidentDetail incidentRef={shown.ref} />}
+            {shown.kind === 'unit' && <UnitDetailView unitRef={shown.ref} />}
+            {shown.kind === 'auto' && <AutoDispatchDetail />}
+            {shown.kind === 'hospital' && <HospitalDetail hospitalRef={shown.ref} />}
+            {shown.kind === 'kpi' && <KpiDetail kpi={shown.key} />}
+            {shown.kind === 'feed' && <FeedDetail />}
+          </div>
+        </aside>
+      )}
+
+      {!target && !closing && reopen && (
+        <button type="button" className="dtl-tab" onClick={() => reopenDetail(reopen)} title={t('detail.reopen')}>
+          <ChevronLeft aria-hidden />
+          <BrainCircuit aria-hidden className="dtl-tab__ai" />
+          <span>{tabLabel(reopen)}</span>
         </button>
-        <span className="dtl__heading">{heading(target)}</span>
-        <button type="button" className="dtl__icon-btn" onClick={closeDetail} title={t('common.close')} aria-label={t('common.close')}>
-          <X aria-hidden />
-        </button>
-      </header>
-      {/* Keyed by what is open, so moving between two incidents starts each panel fresh. */}
-      <div className="dtl__body" key={`${target.kind}:${id}`}>
-        {target.kind === 'incident' && <IncidentDetail incidentRef={target.ref} />}
-        {target.kind === 'unit' && <UnitDetailView unitRef={target.ref} />}
-        {target.kind === 'auto' && <AutoDispatchDetail />}
-        {target.kind === 'hospital' && <HospitalDetail hospitalRef={target.ref} />}
-        {target.kind === 'kpi' && <KpiDetail kpi={target.key} />}
-        {target.kind === 'feed' && <FeedDetail />}
-      </div>
-    </aside>
+      )}
+    </>
   );
 }

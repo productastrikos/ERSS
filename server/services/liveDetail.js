@@ -17,7 +17,7 @@
 import { pool, one } from '../lib/db.js';
 import { nowIso } from '../lib/clock.js';
 import { notFound } from '../lib/errors.js';
-import { pocFleet, pocFleetSize } from '../config/poc.js';
+import { poc, pocFleet, pocFleetSize } from '../config/poc.js';
 import { profileFor } from '../data/reference/crews.js';
 import * as fleet from '../repos/fleet.js';
 import { describeRules } from './dispatchRules.js';
@@ -36,7 +36,7 @@ const mmss = (sec) => {
 };
 
 /** The trial catchment, Silicon Oasis to Al Rashidiya (sim/roadSites.js), with a margin. */
-const CATCHMENT = { west: 55.31, south: 25.09, east: 55.45, north: 25.25 };
+const CATCHMENT = poc.catchment;
 
 // ── Automatic dispatch ───────────────────────────────────────────────────────
 

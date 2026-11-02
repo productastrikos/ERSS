@@ -54,6 +54,29 @@ export function unitDeviceOnline(unitId) {
   return false;
 }
 
+/** The units whose crew phone is connected right now, by ref — the demonstration pairs a
+ *  citizen's SOS with one of these (services/dispatch.js recommendFor). */
+export function onlineCrewUnitRefs() {
+  const out = new Set();
+  for (const v of presence.values()) {
+    if (v.role === 'responder' && v.unitRef && v.socketIds.size > 0) out.add(v.unitRef);
+  }
+  return out;
+}
+
+/** How many phones are connected, by surface. While any is, the trial's scripted camera
+ *  scenarios hold back and the phones drive the demonstration (sim/live.js scenarioTick). */
+export function mobileOnline() {
+  let citizens = 0;
+  let responders = 0;
+  for (const v of presence.values()) {
+    if (!v.socketIds.size) continue;
+    if (v.role === 'citizen') citizens++;
+    else if (v.role === 'responder') responders++;
+  }
+  return { citizens, responders };
+}
+
 export function attachRealtime(server) {
   io = new Server(server, {
     cors: { origin: env.corsOrigins, credentials: true },
@@ -114,7 +137,7 @@ async function onConnection(socket) {
   }
   if (agencyCode && role !== 'citizen') socket.join(room.agency(agencyCode));
 
-  markPresent(ref, socket.id, { role, unitId });
+  markPresent(ref, socket.id, { role, unitId, unitRef: socket.data.unitRef ?? null });
   logger.debug({ user: ref, role }, '[ws] connected');
 
   // A console opening gets the fleet at once, rather than waiting up to 30 s.
@@ -138,18 +161,32 @@ async function onConnection(socket) {
     if (typeof runRef === 'string' && surface === 'console') socket.join(room.run(runRef));
   });
 
+  // A caller watching their OWN SOS — never anyone else's. The room carries only "something
+  // changed" pings and the answering ambulance's position; the detail is read over REST
+  // (/api/sos/:ref/status), which applies the same ownership check.
+  socket.on('sos:watch', async ({ ref: sosRef } = {}) => {
+    if (typeof sosRef !== 'string' || role !== 'citizen') return;
+    if (await ownsSos(user, sosRef)) socket.join(room.sos(sosRef));
+  });
+  socket.on('sos:unwatch', ({ ref: sosRef } = {}) => {
+    if (typeof sosRef === 'string') socket.leave(room.sos(sosRef));
+  });
+
   /**
    * The one socket-only write. services/positions.js throttles persistence and batches
    * the fan-out — the same path a simulated crew's movement takes.
    */
   socket.on('unit:position', async (payload = {}) => {
     if (role !== 'responder') return;                // only a responder reports position
-    const { lng, lat, speed = null, heading = null } = payload;
+    const { lng, lat, speed = null, heading = null, remainingM = null } = payload;
     if (!isFinite(lng) || !isFinite(lat)) return;
     if (!socket.data.unitRef) socket.data.unitRef = await unitRefFor(unitId);
     const unitRef = socket.data.unitRef;
     if (!unitRef) return;
-    await reportPosition({ unitId, unitRef, lng, lat, speed, heading, status: await unitStatusFor(unitId) });
+    await reportPosition({
+      unitId, unitRef, lng, lat, speed, heading, status: await unitStatusFor(unitId),
+      remainingM: typeof remainingM === 'number' && remainingM >= 0 ? remainingM : null,
+    });
   });
 
   socket.on('disconnect', () => {
@@ -166,6 +203,12 @@ export function emitTo(roomName, event, payload) {
   const rooms = Array.isArray(roomName) ? roomName.filter(Boolean) : [roomName];
   if (!rooms.length) return;
   io.to(rooms).emit(event, payload);
+}
+
+/** Every connected socket, whatever its surface — only for an event every screen must act on
+ *  (a PoC restart: consoles, crew phones and citizen phones all start again from clean). */
+export function emitAll(event, payload) {
+  io?.emit(event, payload);
 }
 
 /** Correctness backstop: full fleet state every 30s, so drift cannot accumulate. */
@@ -253,6 +296,16 @@ async function mayWatchIncident(user, surface, incRef) {
     return false;
   } catch (err) {
     logger.warn({ err, incRef }, '[ws] watch check failed');
+    return false;
+  }
+}
+
+async function ownsSos(user, incRef) {
+  try {
+    const { rows } = await query('SELECT 1 FROM incidents WHERE ref = $1 AND reported_by = $2 LIMIT 1', [incRef, user.id]);
+    return rows.length > 0;
+  } catch (err) {
+    logger.warn({ err, incRef }, '[ws] sos watch check failed');
     return false;
   }
 }

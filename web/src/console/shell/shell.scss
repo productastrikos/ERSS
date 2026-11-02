@@ -7,29 +7,97 @@
   height: 100dvh;
   overflow: hidden;
   background: var(--app-bg);
+
+  /* How much of the viewport's RIGHT edge the sidebar takes right now. Every drawer and
+     panel pinned to the right edge (the AI response drawer, the detection panel, alerts,
+     toasts) steps in by this much, so it opens beside the sidebar rather than over it.
+     Outside the console (the mobile app) nothing sets it, and they fall back to 0. */
+  --shell-nav-w: var(--app-sidebar-w);
+  &[data-nav='collapsed'] { --shell-nav-w: var(--app-sidebar-collapsed-w); }
+}
+
+/* ── Logo band (sign-in) ────────────────────────────────────────────────────── */
+
+/* The sign-in page's band: the Government of Dubai and Dubai Ambulance logos, in their
+   approved colours on white, and nothing else. Both heights are the artwork's own (the two
+   files are trimmed to their ink), so the 60% between them is the logos' own ratio — the
+   same as the console header's (--app-logo-dcas-h / --app-logo-gov-h). The Government of
+   Dubai logo's height comes from .login__band. */
+.logo-band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-24);
+  padding-inline: var(--sp-24);
+  background: var(--app-logo-band-bg);
+
+  &__gov, &__dcas { display: block; width: auto; flex-shrink: 0; }
+  &__gov  { height: var(--logo-gov-h); }
+  &__dcas { height: calc(var(--logo-gov-h) * 0.6); }
 }
 
 /* ── Header ─────────────────────────────────────────────────────────────────── */
 
+/* One row: | Dubai Ambulance | toolbar | Government of Dubai |. Each logo sits in its own
+   white box at its corner, in its approved colours, with nothing else in it; the blue
+   toolbar fills the space between them. */
 .shell-header {
   position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--sp-20);
-  padding-inline: var(--sp-16);
-  /* The header carries the full-strength livery now — the sidebar moved to a solid
-     --app-brand-blue (below), so the gradient's one home is here. Everything inside
-     switches to the --app-brand-ink* scale (theme.css) for contrast against it. */
-  background: var(--app-brand-gradient);
-  border-bottom: 1px solid var(--app-brand-divider);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   z-index: var(--z-header);
+  background: var(--app-logo-band-bg);
 
-  &__brand { display: flex; align-items: center; gap: var(--sp-10); min-width: 200px; }
+  /* The two logo boxes — white in both themes, sized to their logo with the same air on
+     every side. The Government of Dubai box is at least the sidebar's width, so it caps
+     the sidebar column directly below it. */
+  &__tile {
+    display: flex; align-items: center; justify-content: center;
+    padding-inline: var(--sp-24);
+    background: var(--app-logo-band-bg);
+  }
+  &__tile--gov { min-width: var(--app-sidebar-w); }
 
-  /* A small live ECG trace beside the wordmark — the one place the brand's red gets to
-     move. Decorative only (aria-hidden in the markup), and switched off for anyone who
-     asked the OS for less motion. White, not red: the trace has to read over the blue
-     stop of the header too. */
+  &__gov, &__dcas { display: block; width: auto; flex-shrink: 0; }
+  &__gov  { height: var(--app-logo-gov-h); }
+  &__dcas { height: var(--app-logo-dcas-h); }
+
+  /* The toolbar, between the boxes: product and page title at its start, the tools at its
+     end beside the Government of Dubai box. On a tight screen the page title gives way
+     (ellipsis), never the tools. Plain brand blue, the same as the sidebar and the status
+     bar; everything on it uses the --app-brand-ink* scale (theme.css) for contrast. */
+  &__bar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-20);
+    min-width: 0;
+    padding-inline: var(--sp-20);
+    background: var(--app-brand-blue);
+    border-bottom: 1px solid var(--app-brand-divider);
+  }
+
+  &__lead { display: flex; align-items: center; gap: var(--sp-20); min-width: 0; }
+
+  /* Anchors the alert panel (.alert-panel) under the tools. */
+  &__tools {
+    position: relative;
+    display: flex; align-items: center; gap: var(--sp-16);
+    flex-shrink: 0;
+    margin-inline-start: auto;
+  }
+
+  /* The product's own name, leading the toolbar beside the Dubai Ambulance logo, set off
+     from the page title by a hairline. */
+  &__brand {
+    display: flex; align-items: center; gap: var(--sp-10);
+    flex-shrink: 0;
+    padding-inline-end: var(--sp-20);
+    border-inline-end: 1px solid var(--app-brand-divider);
+  }
+
+  /* A small live ECG trace beside the wordmark. Decorative only (aria-hidden in the
+     markup), and switched off for anyone who asked the OS for less motion. White, not
+     red: the trace has to read on the blue toolbar. */
   &__pulse {
     width: 40px; height: 20px;
     flex-shrink: 0;
@@ -49,16 +117,6 @@
     }
   }
 
-  &__logo {
-    /* The DCAS lockup is red/blue ink on transparent — it needs the white plate in
-       both themes now, since the header itself carries the brand colour rather than
-       the theme's chrome colour. */
-    height: 32px; width: auto;
-    padding: 3px 8px;
-    background: var(--app-brand-ink);
-    border-radius: var(--r-sm, 6px);
-  }
-
   &__wordmark {
     font-family: var(--font-display);
     font-size: 14px; font-weight: 700; letter-spacing: -0.01em;
@@ -66,19 +124,19 @@
   }
 
   &__title {
+    min-width: 0;
     font-family: var(--font-display);
-    font-size: 20px; font-weight: 700; letter-spacing: -0.014em;
+    font-size: 18px; font-weight: 700; letter-spacing: -0.014em;
     color: var(--app-brand-ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-
-  &__spacer { flex: 1; }
 
   &__client {
     display: inline-flex; align-items: center; gap: var(--sp-4);
     padding: var(--sp-2) var(--sp-8);
     border-radius: var(--r-pill);
-    /* Opaque white, not a translucent red wash — that would vanish against the
-       header's own red stop. DCAS's brand red stays as the text/icon colour. */
+    /* Opaque white, not a translucent wash — that would vanish against the toolbar's
+       blue. DCAS's brand red stays as the text/icon colour. */
     background: var(--app-brand-ink);
     color: var(--app-brand-red);
     font-family: var(--font-display);
@@ -100,15 +158,17 @@
     border: 1px solid var(--app-brand-divider);
     border-radius: var(--r-pill);
     font-size: 11px; font-weight: 700;
-    color: var(--app-accent-soft);
+    color: var(--app-brand-ink);
   }
 
   /* The AI advisory trigger — the reserved AI channel (purple/advisory hue), matching
      the drawer it opens. Same shape as __scenario, different token. Opaque white idle
-     state so the purple reads as purple regardless of which stop of the gradient it
-     sits over; the hover/pressed fill (solid advisory purple) was already opaque. */
+     state so the purple reads as purple on the blue toolbar; the hover/pressed fill
+     (solid advisory purple) was already opaque. */
   &__advisory {
     display: flex; align-items: center; gap: var(--sp-8);
+    flex-shrink: 0;
+    white-space: nowrap;
     padding: var(--sp-4) var(--sp-10);
     background: var(--app-brand-ink);
     border: 1px solid var(--app-advisory-border);
@@ -133,42 +193,68 @@
 
 /* ── Body ───────────────────────────────────────────────────────────────────── */
 
+/* The sidebar is on the RIGHT (Dubai Government layout — see ConsoleApp). Placed by grid
+   column rather than by `direction: rtl`, so the pages and the nav's own text stay
+   left-to-right; only where the panel sits is mirrored. */
 .shell-body {
+  position: relative;
   display: grid;
-  grid-template-columns: var(--app-sidebar-w) 1fr;
+  grid-template-columns: minmax(0, 1fr) var(--app-sidebar-w);
   min-height: 0;
   transition: grid-template-columns var(--dur) var(--ease);
+  @media (prefers-reduced-motion: reduce) { transition: none; }
 
-  &[data-collapsed='true'] { grid-template-columns: var(--app-sidebar-collapsed-w) 1fr; }
+  &[data-collapsed='true'] { grid-template-columns: minmax(0, 1fr) var(--app-sidebar-collapsed-w); }
 }
 
 .shell-main {
+  grid-column: 1;
+  grid-row: 1;
   min-width: 0;
   min-height: 0;
   overflow: auto;
   position: relative;
-  /* The faint wash, under the whole content area. Every panel on top of it — hero
-     tiles, dash-cards, charts — keeps its own opaque background and colour tokens
-     unchanged; only the base the page sits on picks up the tint. */
-  background: var(--app-brand-wash), var(--app-bg);
+  /* One plain colour under the whole content area — no wash, no gradient. */
+  background: var(--app-bg);
 }
 
 /* ── Sidebar ────────────────────────────────────────────────────────────────── */
 
 .shell-nav {
+  grid-column: 2;
+  grid-row: 1;
   display: flex;
   flex-direction: column;
-  /* Solid brand blue — the gradient's other home is the header now, so this panel gets
-     one flat stop of it rather than the full red-to-blue sweep (which put amber active-
-     state text over the red stop and made it hard to read). Its own ink scale
-     (--app-brand-ink*, theme.css) replaces --app-text* for this one panel, fixed in both
+  /* Solid brand blue, the same as the toolbar and the status bar. Its own ink scale
+     (--app-brand-ink*, theme.css) replaces --app-text* for this panel, fixed in both
      themes because the brand colour is. */
   background: var(--app-brand-blue);
-  border-inline-end: 1px solid var(--app-brand-divider);
+  border-inline-start: 1px solid var(--app-brand-divider);
   overflow-y: auto;
   overflow-x: hidden;
 
-  &__sections { flex: 1; padding-block: var(--sp-12); }
+  /* The sidebar's own open/close button, its first row — just above "Dashboard", lined up
+     with the nav icons below it (centred on the icon rail when collapsed). 40 px: a
+     pointer target and a touch one. */
+  &__top {
+    display: flex;
+    padding: var(--sp-10) var(--sp-4) var(--sp-6);
+  }
+  &__toggle {
+    display: inline-grid; place-items: center;
+    width: 40px; height: 40px;
+    flex-shrink: 0;
+    border: 0; border-radius: var(--r-10);
+    background: transparent;
+    color: var(--app-brand-ink);
+    cursor: pointer;
+    transition: background var(--dur-fast) var(--ease);
+    svg { width: 20px; height: 20px; }
+    &:hover { background: var(--app-brand-item-hover); }
+    &:focus-visible { outline: 2px solid var(--app-brand-ink); outline-offset: 2px; }
+  }
+
+  &__sections { flex: 1; padding-block: var(--sp-6) var(--sp-12); }
 
   &__section { margin-bottom: var(--sp-16); }
 
@@ -196,18 +282,19 @@
 
     &:hover { background: var(--app-brand-item-hover); color: var(--app-brand-ink); }
 
-    /* Active nav is one of the four places the accent is permitted — the left bar and
-       label stay amber, same as on every other surface; the fill is a lighter wash of
-       the same white overlay everything else on this panel uses for state, so it reads
-       as "selected" against red or blue alike. */
+    /* Active nav: the sidebar IS the brand blue, so the accent (also blue) cannot mark
+       selection here. Full white ink, a white bar on the screen-edge side (mirrored with
+       the sidebar), and the lighter wash of the same white overlay everything else on
+       this panel uses for state. */
     &[aria-current='page'] {
       background: var(--app-brand-item-active);
-      color: var(--app-accent-soft);
+      color: var(--app-brand-ink);
+      font-weight: 800;
       &::before {
         content: '';
-        position: absolute; inset-block: 0; inset-inline-start: 0;
+        position: absolute; inset-block: 0; inset-inline-end: 0;
         width: 3px;
-        background: var(--app-accent-soft);
+        background: var(--app-brand-ink);
       }
     }
   }
@@ -219,7 +306,7 @@
     padding: 1px var(--sp-6);
     border-radius: var(--r-pill);
     /* Opaque, not a translucent danger tint — a wash of the panel's own danger-red
-       tokens would vanish against the sidebar's red stop. */
+       tokens would vanish against the sidebar's blue. */
     background: var(--app-brand-ink);
     color: var(--app-danger);
   }
@@ -257,24 +344,82 @@
 .shell-body[data-collapsed='true'] .shell-nav {
   .shell-nav__label, .shell-nav__eyebrow, .shell-nav__who, .shell-nav__count { display: none; }
   .shell-nav__item { justify-content: center; padding-inline: 0; }
+  .shell-nav__top { justify-content: center; padding-inline: 0; }
 }
 
-/* A narrow screen gets the icon rail whatever the stored preference: a 248 px sidebar
-   would leave a phone-width console about 140 px of content. */
+/* Only a narrow screen's drawer has a scrim; on a desktop the sidebar is part of the grid. */
+.shell-nav__scrim { display: none; }
+
+/* A narrow screen opens on the icon rail: a 248 px sidebar would leave a phone-width console
+   about 140 px of content. Expanding it there (the header toggle) slides the full sidebar
+   OVER the page as a drawer, with a scrim behind it, instead of squeezing the page. */
 @media (max-width: 760px) {
-  .shell-body, .shell-body[data-collapsed='true'] { grid-template-columns: var(--app-sidebar-collapsed-w) minmax(0, 1fr); }
-  .shell-body .shell-nav {
+  /* The rail is all the sidebar ever takes from the page here; expanded, it floats over it. */
+  .shell, .shell[data-nav] { --shell-nav-w: var(--app-sidebar-collapsed-w); }
+  .shell-body, .shell-body[data-collapsed='true'] { grid-template-columns: minmax(0, 1fr) var(--app-sidebar-collapsed-w); }
+  .shell-body[data-collapsed='true'] .shell-nav {
     .shell-nav__label, .shell-nav__eyebrow, .shell-nav__who, .shell-nav__count { display: none; }
     .shell-nav__item { justify-content: center; padding-inline: 0; }
   }
-  .shell-header { gap: var(--sp-10); }
-  .shell-header__brand { min-width: 0; }
-  .shell-header__wordmark { display: none; }
+  .shell-body[data-collapsed='false'] {
+    .shell-nav {
+      position: absolute; inset-block: 0; inset-inline-end: 0;
+      width: var(--app-sidebar-w);
+      z-index: var(--z-modal);
+      box-shadow: var(--app-shadow-lg);
+    }
+    .shell-nav__scrim {
+      display: block;
+      position: absolute; inset: 0;
+      z-index: calc(var(--z-modal) - 1);
+      background: var(--app-scrim);
+    }
+  }
+  /* No room for the toolbar between the logo boxes: the header stacks — the two boxes on
+     a white row, the toolbar the full width under them. */
+  .shell-header { grid-template-rows: calc(var(--app-logo-gov-h) + 2 * var(--sp-8)) var(--app-toolbar-h); }
+  .shell-header__tile { grid-row: 1; padding-inline: var(--sp-12); }
+  .shell-header__tile--gov { grid-column: 3; min-width: 0; }
+  .shell-header__bar { grid-row: 2; grid-column: 1 / -1; gap: var(--sp-10); padding-inline: var(--sp-12); }
+  .shell-header__tools { gap: var(--sp-8); }
+  /* A phone-width alert panel takes the screen's edge, not the tools' — anchored to the
+     tools it could run off the left of the screen. */
+  .shell-header .alert-panel {
+    position: fixed;
+    top: calc(var(--app-header-h) + var(--sp-6));
+    inset-inline-end: calc(var(--shell-nav-w, 0px) + var(--sp-12));
+  }
+  /* The logos already say who this is, and the pulse is decoration: the page title
+     needs the room. */
+  .shell-header__brand, .shell-header__client { display: none; }
   .shell-header__title { font-size: 16px; }
   .shell-main { overflow: auto; }
-  .shell-nav__foot .u-btn:not(.u-btn--icon) { display: none; }
+  .shell-body[data-collapsed='true'] .shell-nav__foot .u-btn:not(.u-btn--icon) { display: none; }
   .shell-status { gap: var(--sp-8); white-space: nowrap; overflow: hidden; }
   .shell-status__sep { display: none; }
+}
+
+/* A narrowing toolbar between the logo boxes gives up its least-needed items first: the
+   product name (the logos say whose console this is), then the clock, then the page title
+   (the sidebar marks the current page). Below 761px the header stacks and the toolbar has
+   the full width again. */
+@media (max-width: 1100px) {
+  .shell-header__brand { display: none; }
+  .shell-header__tools { gap: var(--sp-10); }
+}
+@media (min-width: 761px) and (max-width: 960px) {
+  .shell-header__clock { display: none; }
+}
+@media (min-width: 761px) and (max-width: 860px) {
+  .shell-header__title { display: none; }
+  .shell-header__bar { padding-inline: var(--sp-12); }
+  .shell-header__tools { gap: var(--sp-6); }
+  .shell-header__tile--gov { min-width: 0; }
+}
+
+/* A phone-width toolbar: the page title and the clock give way to the tools. */
+@media (max-width: 520px) {
+  .shell-header__title, .shell-header__clock { display: none; }
 }
 
 /* ── Status bar ─────────────────────────────────────────────────────────────── */
@@ -284,11 +429,10 @@
   align-items: center;
   gap: var(--sp-14);
   padding-inline: var(--sp-16);
-  /* Same livery as the header and sidebar — the status bar is chrome too (see the file
-     banner), so it takes the full gradient rather than staying the odd plain one out.
+  /* Plain brand blue, the same as the toolbar and sidebar — the status bar is chrome too.
      The status dots (Dot component, tone=success/danger/warning) are semantic and keep
      their own tokens; only the surrounding text/icons move to --app-brand-ink*. */
-  background: var(--app-brand-gradient);
+  background: var(--app-brand-blue);
   border-top: 1px solid var(--app-brand-divider);
   font-size: 10.5px;
   color: var(--app-brand-ink-muted);
@@ -398,136 +542,237 @@
   &__demo-foot { font-size: 10px; line-height: 1.4; color: var(--app-text-faint); }
 }
 
-/* ── Sign-in — split layout ────────────────────────────────────────────────────
-   The art panel is the client's identity and nothing else: no functional control lives
-   there, so it can drop below 760px with nothing lost. The form panel stays the same
-   centred card either way. */
+/* ── Sign-in ───────────────────────────────────────────────────────────────────
+   The logo band across the top (the Government of Dubai logo at the left, Dubai
+   Ambulance at the right, in their approved colours on white), then two columns: the
+   sign-in card on the page's ONE plain background, with the footer carrying the
+   corporation's full name under it, and the photo filling the whole right side. The
+   photo is decoration and nothing else: no functional control lives there, so it can drop
+   below 760px with nothing lost. Themed — dark unless the switch says otherwise; the band
+   is white in both. */
 
 .login {
   display: grid;
-  /* Wider than a 50/50 split — the photo is shown whole (object-fit: contain below), so
-     the art side gets the room to make it as large as possible; the form panel gives up
-     width rather than the vehicle losing its wheels or its roof. */
-  grid-template-columns: minmax(0, 1.4fr) minmax(340px, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100vh;
   height: 100dvh;
   background: var(--app-bg);
 
-  &__art {
-    position: relative;
+  /* The sign-in page has the room for the logos at a larger size than the console. A
+     solid brand-blue rule closes the band, so the white reads as its own section on the
+     light theme's near-white page as much as on the dark one. */
+  &__band {
+    --logo-gov-h: 72px;
+    padding-block: var(--sp-16);
+    border-bottom: 4px solid var(--app-brand-blue);
+  }
+
+  /* Card | brand panel. The panel is a little wider, since the photo is drawn at its
+     full width; the card's side never narrows below what the card needs. */
+  &__body {
+    display: grid;
+    grid-template-columns: minmax(480px, 1fr) minmax(0, 1.2fr);
+    min-height: 0;
+  }
+
+  /* The card centred in whatever height the footer leaves. */
+  &__panel {
     display: flex;
+    flex-direction: column;
     align-items: center;
+    min-height: 0;
+    padding: var(--sp-32) var(--sp-32) 0;
+    overflow-y: auto;
+  }
+
+  /* The right side: plain DCAS blue in both themes — a brand colour, not a gradient or
+     a photo backdrop — with the product's full name and, under it, the WHOLE photo,
+     never cropped: it runs the panel's full width, or as wide as the panel's height
+     allows on a short screen, keeping its own proportions either way. */
+  &__art {
+    display: flex;
+    flex-direction: column;
     justify-content: center;
+    gap: var(--sp-28);
+    min-height: 0;
     overflow: hidden;
-    /* The full red-to-blue livery gradient as the backdrop, same as the header — the
-       photo sits centred and whole on top of it. */
-    background: var(--app-brand-gradient);
+    background: var(--app-brand-blue);
+  }
+
+  &__art-caption {
+    display: flex; flex-direction: column; gap: var(--sp-8);
+    padding-inline: var(--sp-48);
+  }
+  &__art-eyebrow {
+    font-family: var(--font-display);
+    font-size: 12px; font-weight: 800;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--app-brand-ink-muted);
+  }
+  &__art-title {
+    max-width: 440px;
+    font-family: var(--font-display);
+    font-size: 30px; font-weight: 800; line-height: 1.1; letter-spacing: -0.01em;
+    color: var(--app-brand-ink);
   }
 
   &__art-photo {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
     display: block;
+    align-self: center;
+    width: auto; height: auto;
+    max-width: 100%;
+    min-height: 0;
+    max-height: calc(100% - 160px);
+    box-shadow: var(--app-shadow-lg);
   }
 
-  &__logo-card {
-    position: absolute;
-    inset-block-start: var(--sp-24);
-    inset-inline-start: var(--sp-24);
-    height: 56px; width: auto;
-    padding: var(--sp-10) var(--sp-14);
-    background: var(--app-brand-ink);
-    border-radius: var(--r-12);
-    box-shadow: var(--app-shadow-md);
-  }
-
-  &__caption {
-    position: absolute;
-    inset-block-end: var(--sp-24);
-    inset-inline-start: var(--sp-24);
-    inset-inline-end: var(--sp-24);
-    display: flex; flex-direction: column; gap: var(--sp-8);
-  }
-
-  &__eyebrow {
-    font-family: var(--font-display);
-    font-size: 11.5px; font-weight: 800;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    /* White, same ink as the headline below it and everything else on this gradient
-       (header, sidebar) — red text has no reliable contrast against the gradient's own
-       red stop, wherever the caption happens to land. */
-    color: var(--app-brand-ink);
-    text-shadow: var(--login-text-shadow-sm);
-  }
-
-  &__headline {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: 34px; font-weight: 800; line-height: 1.1; letter-spacing: -0.01em;
-    color: var(--app-brand-ink);
-    text-shadow: var(--login-text-shadow-lg);
-    max-width: 480px;
-  }
-
-  &__panel {
+  /* ── The card ─────────────────────────────────────────────────────────────────
+     A raised panel on the plain page: a brand-blue cap, a layered shadow, and a soft
+     DCAS-blue glow once someone starts typing in it. Rises into place on load. */
+  &__card {
     position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: var(--sp-24);
-    overflow-y: auto;
-    background: var(--app-bg);
+    display: flex; flex-direction: column; gap: var(--sp-20);
+    width: 100%; max-width: 420px;
+    margin-block: auto;
+    padding: var(--sp-32) var(--sp-32) var(--sp-24);
+    border: 1px solid var(--app-border);
+    border-radius: var(--r-14);
+    background: var(--app-panel);
+    box-shadow: var(--app-shadow-lg), var(--app-edge-light);
+    overflow: hidden;
+    transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+    animation: login-card-in var(--dur-slow) var(--ease) both;
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset-inline: 0;
+      inset-block-start: 0;
+      height: 4px;
+      background: var(--app-brand-blue);
+    }
+
+    &:focus-within {
+      border-color: var(--app-brand-blue);
+      box-shadow: 0 0 0 4px var(--app-brand-blue-ring), var(--app-shadow-lg);
+    }
+
+    @media (prefers-reduced-motion: reduce) { animation: none; }
   }
 
-  &__form-wrap {
-    display: flex; flex-direction: column; gap: var(--sp-16);
-    width: 100%; max-width: 380px;
+  /* The product, set off from the form by a hairline. */
+  &__head {
+    display: flex; flex-direction: column; gap: var(--sp-4);
+    padding-bottom: var(--sp-16);
+    border-bottom: 1px solid var(--app-border-soft);
   }
 
-  &__logo-mobile { display: none; height: 40px; width: auto; align-self: center; }
+  &__product {
+    display: inline-flex; align-items: center; gap: var(--sp-8);
+    font-family: var(--font-display);
+    font-size: 12px; font-weight: 800;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--app-text);
+    svg { width: 16px; height: 16px; color: var(--app-brand-red); }
+  }
+
+  /* The action and one line of instruction — the order every government sign-in uses. */
+  &__intro { display: flex; flex-direction: column; gap: var(--sp-6); }
 
   &__title {
     margin: 0;
     font-family: var(--font-display);
-    font-size: 24px; font-weight: 800; letter-spacing: -0.014em;
+    font-size: 28px; font-weight: 800; letter-spacing: -0.018em;
     color: var(--app-text);
   }
 
-  &__sub {
-    display: flex; align-items: center; gap: var(--sp-6);
-    margin-top: calc(var(--sp-8) * -1);
-    font-size: 12.5px; color: var(--app-text-muted);
-    svg { width: 13px; height: 13px; color: var(--app-accent); }
-  }
+  &__sub { font-size: 13px; line-height: 1.45; color: var(--app-text-muted); }
 
   &__fields {
-    display: flex; flex-direction: column; gap: var(--sp-12);
+    display: flex; flex-direction: column; gap: var(--sp-16);
     /* Brand red/blue on this one screen, deliberately — everywhere else in the app the
        accent is amber (Law 8), but sign-in is the client's own front door, not an
        operational surface, and it is asking for the client's own colours on it. */
-    input:focus { border-color: var(--app-brand-blue); }
+    input { min-height: 46px; font-size: 14px; }
+    input:focus { border-color: var(--app-brand-blue); box-shadow: 0 0 0 3px var(--app-brand-blue-ring); }
+  }
+
+  /* An input with its icon inside, at the start; the password one also carries a
+     show/hide button at the end. */
+  &__input {
+    position: relative;
+    display: flex; align-items: center;
+
+    > svg {
+      position: absolute; inset-inline-start: var(--sp-14);
+      width: 17px; height: 17px;
+      color: var(--app-text-faint);
+      pointer-events: none;
+      transition: color var(--dur-fast) var(--ease);
+    }
+    &:focus-within > svg { color: var(--app-accent); }
+
+    input { width: 100%; padding-inline-start: 42px; }
+  }
+  &__input--reveal input { padding-inline-end: 46px; }
+
+  &__reveal {
+    position: absolute; inset-inline-end: var(--sp-6);
+    display: grid; place-items: center;
+    width: 34px; height: 34px;
+    border: 0; border-radius: var(--r-8);
+    background: transparent;
+    color: var(--app-text-faint);
+    cursor: pointer;
+    transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+    svg { width: 17px; height: 17px; }
+    &:hover { background: var(--app-surface-raised); color: var(--app-text); }
+    &:focus-visible { outline: 2px solid var(--app-brand-blue); outline-offset: 1px; }
   }
 
   /* The primary action, in the client's own red rather than the app's usual dark-ink
      primary — scoped to this one button via className, not a new .u-btn variant.
      Chained with .u-btn so its specificity beats .u-btn--primary regardless of which
-     stylesheet the bundler happens to emit last. */
+     stylesheet the bundler happens to emit last. Lifts a little on hover, its arrow
+     nudging forward. */
   &__submit.u-btn {
+    min-height: 46px;
+    margin-top: var(--sp-4);
+    font-size: 14px;
     background: var(--app-brand-red);
     color: var(--app-brand-ink);
     box-shadow: 0 1px 2px var(--app-brand-red-border), var(--app-edge-light);
-    &:hover:not(:disabled) { background: color-mix(in srgb, var(--app-brand-red) 88%, black); }
-    &:active:not(:disabled) { background: color-mix(in srgb, var(--app-brand-red) 78%, black); }
+    transition: background var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+    svg { width: 16px; height: 16px; transition: transform var(--dur-fast) var(--ease); }
+    &:hover:not(:disabled) {
+      background: color-mix(in srgb, var(--app-brand-red) 88%, black);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px var(--app-brand-red-border);
+      svg { transform: translateX(3px); }
+    }
+    &:active:not(:disabled) { background: color-mix(in srgb, var(--app-brand-red) 78%, black); transform: none; }
+    @media (prefers-reduced-motion: reduce) {
+      &:hover:not(:disabled) { transform: none; svg { transform: none; } }
+    }
   }
 
-  /* Same seeded-account grid as the old centred card (.boot__demo-grid), renamed to
-     match this layout's own class prefix. */
+  /* The seeded accounts, behind a disclosure (closed by default). Same grid as the old
+     centred card (.boot__demo-grid), renamed to match this layout's class prefix. */
   &__demo {
     display: flex; flex-direction: column; gap: var(--sp-8);
-    padding-top: var(--sp-12);
+    padding-top: var(--sp-14);
     border-top: 1px solid var(--app-border-soft);
     font-size: 10.5px; color: var(--app-text-faint);
+
+    summary {
+      width: fit-content;
+      font-size: 11.5px; font-weight: 700;
+      color: var(--app-text-muted);
+      cursor: pointer;
+      &:hover { color: var(--app-text); }
+      &:focus-visible { outline: 2px solid var(--app-brand-blue); outline-offset: 2px; border-radius: var(--r-6); }
+    }
+    &[open] summary { margin-bottom: var(--sp-8); }
   }
   &__demo-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-6);
@@ -548,13 +793,57 @@
     }
   }
   &__demo-foot { font-size: 10px; line-height: 1.4; color: var(--app-text-faint); }
+
+  &__theme {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: var(--r-pill);
+    background: var(--app-surface-raised);
+    box-shadow: inset 0 0 0 1px var(--app-border-soft);
+
+    button {
+      display: inline-flex; align-items: center; gap: var(--sp-6);
+      padding: var(--sp-6) var(--sp-12);
+      border: 0; border-radius: var(--r-pill);
+      background: transparent;
+      font: inherit; font-size: 12px; font-weight: 700;
+      color: var(--app-text-muted);
+      cursor: pointer;
+      transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+      svg { width: 14px; height: 14px; }
+      &:hover { color: var(--app-text); }
+      &[aria-pressed='true'] { background: var(--app-panel); color: var(--app-text); box-shadow: var(--app-shadow-sm); }
+      &:focus-visible { outline: 2px solid var(--app-brand-blue); outline-offset: 1px; }
+    }
+  }
+
+  /* The bottom of the page, under the card: the corporation's full name, with the theme
+     switch across from it. Same plain background, set off by a hairline. */
+  &__foot {
+    align-self: stretch;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    gap: var(--sp-8) var(--sp-16);
+    margin-top: var(--sp-24);
+    padding-block: var(--sp-12);
+    border-top: 1px solid var(--app-border-soft);
+    font-size: 11.5px;
+    color: var(--app-text-muted);
+  }
+}
+
+@keyframes login-card-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
 }
 
 @media (max-width: 760px) {
   .login {
-    grid-template-columns: 1fr;
+    .login__band { --logo-gov-h: 48px; padding-block: var(--sp-12); padding-inline: var(--sp-16); }
+    .login__body { grid-template-columns: 1fr; }
     .login__art { display: none; }
-    .login__logo-mobile { display: block; }
+    .login__panel { padding: var(--sp-20) var(--sp-16) 0; }
+    .login__card { padding: var(--sp-28) var(--sp-20) var(--sp-20); }
+    .login__foot { justify-content: center; text-align: center; }
   }
 }
 
@@ -580,7 +869,7 @@
     border-radius: var(--r-pill);
     background: var(--app-danger); color: var(--app-on-color);
     font-size: 9.5px; font-weight: 800;
-    box-shadow: 0 0 0 2px var(--app-brand-red);
+    box-shadow: 0 0 0 2px var(--app-brand-blue);
   }
 }
 
@@ -590,10 +879,13 @@
   92% { transform: rotate(8deg); } 96% { transform: rotate(-4deg); }
 }
 
+/* Drops from the header's tools (.shell-header__tools is its containing block): the tools
+   are centred vertically in the header, so half their own height plus half the header's
+   lands on the header's bottom edge. Right-aligned with the end of the tools. */
 .alert-panel {
-  position: fixed;
-  top: calc(var(--app-header-h) + var(--sp-6));
-  inset-inline-end: var(--sp-12);
+  position: absolute;
+  top: calc(50% + var(--app-header-h) / 2 + var(--sp-6));
+  inset-inline-end: 0;
   z-index: var(--z-drawer);
   width: min(420px, calc(100vw - var(--sp-24)));
   max-height: calc(100dvh - var(--app-header-h) - var(--app-footer-h) - var(--sp-24));
@@ -637,7 +929,7 @@
 .alert-popup {
   position: fixed;
   /* Below the dashboard's KPI band, so an alert never hides the response-time numbers. */
-  top: calc(var(--app-header-h) + 142px);
+  top: calc(var(--app-header-h) + 192px);
   inset-inline-start: 50%;
   transform: translateX(-50%);
   z-index: var(--z-modal);
@@ -679,7 +971,8 @@
   font-weight: 700;
   color: inherit;
   text-decoration: none;
-  &.is-running { color: var(--app-success); }
+  /* Full white ink when running — success green has no contrast on the blue status bar. */
+  &.is-running { color: var(--app-brand-ink); }
 }
 
 .u-spin { animation: spin 900ms linear infinite; }
@@ -691,10 +984,10 @@
 .advisory-drawer {
   position: fixed;
   top: var(--app-header-h);
-  right: 0;
+  right: var(--shell-nav-w, 0px);
   bottom: var(--app-footer-h);
   width: 400px;
-  max-width: 100vw;
+  max-width: calc(100vw - var(--shell-nav-w, 0px));
   z-index: var(--z-drawer);
   display: flex;
   flex-direction: column;

@@ -36,7 +36,9 @@ export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
   { identifier: 'DSP-4A1C', password: DEMO_PASSWORD, surface: 'console', role: 'Dispatcher' },
   { identifier: 'DUT-1F09', password: DEMO_PASSWORD, surface: 'console', role: 'Duty officer' },
   { identifier: 'LED-2C55', password: DEMO_PASSWORD, surface: 'console', role: 'Service lead' },
-  { identifier: 'RSP-AMB14', password: DEMO_PASSWORD, surface: 'mobile', role: 'Paramedic', note: 'AMB-14' },
+  // The trial's crew phone: AMB-122 is one of the eight on the console map. The seed also
+  // writes RSP-AMB14 (outside the trial fleet) for the full-fleet build and the flow test.
+  { identifier: 'RSP-AMB122', password: DEMO_PASSWORD, surface: 'mobile', role: 'Paramedic', note: 'AMB-122 · Medic 22' },
   { identifier: 'CIT-71BE', password: DEMO_PASSWORD, surface: 'mobile', role: 'Citizen' },
 ];
 

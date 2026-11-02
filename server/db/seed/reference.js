@@ -564,7 +564,10 @@ async function seedUsers(log) {
     { ref: 'HSP-9E42', name: 'Rashid Hospital Coordinator', role: 'hospital_coord', agency: 'DHA' },
     { ref: 'INF-3A77', name: 'RTA Control Room',       role: 'infra_operator', agency: 'RTA' },
     { ref: 'ANA-6B18', name: 'Fatima Hassan',          role: 'analyst',        agency: 'DCAS' },
-    // Mobile: responder accounts are bound to a unit.
+    // Mobile: responder accounts are bound to a unit. RSP-AMB122 is the trial's demo crew
+    // phone — AMB-122 is in the trial fleet (config/poc.js) and Priya Nair leads its crew
+    // (data/reference/crews.js). RSP-AMB14 stays for the full-fleet build and the flow test.
+    { ref: 'RSP-AMB122', name: 'Priya Nair',            role: 'responder', agency: 'DCAS', unit: 'AMB-122' },
     { ref: 'RSP-AMB14', name: 'Paramedic Ali Saeed',   role: 'responder', agency: 'DCAS', unit: 'AMB-14' },
     { ref: 'RSP-PRV21', name: 'Cpl. Nasser Al Rashid', role: 'responder', agency: 'POLICE', unit: 'PRV-21' },
     { ref: 'RSP-FIR07', name: 'Capt. Saif Al Mazrouei', role: 'responder', agency: 'CIVIL_DEFENCE', unit: 'FIRE-07' },

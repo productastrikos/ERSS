@@ -27,6 +27,7 @@
     &:hover { background: var(--app-surface-raised); color: var(--app-text); }
     &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 1px; }
   }
+  &__heading-icon { width: 13px; height: 13px; margin-inline-end: var(--sp-6); vertical-align: -2px; color: var(--app-advisory); }
   &__body {
     flex: 1; min-height: 0; overflow-y: auto;
     padding: var(--sp-12) var(--sp-14) var(--sp-16);
@@ -36,6 +37,95 @@
 
   .mono { font-family: var(--font-mono); }
   .muted { color: var(--app-text-faint); font-weight: 600; }
+}
+
+/* ── The drawer: a full-height slide-over from the right edge ───────────────
+   Between the header and the status bar, over whatever the page has on its right — the
+   rail, the edge of the map. It slides in when something opens and out when it closes;
+   the edge tab (.dtl-tab) brings the last thing back. */
+
+.dtl-drawer {
+  position: fixed;
+  z-index: var(--z-drawer);
+  top: var(--app-header-h);
+  bottom: var(--app-footer-h);
+  /* Beside the sidebar, which now holds the right edge (shell.scss --shell-nav-w). */
+  inset-inline-end: var(--shell-nav-w, 0px);
+  width: min(460px, calc(100vw - var(--shell-nav-w, 0px)));
+  height: auto;
+  border-radius: var(--r-14) 0 0 var(--r-14);
+  box-shadow: var(--app-shadow-lg), var(--app-edge-light);
+  border-inline-start: 1px solid var(--app-border);
+
+  /* The AI's hue along the leading edge — this is where the AI explains itself. */
+  &::before {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    width: 3px;
+    border-radius: var(--r-14) 0 0 var(--r-14);
+    background: linear-gradient(180deg, var(--app-advisory) 0%, var(--app-accent) 100%);
+    pointer-events: none;
+  }
+
+  &.is-open { animation: dtl-drawer-in var(--dur-slow) var(--ease) both; }
+  &.is-closing { animation: dtl-drawer-out 240ms var(--ease) both; pointer-events: none; }
+}
+
+@keyframes dtl-drawer-in {
+  from { transform: translateX(104%); opacity: 0.4; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes dtl-drawer-out {
+  from { transform: none; opacity: 1; }
+  to { transform: translateX(104%); opacity: 0.4; }
+}
+
+/* The edge tab — the drawer, closed. A vertical pull-tab on the right edge. */
+.dtl-tab {
+  position: fixed;
+  z-index: var(--z-drawer);
+  top: 50%;
+  inset-inline-end: var(--shell-nav-w, 0px);
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-6);
+  padding: var(--sp-10) var(--sp-6);
+  border: 1px solid var(--app-advisory-border);
+  border-inline-end: 0;
+  border-radius: var(--r-12) 0 0 var(--r-12);
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow-md), var(--app-edge-light);
+  color: var(--app-text);
+  font: inherit;
+  cursor: pointer;
+  animation: dtl-tab-in var(--dur-slow) var(--ease) both;
+
+  svg { width: 15px; height: 15px; color: var(--app-text-muted); }
+  .dtl-tab__ai { color: var(--app-advisory); }
+  span {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  &:hover { background: var(--app-surface-raised); border-color: var(--app-advisory); }
+  &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
+}
+@keyframes dtl-tab-in {
+  from { transform: translate(100%, -50%); }
+  to { transform: translateY(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dtl-drawer.is-open, .dtl-drawer.is-closing, .dtl-tab { animation: none; }
 }
 
 /* ── Sections ─────────────────────────────────────────────────────────────── */
@@ -107,6 +197,8 @@
 .dtl-kv {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-6);
   &--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* Every fact on one row — the dashboard's fixed-height strip. */
+  &--row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   &--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   &--wrap strong { white-space: normal; line-height: 1.25; }
   > div {
@@ -235,22 +327,23 @@
   .is-now &__label, .is-done &__label { color: var(--app-text); }
 }
 
+/* The AI's send window — the AI's own moment, so the AI's own hue (purple). */
 .dtl-window {
   display: flex; flex-direction: column; gap: var(--sp-8);
   padding: var(--sp-10) var(--sp-12);
   border-radius: var(--r-10);
-  background: var(--app-accent-bg);
-  box-shadow: inset 0 0 0 1px var(--app-accent-border);
+  background: var(--app-advisory-bg);
+  box-shadow: inset 0 0 0 1px var(--app-advisory-border);
   &.is-waiting { background: var(--app-warning-bg); box-shadow: inset 0 0 0 1px var(--app-warning-border); }
 
-  &__row { display: flex; gap: var(--sp-8); align-items: flex-start; > svg { width: 18px; height: 18px; color: var(--app-accent); flex-shrink: 0; margin-top: 1px; } }
+  &__row { display: flex; gap: var(--sp-8); align-items: flex-start; > svg { width: 18px; height: 18px; color: var(--app-advisory); flex-shrink: 0; margin-top: 1px; } }
   &__text {
     display: flex; flex-direction: column; gap: var(--sp-2);
     strong { font-family: var(--font-display); font-size: 13.5px; color: var(--app-text); }
     span { font-size: 11px; color: var(--app-text-muted); line-height: 1.4; }
   }
   &__bar { height: 4px; border-radius: var(--r-pill); background: var(--app-border-soft); overflow: hidden;
-    span { display: block; height: 100%; background: var(--app-accent); transition: width 1s linear; } }
+    span { display: block; height: 100%; background: var(--app-advisory); transition: width 1s linear; } }
   &__actions { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
 }
 
@@ -261,6 +354,8 @@
    a job that reaches hospital logs fifteen or so steps, and an unbounded list would push
    the stepper, the footage and the crew off the rail. So the list gets its own window and
    tails itself inside it, and the heading above stays put. */
+
+.dtl-sec--ailog > .dtl-sec__title svg { color: var(--app-advisory); }
 
 .dtl-sec--ailog > .ailog {
   /* Viewport-relative, so a video wall shows more of the story than a laptop does without
@@ -358,13 +453,13 @@
   td { padding: var(--sp-6) var(--sp-4); border-top: 1px solid var(--app-border-soft); color: var(--app-text); white-space: nowrap; }
   tr { cursor: pointer; }
   tbody tr:hover td { background: var(--app-surface-raised); }
-  tr.is-chosen td { background: var(--app-accent-bg); }
+  tr.is-chosen td { background: var(--app-advisory-bg); }
   td.is-bad { color: var(--app-danger); }
   td.is-warn { color: var(--app-warning); }
   &__pick {
     margin-inline-start: var(--sp-6);
     padding: 1px var(--sp-6); border-radius: var(--r-pill);
-    background: var(--app-accent); color: var(--app-on-accent);
+    background: var(--app-advisory-strong); color: var(--app-on-color);
     font-size: 9px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
   }
   &__score {
@@ -376,6 +471,9 @@
 
 .dtl-crew {
   display: flex; flex-direction: column; gap: var(--sp-8);
+
+  /* Status chip and (compact) follow control. Out-specifies the head's caption-span rule. */
+  & &__head &__status { display: inline-flex; align-items: center; gap: var(--sp-6); flex-shrink: 0; overflow: visible; font-size: inherit; }
   padding: var(--sp-10);
   border-radius: var(--r-10);
   box-shadow: inset 0 0 0 1px var(--app-border-soft);
@@ -383,7 +481,7 @@
   &__head {
     display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
     > div { display: flex; flex-direction: column; min-width: 0; }
-    strong { font-family: var(--font-display); font-size: 14px; color: var(--app-text); }
+    strong { font-family: var(--font-display); font-size: 14px; color: var(--app-text); white-space: nowrap; }
     span { font-size: 10.5px; color: var(--app-text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   }
   &__people {
@@ -392,6 +490,13 @@
     span { color: var(--app-text-muted); }
     strong { font-weight: 700; color: var(--app-text); }
   }
+}
+
+/* The one-row variant (compact crew card): narrow tiles, so values wrap inside them rather
+   than being cut to "2:47…". More specific than the base `.dtl-kv strong`, which follows. */
+.dtl-kv.dtl-kv--row {
+  > div { padding: var(--sp-6); }
+  strong { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.2; font-size: 12.5px; }
 }
 
 /* ── Ambulance / hospital / KPI headers ───────────────────────────────────── */
@@ -602,3 +707,6 @@
 @media (prefers-reduced-motion: reduce) {
   .ailog__step, .ailog__step.is-fresh .ailog__body, .dtl-steps .is-now .dtl-steps__dot, .ailog .is-active .ailog__icon, .dtl-live span { animation: none; }
 }
+
+/* In the full-height drawer the AI log can have more of the height it leads. */
+.dtl-drawer .dtl-sec--ailog > .ailog { max-height: min(46vh, 560px); }

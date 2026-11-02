@@ -7,7 +7,7 @@
  */
 
 import { createStore, useStore } from './createStore';
-import { anchorClock, domainNow, useNow } from './now';
+import { anchorClock } from './now';
 import { api, ApiError } from '../api';
 import { setToken } from '../authToken';
 import type { Bootstrap, SessionUser, ClockSnapshot, PocScope } from '../types';
@@ -27,10 +27,6 @@ interface SessionState {
   /** True when the backend is reachable but its database is not — a distinct state
    *  from "offline", and one the UI must say out loud rather than showing zeros. */
   dbDown: boolean;
-  /** When this browser tab most recently recognised a signed-in user — a fresh sign-in
-   *  AND a reload of an already-valid session both count. Powers useQuietWindow(): the
-   *  dashboard's cold open, so a sign-in never lands mid-story. */
-  signedInAt: number | null;
 }
 
 export const sessionStore = createStore<SessionState>({
@@ -40,7 +36,6 @@ export const sessionStore = createStore<SessionState>({
   clock: null,
   error: null,
   dbDown: false,
-  signedInAt: null,
 });
 
 export async function loadBootstrap(): Promise<void> {
@@ -60,11 +55,6 @@ export async function loadBootstrap(): Promise<void> {
       clock: boot.clock,
       error: null,
       dbDown: false,
-      // Every successful bootstrap that lands a user starts a fresh quiet window — a
-      // tab reload counts as "just logged in" as much as the form does; both are a
-      // console reappearing after not being watched. On the domain clock (not
-      // Date.now()), like every other countdown in this app — see lib/stores/now.ts.
-      signedInAt: boot.user ? domainNow() : null,
     });
   } catch (err) {
     const e = err as ApiError;
@@ -125,18 +115,4 @@ export function useCan(capability: string): boolean {
 
 export function can(capability: string): boolean {
   return sessionStore.get().user?.capabilities.includes(capability) ?? false;
-}
-
-const QUIET_WINDOW_MS = 30_000;
-
-/**
- * True for the first `ms` after this tab most recently recognised a signed-in user — a
- * cold open, so a sign-in (or a reload) never lands mid-story no matter what the shared
- * PoC simulation already has running. Rides the existing domain-clock tick (useNow, once
- * a second) rather than a clock read during render or a setState-in-effect of its own.
- */
-export function useQuietWindow(ms: number = QUIET_WINDOW_MS): boolean {
-  const signedInAt = useStore(sessionStore, (s) => s.signedInAt);
-  const now = useNow();
-  return signedInAt != null && now - signedInAt < ms;
 }

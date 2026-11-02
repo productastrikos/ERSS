@@ -10,6 +10,7 @@
 import { query, many, one, transaction } from '../../lib/db.js';
 import { jurisdiction } from '../../config/jurisdiction.js';
 import { createRng } from './rng.js';
+import { rollDemandForecast } from '../../services/demandForecast.js';
 
 const HOUR_MS = 3600_000;
 
@@ -37,85 +38,13 @@ export async function seedDerived({ rngSeed, log }) {
 // ── Demand forecast ──────────────────────────────────────────────────────────
 
 /**
- * Seasonal Poisson rate with an exponentially weighted base.
- *
- * The DCAS research proposes Gaussian mixture clustering plus a CNN. This is weaker in
- * principle and stronger in practice at this data volume: it fits in under a second and
- * every term can be explained to a duty officer. Its accuracy is then MEASURED against
- * actuals on the Analytics page — if it is bad, the product says so.
+ * The same job the server runs at start-up and hourly (services/demandForecast.js), so a
+ * seeded database and a running one hold one forecast, by one model. Its accuracy is then
+ * MEASURED against actuals on the Analytics page — if it is bad, the product says so.
  */
 async function seedForecasts(log) {
-  const rates = await many(`
-    SELECT zone_id, hour_of_week, mean_per_week AS lambda, calls, weeks
-      FROM mv_zone_hour_of_week WHERE weeks >= 4`);
-
-  if (!rates.length) { log('  forecasts     skipped (not enough history)'); return 0; }
-
-  const byKey = new Map(rates.map((r) => [`${r.zone_id}:${r.hour_of_week}`, r]));
-
-  // Forecast the next 14 days, hourly, plus backfill the trailing 30 days so the
-  // accuracy panel has something to be held to account against.
-  const now = new Date(); now.setUTCMinutes(0, 0, 0);
-  const from = now.getTime() - 30 * 24 * HOUR_MS;
-  const to = now.getTime() + 14 * 24 * HOUR_MS;
-
-  const rows = [];
-  for (let t = from; t < to; t += HOUR_MS) {
-    const d = new Date(t);
-    const gst = new Date(t + 4 * HOUR_MS);
-    const how = gst.getUTCDay() * 24 + gst.getUTCHours();
-    for (const r of rates) {
-      if (r.hour_of_week !== how) continue;
-      const lambda = Number(r.lambda) / 7;   // per-week mean → per matching hour
-      if (!Number.isFinite(lambda) || lambda <= 0) continue;
-      // Poisson 80% interval.
-      const sd = Math.sqrt(lambda);
-      rows.push({
-        zoneId: r.zone_id,
-        bucket: d.toISOString(),
-        predicted: +lambda.toFixed(3),
-        lower: +Math.max(0, lambda - 1.2816 * sd).toFixed(3),
-        upper: +(lambda + 1.2816 * sd).toFixed(3),
-      });
-    }
-  }
-
-  await transaction(async (c) => {
-    const CHUNK = 2000;
-    for (let i = 0; i < rows.length; i += CHUNK) {
-      const slice = rows.slice(i, i + CHUNK);
-      const values = [];
-      const params = [];
-      slice.forEach((r, j) => {
-        const o = j * 5;
-        values.push(`($${o + 1},$${o + 2},1,$${o + 3},$${o + 4},$${o + 5},'poisson-rate-hourly-v1')`);
-        params.push(r.zoneId, r.bucket, r.predicted, r.lower, r.upper);
-      });
-      await c.query(
-        `INSERT INTO demand_forecast (zone_id, bucket_start, bucket_hours, predicted, lower_80, upper_80, model)
-         VALUES ${values.join(',')}
-         ON CONFLICT (zone_id, bucket_start, model) DO UPDATE SET
-           predicted = EXCLUDED.predicted, lower_80 = EXCLUDED.lower_80, upper_80 = EXCLUDED.upper_80`,
-        params,
-      );
-    }
-  });
-
-  // Backfill actuals so the accuracy panel is real from first load.
-  await query(`
-    UPDATE demand_forecast f
-       SET actual = sub.n
-      FROM (SELECT zone_id, date_trunc('hour', reported_at) bucket, COUNT(*)::int n
-              FROM incidents WHERE is_seed GROUP BY 1, 2) sub
-     WHERE f.zone_id = sub.zone_id AND f.bucket_start = sub.bucket AND f.actual IS NULL`);
-
-  const acc = await one(`
-    SELECT AVG(ABS(predicted - actual))::numeric(8,3) AS mae,
-           100.0 * COUNT(*) FILTER (WHERE actual BETWEEN lower_80 AND upper_80) / NULLIF(COUNT(*),0) AS coverage
-      FROM demand_forecast WHERE actual IS NOT NULL`);
-
-  log(`  forecasts     ${rows.length.toLocaleString()} rows  (MAE ${acc?.mae ?? '—'}, 80% interval coverage ${Math.round(acc?.coverage ?? 0)}%)`);
-  return rows.length;
+  const r = await rollDemandForecast({ log });
+  return r.rows;
 }
 
 // ── Risk terrain modelling ───────────────────────────────────────────────────

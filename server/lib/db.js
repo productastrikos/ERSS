@@ -15,24 +15,23 @@ pg.types.setTypeParser(1700, (v) => (v === null ? null : Number.parseFloat(v)));
 // int8 / bigint — counts from aggregates. Same reasoning.
 pg.types.setTypeParser(20, (v) => (v === null ? null : Number.parseInt(v, 10)));
 
-// DATABASE_URL wins when set. Its own `sslmode` applies unless DB_SSL=true forces TLS.
-const connection = env.db.url
-  ? { connectionString: env.db.url, ...(env.db.ssl ? { ssl: { rejectUnauthorized: false } } : {}) }
-  : {
-      host: env.db.host,
-      port: env.db.port,
-      database: env.db.name,
-      user: env.db.user,
-      password: env.db.password,
-      ssl: env.db.ssl ? { rejectUnauthorized: false } : false,
-    };
-
 export const pool = new pg.Pool({
-  ...connection,
+  host: env.db.host,
+  port: env.db.port,
+  database: env.db.name,
+  user: env.db.user,
+  password: env.db.password,
   max: env.db.poolMax,
+  ssl: env.db.ssl ? { rejectUnauthorized: false } : false,
   connectionTimeoutMillis: 10_000,
   idleTimeoutMillis: 30_000,
   application_name: 'erss',
+  // Every session runs on Gulf Standard Time, whatever the host is set to. The views and
+  // the seed truncate timestamps to the hour and the day with no explicit zone, so on a
+  // machine set to +05:30 every hour bucket landed on the half hour and the forecast's
+  // actuals never matched a single bucket. Dubai is +04:00 all year, so hour buckets still
+  // align with UTC hours and day buckets become GST days.
+  options: '-c TimeZone=Asia/Dubai',
 });
 
 pool.on('error', (err) => {
@@ -42,16 +41,7 @@ pool.on('error', (err) => {
 });
 
 /** The connection target, for error messages and /health. Never includes the password. */
-export const dbTarget = env.db.url ? describeUrl(env.db.url) : `${env.db.host}:${env.db.port}/${env.db.name}`;
-
-function describeUrl(url) {
-  try {
-    const u = new URL(url);
-    return `${u.hostname}:${u.port || 5432}${u.pathname}`;
-  } catch {
-    return 'DATABASE_URL (unparseable)';
-  }
-}
+export const dbTarget = `${env.db.host}:${env.db.port}/${env.db.name}`;
 
 /**
  * Run a query. Slow queries are logged with their text so a demo that drags has a

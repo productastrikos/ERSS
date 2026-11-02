@@ -189,7 +189,9 @@ export function OverviewTab() {
                 predictedLabel={t('chart.nextWindow', { days: ty.forecast.horizonDays })}
                 sub={`was ${count(ty.priorTotal)} calls`} /></Card>
               <Card><StatTile label={t('insights.overview.thisMonth')} value={count(m.partialMonth?.calls ?? 0)} unit="calls"
-                sub={m.partialMonth ? `${m.partialMonth.elapsedDays} of ${m.partialMonth.daysInMonth} days · on pace for ~${count(m.partialMonth.projectedCalls)} calls` : undefined}
+                sub={m.partialMonth
+                  ? `${m.partialMonth.elapsedDays} of ${m.partialMonth.daysInMonth} days${m.partialMonth.projectedCalls != null ? ` · on pace for ~${count(m.partialMonth.projectedCalls)} calls` : ''}`
+                  : undefined}
                 predicted={f.predict && m.forecast[0] ? `${count(m.forecast[0].calls)} calls` : undefined}
                 predictedLabel={t('insights.overview.fullMonth')} /></Card>
               <Card><StatTile label={t('insights.overview.busiest')}
@@ -199,7 +201,7 @@ export function OverviewTab() {
                   ? `${DOW[alm.predictedBusiest.dow]} ${String(alm.predictedBusiest.hour).padStart(2, '0')}:00`
                   : undefined}
                 predictedLabel={t('insights.overview.nextPeak')} /></Card>
-              <Card><StatTile label={t('insights.overview.yoy')} value={`${m.yoy >= 1 ? '+' : ''}${Math.round((m.yoy - 1) * 100)}%`} unit="calls vs last year"
+              <Card><StatTile label={t('insights.overview.yoy')} value={m.yoy == null ? '—' : `${m.yoy >= 1 ? '+' : '−'}${Math.abs(Math.round((m.yoy - 1) * 1000) / 10)}%`} unit="calls vs last year"
                 sub={m.forecastMeta.mape != null ? t('insights.overview.backtest', { pct: m.forecastMeta.mape.toFixed(1) }) : undefined} /></Card>
             </div>
 

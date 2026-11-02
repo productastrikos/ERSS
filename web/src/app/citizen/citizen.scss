@@ -1,0 +1,464 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Citizen — the health monitor, the SOS sliders and the automatic-SOS alert.
+   NO COLOUR LITERALS: tokens only.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+@keyframes c-beat {
+  0%, 100% { transform: scale(1); }
+  14% { transform: scale(1.16); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.08); }
+}
+
+@keyframes sos-shimmer {
+  from { background-position: 120% 0; }
+  to { background-position: -120% 0; }
+}
+
+@keyframes sos-pulse {
+  0%, 100% { box-shadow: 0 0 0 6px var(--app-sos-red-glow); }
+  50% { box-shadow: 0 0 0 18px var(--app-sos-red-glow); }
+}
+
+@keyframes sos-in {
+  from { opacity: 0; transform: scale(1.03); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ── Home: the vitals strip ────────────────────────────────────────────────── */
+
+.c-vitals {
+  display: flex; align-items: center; gap: var(--sp-12);
+  width: 100%;
+  padding: var(--sp-12) var(--sp-14);
+  border-radius: var(--r-14);
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow-sm), var(--app-edge-light);
+  color: var(--app-text);
+  text-align: start;
+
+  &[data-tone='bad'] { box-shadow: inset 0 0 0 2px var(--app-danger), var(--app-shadow-sm); }
+  &[data-tone='warn'] .c-vitals__status { color: var(--app-warning); }
+  &[data-tone='bad'] .c-vitals__status { color: var(--app-danger); }
+  &[data-tone='idle'] .c-vitals__heart { color: var(--app-text-faint); background: var(--app-surface-raised); }
+
+  &__heart {
+    display: grid; place-items: center; flex-shrink: 0;
+    width: 42px; height: 42px;
+    border-radius: var(--r-pill);
+    background: var(--app-danger-bg);
+    color: var(--app-sos-red);
+    svg { width: 22px; height: 22px; fill: currentColor; }
+    &[data-beating='true'] { animation: c-beat 1s ease-in-out infinite; }
+  }
+
+  &__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+
+  &__value {
+    font-family: var(--font-display); font-size: 24px; font-weight: 800; line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    small { margin-inline-start: var(--sp-4); font-size: 11px; font-weight: 700; color: var(--app-text-muted); }
+    em { margin-inline-start: var(--sp-8); font-family: var(--font-body); font-size: 12px; font-style: normal; font-weight: 700; color: var(--app-text-muted); }
+  }
+
+  &__status { font-size: 12px; color: var(--app-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  &__side { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-4); }
+
+  &__auto {
+    padding: 2px var(--sp-8);
+    border-radius: var(--r-pill);
+    background: var(--app-surface-raised);
+    font-size: 10.5px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase;
+    color: var(--app-text-faint);
+    &[data-on='true'] { background: var(--app-success-bg); color: var(--app-success); }
+  }
+
+  &__go { width: 18px; height: 18px; color: var(--app-text-faint); flex-shrink: 0; }
+}
+
+/* ── Home: the emergency panel — dark in both themes, so it reads as the emergency
+      screen it is, with the sliders a frightened person already knows ────────── */
+
+.c-sos {
+  display: flex; flex-direction: column; gap: var(--sp-12);
+  padding: var(--sp-20) var(--sp-16) var(--sp-16);
+  border-radius: var(--r-14);
+  background: var(--app-sos-red-wash), var(--app-sos-scrim);
+  box-shadow: var(--app-shadow-md);
+  color: var(--app-sos-ink);
+
+  &__foot {
+    display: flex; flex-direction: column; align-items: center; gap: var(--sp-10);
+    margin-top: var(--sp-4);
+    font-size: 12.5px; line-height: 1.4; text-align: center;
+    color: var(--app-sos-ink-muted);
+  }
+
+  &__silent {
+    display: inline-flex; align-items: center; gap: var(--sp-6);
+    min-height: 32px;
+    padding: 0 var(--sp-14);
+    border-radius: var(--r-pill);
+    background: var(--app-sos-track);
+    font-size: 12px; font-weight: 700;
+    color: var(--app-sos-ink-muted);
+    svg { width: 14px; height: 14px; }
+    &[aria-pressed='true'] { background: var(--app-sos-red); color: var(--app-sos-ink); }
+  }
+}
+
+/* ── Where the SOS goes from — each option says who would come, and how soon ── */
+
+.c-where {
+  display: flex; flex-direction: column; gap: var(--sp-8);
+  font-size: 12px; color: var(--app-text-muted);
+
+  &__now {
+    display: flex; flex-direction: column; gap: var(--sp-10);
+    padding: var(--sp-12) var(--sp-14);
+    border-radius: var(--r-14);
+    background: var(--app-panel);
+    box-shadow: var(--app-shadow-sm), var(--app-edge-light);
+  }
+
+  &__place {
+    display: flex; align-items: center; gap: var(--sp-10);
+    > svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--app-accent); }
+    > span {
+      flex: 1; min-width: 0;
+      display: flex; flex-direction: column; gap: 1px;
+      small { font-size: 11px; color: var(--app-text-faint); }
+      strong { font-size: 14px; color: var(--app-text); }
+    }
+  }
+
+  &__change {
+    padding: var(--sp-6) var(--sp-12);
+    border-radius: var(--r-pill);
+    background: var(--app-surface-raised);
+    font-size: 12px; font-weight: 700; white-space: nowrap;
+    color: var(--app-text);
+  }
+}
+
+.c-near {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6);
+  font-size: 12.5px; color: var(--app-text-muted);
+  svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--app-danger); }
+  strong { color: var(--app-text); }
+  &__eta { margin-inline-start: auto; font-family: var(--font-display); font-weight: 800; color: var(--app-success); }
+  &.is-loading, &.is-none { font-size: 12px; color: var(--app-text-faint); }
+  &.is-compact { font-size: 12px; }
+}
+
+/* Who answers an SOS from here, in the demonstration — the paired paramedic app, or the AI's
+   nearest free ambulance. Quiet when the crew phone is offline; success-toned when online. */
+.c-pair {
+  display: flex; align-items: center; gap: var(--sp-10);
+  padding: var(--sp-10) var(--sp-14);
+  border-radius: var(--r-14);
+  background: var(--app-surface-raised);
+  color: var(--app-text-muted);
+  font-size: 12px;
+
+  > svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--app-text-faint); }
+  &__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; line-height: 1.35; }
+  strong { font-size: 12.5px; color: var(--app-text); }
+  &__tag {
+    flex-shrink: 0;
+    padding: 1px var(--sp-6);
+    border-radius: var(--r-pill);
+    background: var(--app-bg-elevated);
+    font-size: 9.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--app-text-faint);
+  }
+
+  &.is-online {
+    background: var(--app-success-bg);
+    > svg { color: var(--app-success); }
+  }
+}
+
+.c-places {
+  display: flex; flex-direction: column; gap: var(--sp-6);
+  margin: 0; padding: 0; list-style: none;
+
+  button {
+    display: flex; flex-direction: column; align-items: stretch; gap: var(--sp-4);
+    width: 100%;
+    padding: var(--sp-10) var(--sp-12);
+    border-radius: var(--r-12);
+    background: var(--app-surface-raised);
+    text-align: start;
+    &[aria-selected='true'] { background: var(--app-accent-bg); box-shadow: inset 0 0 0 2px var(--app-accent-border); }
+  }
+
+  &__name {
+    font-size: 14px; font-weight: 700; color: var(--app-text);
+    small { font-weight: 400; color: var(--app-text-muted); }
+  }
+}
+
+/* ── The slider ────────────────────────────────────────────────────────────── */
+
+.sos-slider {
+  position: relative;
+  height: 64px;
+  border-radius: var(--r-pill);
+  background: var(--app-sos-track);
+  box-shadow: inset 0 0 0 1px var(--app-sos-track-edge);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+
+  &__label {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    padding-inline-start: 60px;
+    font-family: var(--font-display); font-size: 17px; font-weight: 600;
+    color: var(--app-sos-ink);
+    background: var(--app-sos-shimmer);
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: sos-shimmer 2.8s linear infinite;
+    pointer-events: none;
+  }
+
+  &__knob {
+    position: absolute; top: 4px; inset-inline-start: 4px;
+    display: grid; place-items: center;
+    width: 56px; height: 56px;
+    border-radius: var(--r-pill);
+    font-family: var(--font-display); font-size: 16px; font-weight: 800; letter-spacing: 0.02em;
+    cursor: grab;
+    touch-action: none;
+    transition: transform var(--dur-slow) var(--ease);
+    svg { width: 28px; height: 28px; stroke-width: 2.6; }
+    &.is-dragging { transition: none; cursor: grabbing; }
+    &:focus-visible { outline: 3px solid var(--app-sos-ink); outline-offset: 2px; }
+    &:disabled { cursor: default; }
+  }
+
+  &--sos .sos-slider__knob {
+    background: var(--app-sos-red);
+    color: var(--app-sos-ink);
+    box-shadow: 0 4px 16px var(--app-sos-red-glow);
+  }
+
+  &--light .sos-slider__knob {
+    background: var(--app-sos-knob-light);
+    color: var(--app-sos-red);
+  }
+
+  &.is-disabled { opacity: 0.7; }
+}
+
+/* ── The automatic-SOS alert ───────────────────────────────────────────────── */
+
+.sos-alert {
+  position: fixed; inset: 0;
+  z-index: var(--z-modal);
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-16);
+  padding: calc(var(--sp-40) + env(safe-area-inset-top)) var(--sp-24) calc(var(--sp-24) + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  background: var(--app-sos-red-wash), var(--app-sos-scrim);
+  color: var(--app-sos-ink);
+  text-align: center;
+  animation: sos-in var(--dur-slow) var(--ease);
+
+  &__top {
+    display: flex; flex-direction: column; align-items: center; gap: var(--sp-10);
+    h2 { margin: var(--sp-6) 0 0; font-family: var(--font-display); font-size: 25px; font-weight: 800; line-height: 1.2; }
+    p { margin: 0; max-width: 32ch; font-size: 15px; line-height: 1.45; color: var(--app-sos-ink-muted); }
+  }
+
+  &__icon {
+    display: grid; place-items: center;
+    width: 64px; height: 64px;
+    border-radius: var(--r-pill);
+    background: var(--app-sos-red);
+    animation: sos-pulse 1.2s ease-in-out infinite;
+    svg { width: 32px; height: 32px; }
+  }
+
+  &__count {
+    position: relative;
+    width: 188px; aspect-ratio: 1;
+    margin-top: var(--sp-8);
+    svg { width: 100%; height: 100%; }
+  }
+
+  &__ring-track { fill: none; stroke: var(--app-sos-track); stroke-width: 10; }
+  &__ring { fill: none; stroke: var(--app-sos-red); stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+
+  &__num {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    font-family: var(--font-display); font-size: 76px; font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    svg { width: 44px; height: 44px; }
+  }
+
+  &__caption { font-size: 14px; font-weight: 700; color: var(--app-sos-ink-muted); }
+
+  &__error {
+    display: flex; flex-direction: column; align-items: center; gap: var(--sp-10);
+    padding: var(--sp-12) var(--sp-16);
+    border-radius: var(--r-12);
+    background: var(--app-sos-track);
+    font-size: 13.5px;
+    a {
+      display: inline-flex; align-items: center; gap: var(--sp-6);
+      min-height: 40px; padding: 0 var(--sp-18);
+      border-radius: var(--r-pill);
+      background: var(--app-sos-knob-light); color: var(--app-sos-red);
+      font-weight: 800; text-decoration: none;
+      svg { width: 16px; height: 16px; }
+    }
+  }
+
+  &__actions { width: 100%; margin-top: auto; display: flex; flex-direction: column; gap: var(--sp-12); }
+
+  &__ok {
+    height: 56px;
+    border-radius: var(--r-pill);
+    background: var(--app-sos-knob-light);
+    color: var(--app-sos-scrim);
+    font-family: var(--font-display); font-size: 17px; font-weight: 700;
+    &:active { transform: scale(0.98); }
+    &:disabled { opacity: 0.6; }
+  }
+}
+
+/* ── Health tab ────────────────────────────────────────────────────────────── */
+
+.c-health {
+  &__now {
+    display: flex; align-items: baseline; gap: var(--sp-8);
+    margin-bottom: var(--sp-12);
+    &[data-tone='warn'] .c-health__bpm { color: var(--app-warning); }
+    &[data-tone='bad'] .c-health__bpm { color: var(--app-danger); }
+  }
+
+  &__heart {
+    align-self: center;
+    display: grid; place-items: center;
+    width: 46px; height: 46px;
+    border-radius: var(--r-pill);
+    background: var(--app-danger-bg);
+    color: var(--app-sos-red);
+    svg { width: 24px; height: 24px; fill: currentColor; }
+    &[data-beating='true'] { animation: c-beat 1s ease-in-out infinite; }
+  }
+
+  &__bpm { font-family: var(--font-display); font-size: 48px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+  &__unit { font-size: 14px; font-weight: 700; color: var(--app-text-muted); }
+
+  &__spo2 {
+    margin-inline-start: auto;
+    display: flex; flex-direction: column; align-items: flex-end;
+    small { font-size: 11px; color: var(--app-text-muted); }
+    b { font-family: var(--font-display); font-size: 22px; font-variant-numeric: tabular-nums; }
+  }
+
+  &__legend { display: flex; justify-content: space-between; margin-top: var(--sp-6); font-size: 11px; color: var(--app-text-faint); }
+
+  &__demo {
+    display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8);
+    .u-btn:last-child { grid-column: 1 / -1; }
+  }
+
+  &__rules { display: flex; flex-direction: column; gap: var(--sp-14); }
+
+  &__grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-8);
+    .u-field__label { font-size: 11px; line-height: 1.3; }
+    input { height: 44px; font-size: 16px; }
+  }
+
+  &__seg { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); font-size: 13px; color: var(--app-text-muted); }
+
+  &__sources { display: flex; flex-direction: column; gap: var(--sp-8); }
+  &__error { margin: var(--sp-10) 0 0; font-size: 12.5px; color: var(--app-danger); }
+  &__privacy { margin: 0; font-size: 12px; line-height: 1.45; text-align: center; color: var(--app-text-faint); }
+}
+
+.c-source {
+  display: flex; align-items: center; gap: var(--sp-12);
+  padding: var(--sp-12);
+  border-radius: var(--r-12);
+  background: var(--app-surface-raised);
+  &[data-current='true'] { box-shadow: inset 0 0 0 2px var(--app-accent-border); }
+
+  &__icon { width: 22px; height: 22px; flex-shrink: 0; color: var(--app-accent); }
+
+  &__text {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column; gap: 2px;
+    strong { font-size: 14px; }
+    span { font-size: 12px; line-height: 1.35; color: var(--app-text-muted); }
+  }
+
+  &__na { max-width: 96px; font-size: 11px; line-height: 1.3; text-align: end; color: var(--app-text-faint); }
+}
+
+.c-chart {
+  display: block;
+  width: 100%; height: 110px;
+  border-radius: var(--r-10);
+  background: var(--app-surface-soft);
+
+  &--empty { display: grid; place-items: center; font-size: 12px; color: var(--app-text-faint); }
+  &__line { fill: none; stroke: var(--app-sos-red); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  &__limit { stroke: var(--app-text-faint); stroke-width: 1; stroke-dasharray: 4 4; }
+}
+
+/* ── Tracking: an SOS the monitor sent ─────────────────────────────────────── */
+
+.c-track__auto {
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: var(--sp-6);
+  padding: var(--sp-4) var(--sp-10);
+  border-radius: var(--r-pill);
+  background: var(--app-danger-bg);
+  color: var(--app-danger);
+  font-size: 12px; font-weight: 700;
+  svg { width: 14px; height: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sos-slider__label, .sos-alert, .sos-alert__icon,
+  .c-vitals__heart[data-beating='true'], .c-health__heart[data-beating='true'] { animation: none; }
+}
+
+/* The health tab's export, and the More tab's report list. */
+.c-export {
+  display: flex; align-items: center; gap: var(--sp-10); flex-wrap: wrap;
+  padding: var(--sp-10) var(--sp-14);
+  border-radius: var(--r-14);
+  background: var(--app-surface-raised);
+  font-size: 12px; color: var(--app-text-muted);
+  .rs-export { min-height: 36px; padding: 0 var(--sp-12); font-size: 12px; }
+}
+
+.c-reports {
+  display: flex; flex-direction: column; gap: var(--sp-6);
+  margin: 0; padding: 0; list-style: none;
+  button {
+    display: flex; align-items: center; gap: var(--sp-10);
+    width: 100%; min-height: 52px; padding: var(--sp-8) var(--sp-12);
+    border: 0; border-radius: var(--r-10);
+    background: var(--app-surface-raised); color: var(--app-text);
+    text-align: start; cursor: pointer;
+    > svg { width: 18px; height: 18px; color: var(--app-brand-red); flex-shrink: 0; }
+    span { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+    strong { font-size: 13.5px; }
+    small { font-size: 11.5px; color: var(--app-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    &:active { background: var(--app-bg-elevated); }
+    &:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 1px; }
+  }
+}

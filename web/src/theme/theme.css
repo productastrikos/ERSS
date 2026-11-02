@@ -5,9 +5,11 @@
    Enforced by `npm run audit:theme`. Every component consumes var(--app-*).
    Retheming the entire product must be possible by editing this file alone.
 
-   Derived from ASTRIKOS-UI-THEME.md v1.0 with one documented divergence: the accent
-   hue is signal amber, not periwinkle. See docs/00-DECISIONS.md D-04 and
-   docs/05-DESIGN-SYSTEM.md.
+   Derived from ASTRIKOS-UI-THEME.md v1.0. The accent is DISPATCH BLUE and the AI's own
+   hue is purple (--app-advisory). Amber is no longer the accent: it is reserved for
+   what genuinely needs attention (--app-warning — a P2, a delay, a held dispatch), so
+   that when amber appears on the wall it means something. Supersedes the signal-amber
+   divergence in docs/00-DECISIONS.md D-04.
    ═══════════════════════════════════════════════════════════════════════════════ */
 
 :root {
@@ -33,28 +35,28 @@
   --app-text-muted:     #A6A6A6;
   --app-text-faint:     #787878;
 
-  /* ── Accent — SIGNAL AMBER ──────────────────────────────────────────────────
-     6.85:1 on --app-panel: AA at every text size.
-     Appears ONLY on: the primary action, the active nav item, focus rings, and
-     selection. Never on a status surface — see the accent/warning rule below.     */
-  --app-accent:         #E0912F;
-  --app-accent-strong:  #EFA544;
-  --app-accent-soft:    #F0B96E;
-  --app-accent-deep:    #B87322;
-  --app-accent-bg:      rgba(224, 145, 47, 0.10);
-  --app-accent-border:  rgba(224, 145, 47, 0.26);
-  --app-glow:           rgba(224, 145, 47, 0.20);
+  /* ── Accent — DISPATCH BLUE ─────────────────────────────────────────────────
+     5.6:1 on --app-panel: AA at every text size.
+     The primary action, the active nav item, focus rings, selection, links. Never a
+     warning: amber (--app-warning) is kept for what needs attention.             */
+  --app-accent:         #4A90F0;
+  --app-accent-strong:  #6AA5F5;
+  --app-accent-soft:    #8DBAF8;
+  --app-accent-deep:    #2F6FD0;
+  --app-accent-bg:      rgba(74, 144, 240, 0.12);
+  --app-accent-border:  rgba(74, 144, 240, 0.30);
+  --app-glow:           rgba(74, 144, 240, 0.22);
 
-  /* ── Primary action — dark ink on amber, 8.3:1 ──────────────────────────── */
-  --app-btn:            #E0912F;
-  --app-btn-hover:      #EFA544;
-  --app-btn-active:     #C97F22;
-  --app-btn-text:       #1A1200;
-  --app-btn-shadow:     rgba(224, 145, 47, 0.24);
+  /* ── Primary action — white on dispatch blue, 5.0:1 ─────────────────────── */
+  --app-btn:            #2F6FD0;
+  --app-btn-hover:      #3D7FE0;
+  --app-btn-active:     #2560B8;
+  --app-btn-text:       #FFFFFF;
+  --app-btn-shadow:     rgba(47, 111, 208, 0.30);
 
-  --app-on-accent:        #1A1200;
+  --app-on-accent:        #FFFFFF;
   --app-on-color:         #FFFFFF;
-  --app-accent-chip-text: #1A1200;
+  --app-accent-chip-text: #FFFFFF;
 
   /* ── AI / advisory — the single purple control (Law 8) ───────────────────── */
   --app-advisory:        #8B5CF6;
@@ -97,21 +99,28 @@
   --app-brand-red-border: rgba(227, 25, 54, 0.30);
   --app-brand-blue:     #005DAB;
 
-  /* Ambulance-livery accent — the red pulse line and the red-to-blue hairline under the
-     header, both sampled from the same lockup as --app-brand-red/--app-brand-blue above.
-     Fixed in both themes, same reasoning as the brand mark itself. */
+  /* Ambulance-livery accent, sampled from the same lockup as --app-brand-red/--app-brand-blue
+     above. Printed documents only now (shared/report) — on screen the client asked for
+     plain colour, so the chrome and the card caps take solid --app-brand-blue. */
   --app-brand-gradient: linear-gradient(90deg, var(--app-brand-red) 0%, var(--app-brand-blue) 100%);
   --app-brand-pulse-glow: rgba(227, 25, 54, 0.35);
 
-  /* A faint wash of the same red-to-blue, low enough opacity that existing text/icon
-     colours (--app-text-muted etc.) stay legible over it. For the main content area's
-     base, behind every panel — panels stay their normal opaque colour on top of it. */
-  --app-brand-wash: linear-gradient(160deg, rgba(227, 25, 54, 0.07) 0%, rgba(0, 93, 171, 0.07) 100%);
+  /* The logo band — the strip at the very top of the sign-in page and the console that
+     carries the Government of Dubai and Dubai Ambulance logos and nothing else. White in
+     BOTH themes: the logo guidelines show each mark in its approved colours, and those are
+     drawn for a white ground. Fixed, like the brand colours themselves. */
+  --app-logo-band-bg:   #FFFFFF;
 
-  /* The header (full gradient) and sidebar (solid --app-brand-blue) both sit directly on
-     a brand colour, so they need their own ink scale rather than --app-text/
-     --app-text-muted (tuned for a near-white or near-black panel). White reads on the
-     gradient and on the blue alike; fixed in both themes because the brand colours are. */
+  /* The sign-in card's focus glow — DCAS blue, lifted on the dark theme so it still reads
+     against a near-black page. */
+  --app-brand-blue-ring: rgba(64, 140, 220, 0.42);
+  /* DCAS blue as text/icon ink on the theme's own panel (the app's selected tab) — the
+     brand value itself is too dark to read on near-black, so it is lifted here. */
+  --app-brand-blue-ink: #5AA2E8;
+
+  /* The toolbar, sidebar and status bar all sit on solid --app-brand-blue, so they need
+     their own ink scale rather than --app-text/--app-text-muted (tuned for a near-white or
+     near-black panel). Fixed in both themes because the brand colour is. */
   --app-brand-ink:          #FFFFFF;
   --app-brand-ink-muted:    rgba(255, 255, 255, 0.82);
   --app-brand-ink-faint:    rgba(255, 255, 255, 0.58);
@@ -183,7 +192,7 @@
   --app-modal-warning-bg:  #261C0D;  --app-modal-warning-border:  #4A3717;
   --app-modal-danger-bg:   #271212;  --app-modal-danger-border:   #4D2222;
   --app-modal-info-bg:     #141D26;  --app-modal-info-border:     #26384A;
-  --app-modal-accent-bg:   #251A0C;  --app-modal-accent-border:   #4A3517;
+  --app-modal-accent-bg:   #0F1A2B;  --app-modal-accent-border:   #1E3556;
 
   /* ── §1.0 chrome stops — purple-warmed metal, for dark ground ────────────── */
   --astk-metal-1: #FFFFFF;  --astk-metal-2: #D9CCF5;  --astk-metal-3: #9B7FE0;
@@ -205,6 +214,12 @@
   --map-building-high: #34332F;
   --map-light:         #FFF4E2;
 
+  /* Place and road names over satellite imagery (shared/map/basemaps.ts). The photo is
+     the same in both themes, so these are fixed too: near-white type on a dark halo
+     reads on sand, tarmac and sea alike. */
+  --map-sat-label:     #F4F4F2;
+  --map-sat-halo:      rgba(0, 0, 0, 0.78);
+
   /* The displacement line — the straight link from a responding ambulance to its call.
      Deliberately a hue NO operational layer uses (not the priority reds and ambers, not
      the transport blue, not the ready green), so it can never be mistaken for the road
@@ -214,21 +229,47 @@
   --map-link-soft:     rgba(185, 140, 255, 0.35);
 
   --app-pattern-opacity: 0.05;
-  --app-pattern-stroke:  #E0912F;
+  --app-pattern-stroke:  #4A90F0;
 
   /* Text shadow on the metallic advisory control — the one place a label sits on a
      bright gradient and needs to be lifted off it. */
   --astk-metal-text-shadow: rgba(0, 0, 0, 0.35);
 
-  /* Sign-in's caption text sits on the brand gradient (the art panel's own background,
-     shell.scss), which is bright enough at some stops that a plain shadow still helps
-     white/red text stay crisp. Fixed in both themes — same reasoning as the gradient. */
-  --login-text-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --login-text-shadow-lg: 0 2px 8px rgba(0, 0, 0, 0.4);
-
   /* Print forces maximum contrast on paper, in both themes. */
   --print-bg:  #FFFFFF;
   --print-ink: #000000;
+
+  /* ── Citizen SOS — the emergency screen and its sliders ─────────────────────
+     Fixed in both themes: the emergency screen is always dark with a signal red, so a
+     frightened person sees the same thing whatever the phone is set to.            */
+  --app-sos-red:        #FF3B30;
+  --app-sos-red-strong: #D92C22;
+  --app-sos-red-glow:   rgba(255, 59, 48, 0.38);
+  --app-sos-red-wash:   radial-gradient(120% 70% at 50% 0%, rgba(255, 59, 48, 0.34) 0%, rgba(255, 59, 48, 0) 70%);
+  --app-sos-scrim:      #0C0C0E;
+  --app-sos-panel:      #161618;
+  --app-sos-track:      rgba(255, 255, 255, 0.14);
+  --app-sos-track-edge: rgba(255, 255, 255, 0.08);
+  --app-sos-ink:        #FFFFFF;
+  --app-sos-ink-muted:  rgba(255, 255, 255, 0.64);
+  --app-sos-knob-light: #FFFFFF;
+  --app-sos-shimmer:    linear-gradient(90deg, rgba(255, 255, 255, 0.45) 0%, #FFFFFF 50%, rgba(255, 255, 255, 0.45) 100%);
+
+  /* Behind the phone-width column when the app is opened on a wide screen. */
+  --app-mobile-backdrop: #0A0A0A;
+
+  /* Behind a drawer laid over the page (the console sidebar on a narrow screen). */
+  --app-scrim: rgba(0, 0, 0, 0.55);
+
+  /* The demo pilot's finger and its narration — a "show touches" dot, readable over any
+     screen, fixed in both themes. */
+  --app-pilot-finger:      rgba(30, 30, 34, 0.30);
+  --app-pilot-finger-core: rgba(255, 255, 255, 0.55);
+  --app-pilot-finger-edge: rgba(255, 255, 255, 0.92);
+  --app-pilot-finger-shadow: rgba(0, 0, 0, 0.28);
+  --app-pilot-ripple:      rgba(30, 30, 34, 0.45);
+  --app-pilot-caption-bg:  rgba(18, 18, 22, 0.90);
+  --app-pilot-caption-ink: #FFFFFF;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -257,16 +298,16 @@
   --app-text-muted:     #56544F;
   --app-text-faint:     #85817A;
 
-  /* Amber darkened to hold AA on paper — 5.19:1 on #FFFFFF */
-  --app-accent:         #A15C0F;
-  --app-accent-strong:  #8A4E0A;
-  --app-accent-soft:    #C07A22;
-  --app-accent-deep:    #6E3D06;
-  --app-accent-bg:      rgba(161, 92, 15, 0.075);
-  --app-accent-border:  rgba(161, 92, 15, 0.22);
-  --app-glow:           rgba(161, 92, 15, 0.15);
+  /* Dispatch blue darkened to hold AA on paper — 6.0:1 on #FFFFFF */
+  --app-accent:         #1F5FBF;
+  --app-accent-strong:  #184C99;
+  --app-accent-soft:    #3D7BD6;
+  --app-accent-deep:    #123A75;
+  --app-accent-bg:      rgba(31, 95, 191, 0.075);
+  --app-accent-border:  rgba(31, 95, 191, 0.22);
+  --app-glow:           rgba(31, 95, 191, 0.15);
 
-  /* Light-mode primary is ink, per the Astrikos pattern; amber stays the accent. */
+  /* Light-mode primary is ink, per the Astrikos pattern; blue stays the accent. */
   --app-btn:            #262523;
   --app-btn-hover:      #3A3835;
   --app-btn-active:     #171614;
@@ -299,6 +340,8 @@
   --app-brand-red-bg:   rgba(227, 25, 54, 0.09);
   --app-brand-red-border: rgba(227, 25, 54, 0.26);
   --app-brand-blue:     #005DAB;
+  --app-brand-blue-ring: rgba(0, 93, 171, 0.22);
+  --app-brand-blue-ink: #005DAB;
 
   --app-info:           #2F6FBF;  --app-info-soft:      #4B87D1;  --app-info-strong:   #22558F;
   --app-info-bg:        rgba(47, 111, 191, 0.08); --app-info-border:    rgba(47, 111, 191, 0.24);
@@ -333,7 +376,7 @@
   --app-modal-warning-bg:  rgba(154, 101, 18, 0.08); --app-modal-warning-border:  rgba(154, 101, 18, 0.28);
   --app-modal-danger-bg:   rgba(190, 46, 46, 0.07);  --app-modal-danger-border:   rgba(190, 46, 46, 0.26);
   --app-modal-info-bg:     rgba(47, 111, 191, 0.07); --app-modal-info-border:     rgba(47, 111, 191, 0.26);
-  --app-modal-accent-bg:   rgba(161, 92, 15, 0.07);  --app-modal-accent-border:   rgba(161, 92, 15, 0.26);
+  --app-modal-accent-bg:   rgba(31, 95, 191, 0.07);  --app-modal-accent-border:   rgba(31, 95, 191, 0.26);
 
   --astk-metal-1: #7C63A8;  --astk-metal-2: #4C3480;  --astk-metal-3: #34225C;
   --astk-metal-4: #9482BE;  --astk-metal-5: #43306E;  --astk-metal-6: #241A3D;
@@ -354,7 +397,10 @@
   --map-link-soft:     rgba(116, 70, 214, 0.30);
 
   --app-pattern-opacity: 0.06;
-  --app-pattern-stroke:  #A15C0F;
+  --app-pattern-stroke:  #1F5FBF;
+
+  --app-mobile-backdrop: #E3E0DB;
+  --app-scrim: rgba(28, 27, 25, 0.32);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -386,8 +432,19 @@
   /* Layout */
   --app-sidebar-w:           248px;
   --app-sidebar-collapsed-w: 64px;
-  --app-header-h:            64px;
+  /* The console's top chrome is one row: a white logo box at each end, the toolbar between
+     them. The two logos' artwork heights set it — the Government of Dubai logo is the
+     taller one, and the row is that plus a little air above and below. Everything pinned
+     below the chrome (drawers, alerts, the detail rail) offsets by --app-header-h. */
+  --app-logo-gov-h:          70px;
+  --app-logo-dcas-h:         42px;
+  --app-header-h:            calc(var(--app-logo-gov-h) + 2 * var(--sp-10));
   --app-footer-h:            32px;
+  --app-mobile-max-w:        440px;
+  /* The app's logo band (app/mobile.scss .m-logoband) — the console header's phone-width
+     logo sizes, so the two read as one product. */
+  --app-mobile-logo-gov-h:   44px;
+  --app-mobile-logo-dcas-h:  26px;
 
   /* Geometry is 60° — the logo's construction. Practical angles only. */
   --angle-surface: 135deg;
@@ -408,6 +465,46 @@
 /* Video-wall mode: a display density, not a separate app. Type ramp ×1.6,
    readable at 4 m, no hover-dependent affordance. */
 :root[data-density='wall'] {
-  --app-header-h: 88px;
+  --app-logo-gov-h: 88px;
+  --app-logo-dcas-h: 53px;
   --app-sidebar-w: 300px;
+}
+
+/* A phone-width console has no room for the toolbar between the logos, so the header
+   stacks: the two logo boxes on a white row, the toolbar under it (shell.scss). The
+   logos shrink in proportion. */
+@media (max-width: 760px) {
+  :root {
+    --app-logo-gov-h: 44px;
+    --app-logo-dcas-h: 26px;
+    --app-toolbar-h: 48px;
+    --app-header-h: calc(var(--app-logo-gov-h) + 2 * var(--sp-8) + var(--app-toolbar-h));
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DOCUMENT COLOURS — reports, PDFs and spreadsheets (shared/report).
+
+   Paper is paper: a report is white with dark ink whatever theme the screen that
+   drafted it is in, so these are the same in both themes. The DCAS red and blue
+   come from the brand mark above; the PDF and Excel renderers READ these tokens at
+   export time, so this file stays the only place a colour is defined.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --app-doc-paper:     #FFFFFF;
+  --app-doc-ink:       #1B1D22;
+  --app-doc-muted:     #5B606B;
+  --app-doc-faint:     #8C919B;
+  --app-doc-rule:      #D9DCE2;
+  --app-doc-zebra:     #F4F6F9;
+  --app-doc-label-bg:  #EEF2F7;
+  --app-doc-blue-tint: #E5EEF7;
+  --app-doc-red-tint:  #FCE8EB;
+  --app-doc-good:      #1D8A4C;
+  --app-doc-warn:      #B26B00;
+  --app-doc-bad:       #C4122F;
+  --app-doc-ai:        #6A3FB5;
+  --app-doc-chart-hr:  #E31936;
+  --app-doc-chart-spo2: #005DAB;
+  --app-doc-desk:      #DDE1E7;
 }

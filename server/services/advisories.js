@@ -9,13 +9,22 @@ import { audit } from '../lib/audit.js';
 import { conflict, notFound } from '../lib/errors.js';
 import * as repo from './../repos/advisories.js';
 import { auditActor } from './actor.js';
+import { poc } from '../config/poc.js';
+import { logger } from '../lib/logger.js';
 import {
   anomalyReport, equityReport, coverageReport, preemptReport,
 } from './intelligence.js';
 import { anomalyCandidate, equityCandidates, coverageGapCandidate, preemptShortfallCandidate } from '../engines/advisory.js';
 
+/**
+ * Detectors whose findings are about something the trial does not cover. The road-only
+ * build (config/poc.js) has no floors, so a vertical-access finding — a lift, a lobby — is
+ * not about anything on its map. Kept in the database, not listed.
+ */
+const outOfScopeDetectors = () => (poc.enabled && poc.roadOnly ? ['vertical-access-excess-v1'] : []);
+
 export async function list(query) {
-  return repo.listAdvisories(pool, query);
+  return repo.listAdvisories(pool, { ...query, excludeDetectors: outOfScopeDetectors() });
 }
 
 export async function detail(ref) {
@@ -110,4 +119,15 @@ export async function generate() {
     }
   });
   return { created, updated, evaluated: candidates.length };
+}
+
+/** The detectors re-run on their own: at start-up and every 15 minutes, so the hub carries
+ *  today's findings rather than whatever was found the last time someone pressed the button. */
+export function startAdvisoryLoop(after = Promise.resolve()) {
+  const run = () => generate()
+    .then((r) => logger.info(r, '[advisories] detectors run'))
+    .catch((err) => logger.warn({ err: err.message }, '[advisories] detector run failed'));
+  void after.catch(() => {}).then(run);
+  const timer = setInterval(run, 15 * 60_000);
+  timer.unref?.();
 }

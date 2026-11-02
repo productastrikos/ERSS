@@ -20,10 +20,15 @@
  *
  * A chase puts the vehicle in the lower third of the view, satnav-style, so most of the
  * screen is the road ahead and the buildings along it rather than the tarmac behind.
+ *
+ * "The view" is the part of the map a person can SEE: a panel over the map (the AI response
+ * drawer) is padded out of it (occlusion.ts), easing as the panel opens and closes, so the
+ * vehicle never rides along under the drawer's edge with its road hidden beneath it.
  */
 
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import { turn, type LngLat } from './motion';
+import { NO_INSETS, occlusion, type Insets } from './occlusion';
 
 /** Low enough to see the road ahead with the towers standing up, high enough for context. */
 export const CHASE_PITCH = 62;
@@ -58,6 +63,11 @@ export class FollowCamera {
   private offset: LngLat | null = null;
   private start = 0;
   private disposed = false;
+  /** What is covered, measured a few times a second, and eased so a drawer sliding in
+   *  glides the camera across rather than jolting it. */
+  private covered: Insets = NO_INSETS;
+  private coveredAt = 0;
+  private pad: Insets = { ...NO_INSETS };
 
   constructor(map: MapLibreMap, opts: { chase: boolean; reducedMotion: boolean }) {
     this.map = map;
@@ -94,19 +104,25 @@ export class FollowCamera {
     this.center = [fix.at[0] + this.offset[0] * left, fix.at[1] + this.offset[1] * left];
     this.zoom += (this.zoomTarget - this.zoom) * k(ZOOM_S);
 
+    if (now - this.coveredAt > 250) { this.covered = occlusion(this.map); this.coveredAt = now; }
+    for (const side of ['top', 'right', 'bottom', 'left'] as const) {
+      this.pad[side] += (this.covered[side] - this.pad[side]) * k(ENTER_S);
+    }
+    const pad = { top: Math.round(this.pad.top), right: Math.round(this.pad.right), bottom: Math.round(this.pad.bottom), left: Math.round(this.pad.left) };
+
     const opts: Parameters<MapLibreMap['jumpTo']>[0] = { center: this.center, zoom: this.zoom };
     if (this.chase) {
       this.pitch += (CHASE_PITCH - this.pitch) * k(ENTER_S);
       if (fix.heading != null) this.bearing = (this.bearing + turn(this.bearing, fix.heading) * k(BEARING_S) + 360) % 360;
       this.look += (LOOK_AHEAD - this.look) * k(ENTER_S);
-      const h = this.map.getCanvas().clientHeight || 600;
+      const h = (this.map.getCanvas().clientHeight || 600) - pad.top - pad.bottom;
       opts.pitch = this.pitch;
       opts.bearing = this.bearing;
-      opts.padding = { top: Math.round(h * this.look), bottom: 0, left: 0, right: 0 };
+      opts.padding = { ...pad, top: pad.top + Math.round(h * this.look) };
     } else {
-      // A plain follow centres the object — including straight after a chase whose padding
-      // reset was cut short by this follower starting.
-      opts.padding = { top: 0, bottom: 0, left: 0, right: 0 };
+      // A plain follow centres the object in what is visible — including straight after a
+      // chase whose padding reset was cut short by this follower starting.
+      opts.padding = pad;
     }
     this.map.jumpTo(opts);
   }

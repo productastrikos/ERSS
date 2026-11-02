@@ -3,16 +3,22 @@
  *
  * Groups, labels, order, the simulated-source marker and live load status all come
  * from the view's descriptors, so adding a layer module adds its row here for free.
+ * The basemap picker heads the panel: what the map is drawn on comes before what is
+ * drawn on it.
  */
 
 import { useState } from 'react';
-import { AlertTriangle, Check, Layers, Loader2, RotateCcw, X } from 'lucide-react';
+import { AlertTriangle, Check, Layers, Loader2, Map as MapIcon, Route, RotateCcw, Satellite, X } from 'lucide-react';
 import { t } from '../../lib/i18n';
+import { setBasemap, useBasemap, type Basemap } from '../../lib/stores/basemap';
 import { Button } from '../ui';
+import { availableBasemaps } from './basemaps';
 import {
   LAYER_GROUPS, setIsolate, setLayerStatus, setVisible, useMapView,
   type LayerDescriptor, type LayerStatus, type MapView,
 } from './layerRegistry';
+
+const BASEMAP_ICON: Record<Basemap, typeof MapIcon> = { standard: MapIcon, streets: Route, satellite: Satellite };
 
 export function LayerControl({ view, defaultOpen = false }: { view: MapView; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -28,6 +34,7 @@ export function LayerControl({ view, defaultOpen = false }: { view: MapView; def
 
       {open && (
         <div className="map-panel map-layers" role="group" aria-label={t('map.layers')}>
+          <BasemapPicker />
           {state.isolate && (
             <div className="map-layers__isolate">
               <span>{t('map.legend.showing', { label: state.isolate.label })}</span>
@@ -54,6 +61,31 @@ export function LayerControl({ view, defaultOpen = false }: { view: MapView; def
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Map / Streets / Satellite — one choice for every map on the console (stores/basemap). */
+function BasemapPicker() {
+  const current = useBasemap();
+  const options = availableBasemaps();
+  if (options.length < 2) return null;
+  return (
+    <div className="map-layers__group map-basemaps" role="radiogroup" aria-label={t('map.basemap')}>
+      <div className="map-layers__eyebrow" aria-hidden>{t('map.basemap')}</div>
+      <div className="map-basemaps__grid">
+        {options.map((b) => {
+          const Icon = BASEMAP_ICON[b];
+          return (
+            <button key={b} type="button" role="radio" aria-checked={current === b}
+                    className={`map-basemaps__option map-basemaps__option--${b}`}
+                    onClick={() => setBasemap(b)}>
+              <span className="map-basemaps__swatch" aria-hidden><Icon /></span>
+              <span>{t(`map.basemap.${b}`)}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

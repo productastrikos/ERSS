@@ -14,7 +14,7 @@
 
   &--full { border-radius: 0; }
 
-  /* The same livery cap as the dashboard's embedded map and every dash-card — this is
+  /* The same brand-blue cap as the dashboard's embedded map and every dash-card — this is
      the one page where that map fills the whole window, so the brand thread still needs
      to show up somewhere on it. Sits above the canvas, below the floating tool clusters. */
   &::before {
@@ -23,7 +23,7 @@
     inset-inline: 0;
     inset-block-start: 0;
     height: 3px;
-    background: var(--app-brand-gradient);
+    background: var(--app-brand-blue);
     z-index: 2;
     pointer-events: none;
   }
@@ -38,6 +38,12 @@
     flex-direction: row;
     align-items: center;
     gap: var(--sp-6);
+    /* One step above the response rail (also --z-overlay, and later in the DOM). The
+       Layers panel opens down from this row, and its own z-index cannot climb out of
+       this control's stacking context — so without this the rail painted over the
+       panel's top rows (the basemap picker). Closed, the row and the rail never meet.
+       Chained with .map-control so it wins regardless of stylesheet order. */
+    &.map-control { z-index: calc(var(--z-overlay) + 1); }
   }
 
   &__tool {
@@ -135,8 +141,8 @@
 
     /* The AI is still working: the glyph breathes. */
     &.is-deciding svg { animation: liveops-think 1.4s ease-in-out infinite; }
-    &.is-following { border-color: var(--app-accent-border); svg { color: var(--app-accent); } }
-    &.is-arrived { border-color: var(--app-success-border); svg { color: var(--app-success); } }
+    &.is-following, &.is-transporting { border-color: var(--app-accent-border); svg { color: var(--app-accent); } }
+    &.is-arrived, &.is-handover { border-color: var(--app-success-border); svg { color: var(--app-success); } }
     &.is-paused { opacity: 0.92; }
   }
   &__director-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -152,6 +158,40 @@
     svg { width: 11px; height: 11px; color: currentColor; animation: none; }
     &:hover { background: var(--app-accent); color: var(--app-on-accent); }
   }
+}
+
+/* ── The demonstration: which incident of three, and when the next one comes ── */
+.demochip {
+  display: inline-flex; align-items: center; gap: var(--sp-8);
+  max-width: 460px;
+  padding: var(--sp-4) var(--sp-6) var(--sp-4) var(--sp-10);
+  border-radius: var(--r-pill);
+  background: var(--app-panel);
+  border: 1px solid var(--app-border-soft);
+  box-shadow: var(--app-shadow-sm), var(--app-edge-light);
+  font-size: 11.5px; font-weight: 600; color: var(--app-text-muted);
+
+  > svg { width: 14px; height: 14px; color: var(--app-accent); flex-shrink: 0; }
+  &__step {
+    padding: 1px var(--sp-6); border-radius: var(--r-pill);
+    background: var(--app-accent-bg); color: var(--app-accent);
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 800; white-space: nowrap;
+  }
+  &__text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--app-text); font-weight: 700; }
+  &__sub { white-space: nowrap; color: var(--app-text-muted); font-family: var(--font-mono); font-size: 11px; }
+  &__go {
+    display: inline-flex; align-items: center; gap: var(--sp-4);
+    padding: var(--sp-2) var(--sp-8);
+    border-radius: var(--r-pill);
+    border: 1px solid var(--app-accent-border);
+    background: var(--app-accent); color: var(--app-on-accent);
+    font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; white-space: nowrap;
+    svg { width: 11px; height: 11px; }
+    &:hover { background: var(--app-accent-strong); }
+    &:disabled { opacity: 0.6; cursor: progress; }
+  }
+  &.is-finished { border-color: var(--app-success-border); > svg { color: var(--app-success); } }
+  &.is-phones { border-color: var(--app-accent-border); }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -221,7 +261,7 @@
     border-inline-start: 3px solid transparent;
 
     &[data-priority='P1'] { border-inline-start-color: var(--app-danger); }
-    &[data-priority='P2'] { border-inline-start-color: var(--app-accent); }
+    &[data-priority='P2'] { border-inline-start-color: var(--app-warning); }
     &[data-priority='P3'] { border-inline-start-color: var(--app-info); }
     &[data-priority='P4'] { border-inline-start-color: var(--app-text-faint); }
 

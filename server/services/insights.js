@@ -30,6 +30,9 @@ import { buildFilter, windowDays, summarise, DOW_SHORT } from '../lib/filters.js
 import { gstToday, windowDayLabels, fillDays, fillDayHours } from '../lib/timegrid.js';
 import { forecast, forecastLabelled, nextDay, nextMonth, projectCategories } from '../lib/forecast.js';
 import { jurisdiction } from '../config/jurisdiction.js';
+import { logFor } from './aiLog.js';
+import { review } from './afterAction.js';
+import * as decisions from './decisions.js';
 
 const GST = 'Asia/Dubai';
 const clamp = (n, lo, hi, fallback) => {
@@ -232,10 +235,29 @@ export async function monthly({ months = 18, ahead = 3, filters = {} } = {}) {
   const byMonth = new Map(complete.map((x) => [x.month, x.calls]));
   const last3 = complete.slice(-3);
   const priorYear = last3.map((x) => byMonth.get(nextMonth(x.month, -12)));
-  const haveYear = last3.length === 3 && priorYear.every((v) => typeof v === 'number' && v > 0);
-  const yoy = haveYear
+  let haveYear = last3.length === 3 && priorYear.every((v) => typeof v === 'number' && v > 0);
+  let yoy = haveYear
     ? last3.reduce((s, x) => s + x.calls, 0) / priorYear.reduce((s, v) => s + v, 0)
-    : 1;
+    : null;
+  // A window shorter than a year has no "same month last year" in it, and the comparison
+  // used to fall back to ×1.00 — printed as "+0%". Year-on-year is not a property of the
+  // window being viewed, so it reads the year it needs, under the same filter.
+  if (yoy == null && last3.length === 3) {
+    const fy = buildFilter(filters, { source: 'incidents', window: { months: 16 } });
+    const { rows: yr } = await pool.query(
+      `SELECT to_char(date_trunc('month', i.reported_at AT TIME ZONE '${GST}'), 'YYYY-MM') AS month, COUNT(*)::int AS calls
+         FROM incidents i WHERE TRUE${fy.where} GROUP BY 1`,
+      fy.params,
+    );
+    const lastYear = new Map(yr.map((r) => [r.month, r.calls]));
+    const prior = last3.map((x) => lastYear.get(nextMonth(x.month, -12)));
+    if (prior.every((v) => typeof v === 'number' && v > 0)) {
+      yoy = last3.reduce((s, x) => s + x.calls, 0) / prior.reduce((s, v) => s + v, 0);
+      // The seasonal-naive line below reads last year's months too.
+      for (const [month, calls] of lastYear) if (month !== thisMonth && !byMonth.has(month)) byMonth.set(month, calls);
+      haveYear = true;
+    }
+  }
 
   // Starts at the CURRENT month, exactly where the forecaster's first step lands, so the
   // two predictions sit on the same x positions and can be read against each other.
@@ -243,7 +265,7 @@ export async function monthly({ months = 18, ahead = 3, filters = {} } = {}) {
   for (let k = 0; k < n; k++) {
     const key = nextMonth(thisMonth, k);
     const base = byMonth.get(nextMonth(key, -12)) ?? complete.at(-1)?.calls ?? null;
-    seasonalNaive.push({ month: key, calls: base == null ? null : Math.round(base * yoy) });
+    seasonalNaive.push({ month: key, calls: base == null ? null : Math.round(base * (yoy ?? 1)) });
   }
 
   // ── Primary: the shared forecaster, with intervals and a backtest ──────────
@@ -261,11 +283,17 @@ export async function monthly({ months = 18, ahead = 3, filters = {} } = {}) {
   const partial = actual.at(-1)?.month === thisMonth ? actual.at(-1) : null;
   const { rows: pace } = await pool.query(
     `SELECT EXTRACT(DAY FROM now() AT TIME ZONE $1)::int AS elapsed,
+            EXTRACT(EPOCH FROM (now() AT TIME ZONE $1) - date_trunc('month', now() AT TIME ZONE $1)) / 86400.0 AS elapsed_days,
             EXTRACT(DAY FROM (date_trunc('month', now() AT TIME ZONE $1) + interval '1 month - 1 day'))::int AS in_month`,
     [GST],
   );
-  const projected = partial && pace[0].elapsed > 0
-    ? Math.round((partial.calls / pace[0].elapsed) * pace[0].in_month)
+  // Scaled by the time actually elapsed, not the day-of-month: at 10:00 on the 1st, a
+  // day-of-month of 1 counted a morning as a whole day and projected a third of a month.
+  // And not at all in the first three days, when a night's lull or a busy morning would be
+  // multiplied thirtyfold — the forecast beside it is the better number then.
+  const elapsedDays = Number(pace[0].elapsed_days);
+  const projected = partial && elapsedDays >= 3
+    ? Math.round((partial.calls / elapsedDays) * pace[0].in_month)
     : null;
 
   return {
@@ -289,10 +317,10 @@ export async function monthly({ months = 18, ahead = 3, filters = {} } = {}) {
     },
     seasonalNaive,
     /** Kept for the subtitle every Overview card already prints. */
-    method: haveYear
+    method: haveYear && yoy != null
       ? `${fc.method} · seasonal-naive comparison: same month last year × ${yoy.toFixed(2)} year-on-year`
       : `${fc.method} · history too short to measure year-on-year growth`,
-    yoy: Number(yoy.toFixed(3)),
+    yoy: yoy == null ? null : Number(yoy.toFixed(3)),
   };
 }
 
@@ -1324,6 +1352,12 @@ export async function replay(ref) {
         ORDER BY p.ts`, [inc.id]),
   ]);
 
+  // What the AI said, kept (services/aiLog.js): the console's dispatch reasoning, the crew
+  // co-pilot's briefing and road advice, the drive checkpoints, and the after-action review.
+  // An incident from before the log was kept falls back to the reasoning rebuilt from the
+  // record, so every replay has something to read beside the map.
+  const ai = await aiFor(ref);
+
   const primary = assignments.rows.find((a) => a.is_primary) ?? assignments.rows[0] ?? null;
   const savedSec = primary && primary.route_taken_sec != null && primary.route_proposed_sec != null
     ? primary.route_taken_sec - primary.route_proposed_sec : null;
@@ -1368,6 +1402,34 @@ export async function replay(ref) {
     track: positions.rows.map((p) => ({
       unitRef: p.unit_ref, ts: p.ts, lng: p.lng, lat: p.lat, speed: p.speed, status: p.status,
     })),
+    ai,
+  };
+}
+
+async function aiFor(ref) {
+  const kept = await logFor(ref) ?? [];
+  const decision = kept.find((r) => r.source === 'console' && r.key === '__decision')?.meta ?? decisions.snapshot(ref);
+  let log = kept.filter((r) => r.key !== '__decision' && r.source !== 'review');
+  let rebuilt = false;
+  if (!log.some((r) => r.source === 'console')) {
+    const tr = await decisions.trace(ref, null).catch(() => null);
+    if (tr) {
+      rebuilt = true;
+      log = [...log, ...tr.steps.filter((s) => s.state !== 'active').map((s) => ({
+        source: 'console', key: s.key, ts: s.at, title: s.title, detail: s.detail, tone: s.tone, items: s.items, meta: null,
+      }))].sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+    }
+  }
+  const keptReview = kept.filter((r) => r.source === 'review')
+    .sort((a, b) => (a.meta?.order ?? 0) - (b.meta?.order ?? 0))
+    .map((r) => ({ id: r.key, kind: r.meta?.kind ?? 'good', tone: r.tone, title: r.title, detail: r.detail, metric: r.items?.[0] ?? null }));
+  const live = keptReview.length ? null : await review(ref).catch(() => null);
+  return {
+    log,
+    decision: decision ?? null,
+    review: keptReview.length ? keptReview : (live?.findings ?? []),
+    reviewNote: live?.note ?? 'Working standards for the review are this build’s assumptions, not published DCAS figures. Scene and hand-over times are shortened in the demonstration.',
+    kept: !rebuilt && log.length > 0,
   };
 }
 

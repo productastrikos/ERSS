@@ -20,14 +20,19 @@ import { toggleValue, pickHour } from '../../../shared/filters/actions';
 import { useFilters, filterKey, toQuery, windowDays, horizonDays, setFilters } from '../../../lib/filters';
 import { count, duration, durationLong, pct, UNIT_KIND_LABEL, durationUnit } from '../../../lib/format';
 import { useInsight } from './useInsight';
+import { usePoc } from '../../../lib/stores/session';
 import type { PerformanceResult } from '../../../lib/types';
 
-/** Findings over the performance payload the page already holds. */
-function performanceFindings(r: PerformanceResult): Finding[] {
+/** Findings over the performance payload the page already holds. `roadOnly` is the trial
+ *  scope (config/poc.js): no call in it has a floor, so a building finding is out of it. */
+function performanceFindings(r: PerformanceResult, roadOnly: boolean): Finding[] {
   const out: Finding[] = [];
 
   // Which stage is actually carrying the response time — the question a total can't answer.
-  const stages = r.stages.filter((s) => s.meanSec != null) as Array<{ key: string; label: string; meanSec: number }>;
+  // Over the clock's own stages: vertical access is measured on high-rise calls only and
+  // after the clock stops, so adding it in compared two different populations.
+  const measured = r.stages.filter((s) => s.meanSec != null) as Array<{ key: string; label: string; meanSec: number }>;
+  const stages = measured.filter((s) => s.key !== 'vertical');
   const sum = stages.reduce((s, x) => s + x.meanSec, 0);
   const worst = [...stages].sort((a, b) => b.meanSec - a.meanSec)[0];
   if (worst && sum > 0) {
@@ -42,8 +47,8 @@ function performanceFindings(r: PerformanceResult): Finding[] {
   }
 
   // Vertical access is invisible to the standard clock, which stops at the entrance.
-  const vertical = stages.find((s) => s.key === 'vertical');
-  if (vertical && vertical.meanSec >= 120) {
+  const vertical = measured.find((s) => s.key === 'vertical');
+  if (!roadOnly && vertical && vertical.meanSec >= 120) {
     out.push({
       id: 'vertical-access',
       tone: 'critical',
@@ -84,6 +89,7 @@ function performanceFindings(r: PerformanceResult): Finding[] {
 
 export function PerformanceTab() {
   const f = useFilters();
+  const poc = usePoc();
   const q = toQuery(f);
   const result = useInsight(`performance:${filterKey(f)}`, () =>
     api.insights.performance({ days: windowDays(f), ahead: horizonDays(f) }, q));
@@ -143,7 +149,7 @@ export function PerformanceTab() {
                 predictedLabel={nextWithin ? t('chart.by', { day: shortDay(nextWithin.day) }) : undefined} /></Card>
             </div>
 
-            <AdvisoryStrip findings={performanceFindings(r)}
+            <AdvisoryStrip findings={performanceFindings(r, poc.enabled && poc.roadOnly)}
                            note={`Stage decomposition over the last ${windowDays(f)} days.`} />
 
             <Card title={t('insights.performance.trend')}

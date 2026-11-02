@@ -17,10 +17,11 @@ const LIST_SELECT = `
     LEFT JOIN users u     ON u.id = a.owner_user_id
     LEFT JOIN incidents i ON i.id = a.incident_id`;
 
-export async function listAdvisories(db, { severity, state, category, zoneRef } = {}) {
+export async function listAdvisories(db, { severity, state, category, zoneRef, excludeDetectors } = {}) {
   const params = [];
   const where = [];
   const add = (sql, v) => { params.push(v); where.push(sql.replace('?', `$${params.length}`)); };
+  if (excludeDetectors?.length) add('a.detector <> ALL(?::text[])', excludeDetectors);
   if (severity) add('a.severity = ?', severity);
   if (state) add('a.state = ?', state);
   else where.push(`a.state NOT IN ('closed','dismissed')`);

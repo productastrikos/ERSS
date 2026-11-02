@@ -22,25 +22,49 @@ export interface RoadRoute {
   durationSec: number | null;
 }
 
+/** A public routing server is usually quick and occasionally slow or rate-limited: a
+ *  slow answer gets a second and third chance before anything is drawn off the road. */
+const ATTEMPTS = 3;
+const ATTEMPT_TIMEOUT_MS = 8000;
+const RETRY_PAUSE_MS = [0, 1200, 2500];
+
+async function attempt(url: string, signal?: AbortSignal): Promise<RoadRoute | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
+  const onAbort = () => controller.abort();
+  signal?.addEventListener('abort', onAbort);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`OSRM ${res.status}`);
+    const body = await res.json() as {
+      routes?: Array<{ geometry?: { coordinates?: LngLat[] }; distance?: number; duration?: number }>;
+    };
+    const route = body.routes?.[0];
+    const path = route?.geometry?.coordinates ?? [];
+    return path.length > 1
+      ? { path, onRoad: true, distanceM: route?.distance ?? null, durationSec: route?.duration ?? null }
+      : null;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onAbort);
+  }
+}
+
 export async function fetchRoadRoute(start: LngLat, end: LngLat, signal?: AbortSignal): Promise<RoadRoute> {
   if (config.osrmUrl) {
-    try {
-      const url = `${config.osrmUrl}/route/v1/driving/${start[0]},${start[1]};${end[0]},${end[1]}`
-        + '?overview=full&geometries=geojson&steps=false';
-      const res = await fetch(url, { signal });
-      if (!res.ok) throw new Error(`OSRM ${res.status}`);
-      const body = await res.json() as {
-        routes?: Array<{ geometry?: { coordinates?: LngLat[] }; distance?: number; duration?: number }>;
-      };
-      const route = body.routes?.[0];
-      const path = route?.geometry?.coordinates ?? [];
-      if (path.length > 1) {
-        return { path, onRoad: true, distanceM: route?.distance ?? null, durationSec: route?.duration ?? null };
+    const url = `${config.osrmUrl}/route/v1/driving/${start[0]},${start[1]};${end[0]},${end[1]}`
+      + '?overview=full&geometries=geojson&steps=false';
+    for (let i = 0; i < ATTEMPTS; i++) {
+      if (RETRY_PAUSE_MS[i]) await new Promise((r) => setTimeout(r, RETRY_PAUSE_MS[i]));
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      try {
+        const road = await attempt(url, signal);
+        if (road) return road;
+      } catch (err) {
+        if (signal?.aborted) throw err;
       }
-    } catch (err) {
-      if (signal?.aborted) throw err;
-      console.warn('[routing] OSRM unavailable, drawing a straight line:', err);
     }
+    console.warn('[routing] OSRM did not answer after', ATTEMPTS, 'attempts — drawing a straight line');
   }
 
   // Forty points, so anything animating along it still moves smoothly.

@@ -1,20 +1,34 @@
 /* Dashboard — the DCAS live picture. NO COLOUR LITERALS: tokens only. */
 
+/* ── The grid ──────────────────────────────────────────────────────────────────
+   One 12-column grid with one gutter, and everything on the page sits on its column
+   lines. The hero band and the bottom row take the page's own tracks through `subgrid`,
+   so a tile's edge and the edge of the card under it are the same line, not two lines
+   that happen to be close.
+
+     wide   (> 1500px)    hero    3 | 2 | 2 | 2 | 3
+                          map     9               | rail 3   (beside map AND bottom)
+                          bottom  3 | 3 | 3       |
+     medium (1201–1500)   hero    4 | 2 | 2 | 2 | 2          the page scrolls
+                          map     8           | rail 4
+                          bottom  4 | 4 | 4
+     narrow (≤ 1200px)    one column
+
+   Wide: the response tile sits over the response card, the AI tile over the rail. */
+
 .dash {
+  --dash-gutter: var(--sp-16);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   grid-template-rows: auto minmax(0, 1fr) 232px;
-  grid-template-areas:
-    'hero   hero'
-    'map    rail'
-    'bottom rail';
-  gap: var(--sp-12);
-  padding: var(--sp-12);
+  gap: var(--dash-gutter);
+  padding: var(--dash-gutter);
   height: 100%;
   min-height: 0;
 
   &__map {
-    grid-area: map;
+    grid-column: 1 / span 9;
+    grid-row: 2;
     position: relative;
     min-height: 0;
     border-radius: var(--r-14);
@@ -22,30 +36,36 @@
     background: var(--app-panel);
     box-shadow: var(--app-shadow-sm), var(--app-edge-light);
 
-    /* Same livery cap as every dash-card and the header — the live map is the one
-       surface on the page big enough that a stripe down its side would compete with
-       the operational data on it, so it takes the cap instead. */
+    /* Same brand-blue cap as every dash-card — the live map is the one surface on the
+       page big enough that a stripe down its side would compete with the operational
+       data on it, so it takes the cap instead. */
     &::before {
       content: '';
       position: absolute;
       inset-inline: 0;
       inset-block-start: 0;
       height: 3px;
-      background: var(--app-brand-gradient);
+      background: var(--app-brand-blue);
       z-index: 1;
     }
   }
 
-  &__rail { grid-area: rail; display: flex; flex-direction: column; gap: var(--sp-12); min-height: 0; }
-
-  &__bottom {
-    grid-area: bottom;
-    display: grid;
-    /* incident card | ambulance-on-this-incident, side by side (the reported "these two
-       belong together") | hospitals. */
-    grid-template-columns: minmax(260px, 340px) minmax(280px, 1fr) 300px;
-    gap: var(--sp-12);
+  &__rail {
+    grid-column: 10 / -1;
+    grid-row: 2 / span 2;
+    display: flex; flex-direction: column; gap: var(--dash-gutter);
     min-height: 0;
+  }
+
+  /* incident card | ambulance-on-this-incident, side by side (the reported "these two
+     belong together") | hospitals — each on the page's own columns. */
+  &__bottom {
+    grid-column: 1 / span 9;
+    grid-row: 3;
+    display: grid;
+    grid-template-columns: subgrid;
+    min-height: 0;
+    > * { grid-column: span 3; min-width: 0; }
   }
 
   &__onmap {
@@ -104,11 +124,30 @@
 
 /* ── Hero band ─────────────────────────────────────────────────────────────── */
 
+/* The day's summary, downloadable: tucked into the hero band's corner. */
+.dash__hero-export {
+  position: absolute; inset-block-start: var(--sp-6); inset-inline-end: var(--sp-8); z-index: 1;
+}
+.dash-card__actions { display: inline-flex; align-items: center; gap: var(--sp-6); }
+
 .dash__hero {
-  grid-area: hero;
+  position: relative;
+  grid-column: 1 / -1;
+  grid-row: 1;
   display: grid;
-  grid-template-columns: minmax(300px, 1.7fr) repeat(4, minmax(160px, 1fr));
-  gap: var(--sp-12);
+  grid-template-columns: subgrid;
+  /* Two shared rows — every tile's label, then every tile's figures — so the figures
+     start on one line across the band even when a narrow tile wraps its label. */
+  grid-template-rows: auto auto;
+
+  > .hero-tile {
+    grid-column: span 2;
+    grid-row: 1 / span 2;
+    display: grid;
+    grid-template-rows: subgrid;
+    row-gap: var(--sp-6);
+  }
+  > .hero-tile--primary, > .hero-tile--ai { grid-column: span 3; }
 }
 
 .hero-tile {
@@ -120,9 +159,9 @@
   box-shadow: var(--app-shadow-sm), var(--app-edge-light);
   min-width: 0;
 
-  /* The livery stripe — every tile in the row carries a sliver of the client's own
-     red-to-blue, same token as the header's hairline and the map's cap. Faint here so
-     five stripes read as one row, not five separate flags. */
+  /* The brand stripe — every tile in the row carries a sliver of the client's blue, the
+     same token as the toolbar and the map's cap. Faint here so five stripes read as one
+     row, not five separate flags. */
   &::before {
     content: '';
     position: absolute;
@@ -130,16 +169,19 @@
     inset-inline-start: 0;
     width: 3px;
     border-radius: var(--r-14) 0 0 var(--r-14);
-    background: var(--app-brand-gradient);
+    background: var(--app-brand-blue);
     opacity: 0.45;
   }
 
   &--primary {
-    background: linear-gradient(120deg, var(--app-accent-bg), var(--app-panel) 65%);
     /* Today's response time is the figure DCAS is judged on — its stripe runs at full
-       strength and width, the rest of the row at a quieter one (above). */
+       strength and width, the rest of the row at a quieter one (above). Same plain panel
+       as the other tiles: the stripe marks it, not a tinted background. */
     &::before { width: 4px; opacity: 1; }
   }
+
+  /* Everything under the label: the figure row and its one line of context. */
+  &__body { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
 
   &__split { display: flex; gap: var(--sp-16); align-items: stretch; min-width: 0; }
   &__main { flex: 1 1 55%; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
@@ -229,15 +271,15 @@
   background: var(--app-panel);
   box-shadow: var(--app-shadow-sm), var(--app-edge-light);
 
-  /* The same livery cap as the map and the header — every card on the page carries it,
-     so the brand thread runs the whole surface rather than stopping at the hero row. */
+  /* The same brand-blue cap as the map — every card on the page carries it, so the
+     brand thread runs the whole surface rather than stopping at the hero row. */
   &::before {
     content: '';
     position: absolute;
     inset-inline: 0;
     inset-block-start: 0;
     height: 3px;
-    background: var(--app-brand-gradient);
+    background: var(--app-brand-blue);
     z-index: 1;
   }
 
@@ -488,6 +530,8 @@
     /* Compact mode (AssignedCrewCard's `compact` prop) keeps this to head + a 3-column
        kv grid — fits the fixed-height strip with no scroll, unlike the rail's full card. */
     padding: var(--sp-8) var(--sp-12) var(--sp-10);
+    /* Never clip: on a short strip the card scrolls rather than cutting off its controls. */
+    overflow-y: auto;
     .dtl-crew { gap: var(--sp-6); }
   }
 }
@@ -557,21 +601,40 @@
 
 /* ── Narrower screens: stack, and let the page scroll ─────────────────────── */
 
-@media (max-width: 1400px) {
-  .dash__bottom { grid-template-columns: minmax(0, 1fr); grid-template-rows: 216px 216px; }
-  .dash { grid-template-rows: auto minmax(460px, 1fr) auto; height: auto; min-height: 100%; }
-  .dash__hero { grid-template-columns: minmax(300px, 1.7fr) repeat(2, minmax(160px, 1fr)); }
+/* Medium: the same 12 columns, split 8 | 4. The bottom row takes the full width, three
+   cards of four columns, so all three keep a usable width; the page scrolls. */
+@media (max-width: 1500px) {
+  .dash { grid-template-rows: auto minmax(460px, 1fr) 232px; height: auto; min-height: 100%; }
+  .dash__hero {
+    > .hero-tile, > .hero-tile--ai { grid-column: span 2; }
+    > .hero-tile--primary { grid-column: span 4; }
+  }
+  .dash__map { grid-column: 1 / span 8; }
+  .dash__rail { grid-column: 9 / -1; grid-row: 2; }
+  .dash__bottom {
+    grid-column: 1 / -1;
+    > * { grid-column: span 4; }
+  }
 }
 
-@media (max-width: 1100px) {
+/* Narrow: one column, top to bottom. */
+@media (max-width: 1200px) {
   .dash {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto 60vh auto auto;
-    grid-template-areas: 'hero' 'map' 'rail' 'bottom';
   }
-  .dash__hero { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .dash__hero {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--dash-gutter);
+    > .hero-tile, > .hero-tile--primary, > .hero-tile--ai { grid-column: auto; grid-row: auto; display: flex; }
+  }
+  .dash__map, .dash__rail, .dash__bottom { grid-column: 1 / -1; grid-row: auto; }
   .dash__rail .feed { max-height: 420px; }
-  .dash__bottom { grid-template-rows: auto; }
+  .dash__bottom {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--dash-gutter);
+    > * { grid-column: auto; min-height: 216px; }
+  }
   .hero-tile__split { flex-direction: column; }
 }
 

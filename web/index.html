@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#FFFFFF" />
+    <meta name="theme-color" content="#171717" />
     <meta name="description" content="Emergency Response Support System — Dubai" />
 
     <title>ERSS Dubai</title>
@@ -18,11 +18,14 @@
     <link rel="preload" href="/fonts/lato-400-latin.woff2"    as="font" type="font/woff2" crossorigin />
 
     <script>
-      // Apply the stored theme before first paint so there is no flash of the wrong
-      // one. Light is the default.
+      // Apply the stored theme before first paint so there is no flash of the wrong one.
+      // Same rule as src/lib/stores/theme.ts: the console and the mobile app keep their own
+      // choice; the console defaults to dark, the app follows the phone ('system').
       (function () {
         try {
-          var t = localStorage.getItem('erss.theme');
+          var app = location.pathname.indexOf('/app') === 0;
+          var t = localStorage.getItem(app ? 'erss.theme.app' : 'erss.theme') || (app ? 'system' : 'dark');
+          if (t === 'system') t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
           if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
           var d = localStorage.getItem('erss.density');
           if (d === 'wall') document.documentElement.setAttribute('data-density', d);

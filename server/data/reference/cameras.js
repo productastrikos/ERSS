@@ -80,6 +80,54 @@ export const CAMERAS = [
     idleClipUrl: '/media/traffic_cctv_9.mp4',
   },
 
+  // ── The demonstration scenarios' cameras (sim/scenarios.js) ──────────────────
+  // One mast at each scenario site, on the carriageway it watches, and a second angle
+  // where the junction has one. Each looks at the point the scenario's incident is placed.
+  {
+    id: 'RTA-CAM-211',
+    name: 'Al Ruwayyah St — DSO east mast',
+    kind: 'junction', agencyCode: 'RTA',
+    lng: 55.40455, lat: 25.12875,
+    bearing: 105, fovDeg: 74, rangeM: 160,
+    signalId: null, buildingId: null, floor: null, roomId: null,
+    analytics: ['incident_detection', 'speed', 'density'],
+    clipUrl: '/media/rw_crash_cam_a.mp4',
+    idleClipUrl: '/media/rw_crash_cam_a.mp4',
+  },
+  {
+    id: 'RTA-CAM-212',
+    name: 'Al Ruwayyah St — eastbound gantry',
+    kind: 'junction', agencyCode: 'RTA',
+    lng: 55.40690, lat: 25.12770,
+    bearing: 290, fovDeg: 70, rangeM: 150,
+    signalId: null, buildingId: null, floor: null, roomId: null,
+    analytics: ['incident_detection', 'density'],
+    clipUrl: '/media/rw_crash_cam_a.mp4',
+    idleClipUrl: '/media/rw_crash_cam_a.mp4',
+  },
+  {
+    id: 'RTA-CAM-221',
+    name: 'Warsan St 1 — International City mast',
+    kind: 'junction', agencyCode: 'RTA',
+    lng: 55.41360, lat: 25.15140,
+    bearing: 140, fovDeg: 74, rangeM: 150,
+    signalId: null, buildingId: null, floor: null, roomId: null,
+    analytics: ['incident_detection', 'speed', 'density'],
+    clipUrl: '/media/rw_crash_cam_a.mp4',
+    idleClipUrl: '/media/rw_crash_cam_a.mp4',
+  },
+  {
+    id: 'RTA-CAM-231',
+    name: 'Algeria St — Mirdif mast',
+    kind: 'junction', agencyCode: 'RTA',
+    lng: 55.42350, lat: 25.22490,
+    bearing: 35, fovDeg: 74, rangeM: 150,
+    signalId: null, buildingId: null, floor: null, roomId: null,
+    analytics: ['incident_detection', 'speed', 'density'],
+    clipUrl: '/media/rw_crash_cam_a.mp4',
+    idleClipUrl: '/media/rw_crash_cam_a.mp4',
+  },
+
 ];
 
 const BY_ID = new Map(CAMERAS.map((c) => [c.id, c]));

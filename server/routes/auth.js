@@ -8,6 +8,7 @@ import {
   capabilitiesFor, ROLES, sessionTokenFrom,
 } from '../lib/auth.js';
 import { audit } from '../lib/audit.js';
+import { bus } from '../lib/bus.js';
 
 const router = Router();
 
@@ -52,6 +53,8 @@ router.post('/login', wrap(async (req, res) => {
     action: 'auth.login', entity: 'user', entityId: user.id,
     actor: { id: user.id, ref: user.ref }, payload: { role: user.role },
   });
+  // The live picture's cue (sim/live.js): a demonstration starts when someone signs in.
+  if (ROLES[user.role]?.surface === 'console') bus.publish('console:signin', { ref: user.ref });
 
   // The token is returned as well as set as a cookie: the browser surfaces keep it per tab
   // and send it as a Bearer header (lib/auth.js sessionTokenFrom).

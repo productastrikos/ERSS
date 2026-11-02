@@ -1,0 +1,62 @@
+/* The patient's wearable, live (VitalsCard.tsx). Heart rate in the danger red, SpO₂ in the
+   info blue — the same pairing as the report's chart. No colour literals. */
+
+.vit {
+  display: flex; flex-direction: column; gap: var(--sp-8);
+  padding: var(--sp-12) var(--sp-14);
+  border-radius: var(--r-12);
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow-sm), var(--app-edge-light);
+
+  &__head {
+    display: flex; align-items: center; gap: var(--sp-6);
+    > svg { width: 16px; height: 16px; color: var(--app-danger); }
+  }
+  &__title { font-family: var(--font-display); font-size: 13px; font-weight: 700; color: var(--app-text); }
+  &__device { flex: 1; font-size: 11px; color: var(--app-text-faint); text-align: end; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  &__live {
+    display: inline-flex; align-items: center; gap: var(--sp-4);
+    padding: 1px var(--sp-6); border-radius: var(--r-pill);
+    background: var(--app-danger-bg); color: var(--app-danger);
+    font-size: 9.5px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase;
+    span { width: 6px; height: 6px; border-radius: var(--r-pill); background: currentColor; animation: vit-pulse 1.2s ease-in-out infinite; }
+    @media (prefers-reduced-motion: reduce) { span { animation: none; } }
+  }
+
+  &__now { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: var(--sp-14); }
+  &__num {
+    display: flex; flex-direction: column; gap: 1px;
+    --tone-ink: var(--app-danger);
+    &[data-tone='good'] { --tone-ink: var(--app-text); }
+  }
+  &__num--spo2 { --tone-ink: var(--app-info); &[data-tone='good'] { --tone-ink: var(--app-text); } }
+  &__num[data-tone='bad'] { --tone-ink: var(--app-danger); }
+  &__num[data-tone='warn'] { --tone-ink: var(--app-warning); }
+  &__value {
+    font-family: var(--font-display); font-size: 26px; font-weight: 800; line-height: 1;
+    color: var(--tone-ink); font-variant-numeric: tabular-nums;
+    small { font-size: 14px; }
+  }
+  &__unit { font-size: 10.5px; color: var(--app-text-faint); white-space: nowrap; }
+
+  &__spark { width: 100%; height: 44px; }
+  &__line { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
+  &__line--hr { stroke: var(--app-danger); }
+  &__line--spo2 { stroke: var(--app-info); }
+
+  &__headline {
+    margin: 0; padding: var(--sp-6) var(--sp-10); border-radius: var(--r-8);
+    font-size: 12.5px; font-weight: 800; color: var(--app-text);
+    background: var(--app-surface-raised);
+    &[data-tone='bad'] { background: var(--app-danger-bg); color: var(--app-danger); }
+    &[data-tone='warn'] { background: var(--app-warning-bg); color: var(--app-warning); }
+  }
+  &__text, &__prepare { margin: 0; font-size: 12px; line-height: 1.45; color: var(--app-text-muted); }
+  &__prepare b { color: var(--app-text); }
+  &__caveat { margin: 0; font-size: 10.5px; color: var(--app-text-faint); }
+
+  &--compact { padding: var(--sp-10) var(--sp-12); }
+  &--compact &__value { font-size: 22px; }
+}
+
+@keyframes vit-pulse { 50% { opacity: 0.3; } }

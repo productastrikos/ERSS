@@ -33,6 +33,14 @@ const recent = [];
 const lastRaised = new Map();
 const acknowledged = new Set();
 
+// A PoC restart deletes the incidents these alerts are about; a bell full of them would send
+// the room to records that no longer exist.
+bus.on('sim:reset', () => {
+  recent.length = 0;
+  lastRaised.clear();
+  acknowledged.clear();
+});
+
 const TARGET = Object.fromEntries(jurisdiction.priorities.map((p) => [p.code, p.targetSec]));
 const LABEL = {
   cardiac_arrest: 'Cardiac arrest', cardiac: 'Cardiac', stroke: 'Stroke', respiratory: 'Breathing difficulty',
